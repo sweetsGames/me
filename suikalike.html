@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0">
+<title>アニマルあわせ</title>
+<style>
+  body {
+    margin: 0;
+    background: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    touch-action: none;
+    font-family: sans-serif;
+  }
+  canvas {
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    background: #f4fff4;
+    max-width: 100%;
+    max-height: 100%;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  var c = document.getElementById('c'),
+      ctx = c.getContext('2d'),
+      W = 400,
+      H = 700,
+      f = ['🐭','🐹','🐰','🦊','🐶','🐼','🐻','🐯','🦁','🐮'],
+      rs = [24, 32, 40, 50, 62, 74, 88, 104, 122, 140],
+      bl = [],
+      nx = 0,
+      st = 0,
+      sc = 0,
+      hs = 0,
+      go = false,
+      btn = false;
+
+  try { hs = localStorage.getItem('ab_hs') || 0; } catch(e) {}
+
+  function rz() {
+      var r = Math.min(window.innerWidth / W, window.innerHeight / H);
+      c.width = W * r;
+      c.height = H * r;
+      ctx.scale(r, r);
+  }
+  window.onresize = rz;
+  rz();
+
+  function N() { return Math.floor(Math.random() * 4); }
+  nx = N();
+
+  function getPos(e) {
+      var r = c.getBoundingClientRect();
+      return {
+          x: (e.clientX - r.left) * (W / r.width),
+          y: (e.clientY - r.top) * (H / r.height)
+      };
+  }
+
+  c.onpointerdown = function(e) {
+      e.preventDefault();
+      var p = getPos(e);
+      if (go) {
+          if (p.x > 120 && p.x < 280 && p.y > 405 && p.y < 455) {
+              btn = true;
+              reset();
+          }
+      } else if (st == 0) {
+          st = 1;
+          move(p.x);
+      }
+  };
+
+  c.onpointermove = function(e) {
+      if (st == 1) move(getPos(e).x);
+  };
+
+  function move(x) {
+      mx = x;
+      if (mx < rs[nx]) mx = rs[nx];
+      if (mx > W - rs[nx]) mx = W - rs[nx];
+  }
+
+  c.onpointerup = function(e) {
+      if (st == 1) {
+          bl.push({x: mx, y: 60, lv: nx, vx: 0, vy: 0});
+          nx = N();
+          st = 2;
+          setTimeout(() => st = 0, 500);
+      }
+  };
+
+  function reset() {
+      setTimeout(() => {
+          bl = [];
+          sc = 0;
+          go = false;
+          btn = false;
+          nx = N();
+          st = 0;
+      }, 100);
+  }
+
+  function L() {
+      requestAnimationFrame(L);
+      ctx.clearRect(0, 0, W, H);
+      
+      ctx.fillStyle = '#eef';
+      ctx.fillRect(0, H - 70, W, 70);
+      ctx.fillStyle = '#000';
+      ctx.textAlign = 'left';
+      ctx.font = '20px sans-serif';
+      ctx.fillText('Next:', 10, H - 45);
+      
+      for (var k = 0; k < f.length; k++) {
+          ctx.font = (k == nx ? '30px' : '15px') + ' sans-serif';
+          ctx.globalAlpha = k == nx ? 1 : 0.4;
+          ctx.fillText(f[k], 70 + k * 32, H - 45);
+      }
+      
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#d64';
+      ctx.fillRect(0, H - 85, W, 5);
+      
+      ctx.fillStyle = '#444';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 30px sans-serif';
+      ctx.fillText('Score: ' + sc, 20, 50);
+      ctx.font = '20px sans-serif';
+      ctx.fillText('Best: ' + Math.max(sc, hs), 20, 80);
+      
+      if (go) {
+          if (sc > hs) {
+              hs = sc;
+              try { localStorage.setItem('ab_hs', hs); } catch(e) {}
+          }
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          ctx.fillRect(0, 0, W, H);
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'center';
+          ctx.font = '40px sans-serif';
+          ctx.fillText('GAME OVER', W / 2, H / 2 - 50);
+          ctx.font = '30px sans-serif';
+          ctx.fillText('Score: ' + sc, W / 2, H / 2);
+          
+          ctx.fillStyle = btn ? '#f88' : '#f55';
+          ctx.fillRect(W / 2 - 80, H / 2 + 55, 160, 50);
+          ctx.fillStyle = '#fff';
+          ctx.fillText('RETRY', W / 2, H / 2 + 90);
+          return;
+      }
+      
+      if (st == 1) {
+          ctx.textAlign = 'center';
+          ctx.font = rs[nx] * 2 + 'px sans-serif';
+          ctx.fillText(f[nx], mx, 60);
+      }
+      
+      for (var i = 0; i < bl.length; i++) {
+          var o = bl[i], r = rs[o.lv];
+          o.vy += 0.8;
+          o.y += o.vy;
+          o.x += o.vx;
+          o.vx *= 0.92;
+          
+          if (o.y > H - r - 85) {
+              o.y = H - r - 85;
+              o.vy *= -0.2;
+              o.vx *= 0.8;
+          }
+          if (o.x < r) {
+              o.x = r;
+              o.vx *= -0.5;
+          }
+          if (o.x > W - r) {
+              o.x = W - r;
+              o.vx *= -0.5;
+          }
+          
+          for (var j = i + 1; j < bl.length; j++) {
+              var p = bl[j], 
+                  r2 = rs[p.lv], 
+                  dx = o.x - p.x, 
+                  dy = o.y - p.y, 
+                  di = Math.sqrt(dx * dx + dy * dy), 
+                  sd = r + r2;
+                  
+              if (di < sd) {
+                  if (o.lv == p.lv && o.lv < 9) {
+                      bl.splice(j, 1);
+                      o.lv++;
+                      o.vy = -2;
+                      sc += (o.lv + 1) * 10;
+                      i--;
+                      break;
+                  } else {
+                      var pd = (sd - di) * 0.5, 
+                          ax = dx / di * pd, 
+                          ay = dy / di * pd;
+                      
+                      o.x += ax;
+                      o.y += ay;
+                      o.vx += ax * 0.5;
+                      o.vy += ay * 0.5;
+                      
+                      p.x -= ax;
+                      p.y -= ay;
+                      p.vx -= ax * 0.5;
+                      p.vy -= ay * 0.5;
+                      
+                      o.vx *= 0.5;
+                      p.vx *= 0.5;
+                  }
+              }
+          }
+          
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = r * 2 + 'px sans-serif';
+          ctx.fillText(f[o.lv], o.x, o.y);
+          
+          if (o.y < 100 && bl.length > 1 && st == 0) go = true;
+      }
+  }
+  
+  L();
+</script>
+</body>
+</html>
