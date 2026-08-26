@@ -1,33 +1,12 @@
-const CACHE_NAME = 'sweets-catch-v1';
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  './sw.js'
-];
+const CACHE_NAME = 'kids-games-universal-v1';
 
-// 初回アクセス時に全ファイルを端末に保存
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
+// インストール時は待たずに即時有効化
+self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
-// オフライン時でも端末キャッシュから即座に応答
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
-    })
-  );
-});
-
-// 古いバージョンのキャッシュを自動削除
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
@@ -35,4 +14,26 @@ self.addEventListener('activate', (event) => {
     })
   );
   self.clients.claim();
+});
+
+// どのゲーム（HTML）が開かれても自動でキャッシュし、オフライン時は端末内から即座に起動
+self.addEventListener('fetch', (e) => {
+  e.respondWith(
+    caches.match(e.request).then((cachedResponse) => {
+      // すでに端末内にあればそれを返す（機内モード時）
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      // 端末になければネットから取得し、同時に端末内へ自動保存
+      return fetch(e.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(e.request, responseClone);
+          });
+        }
+        return networkResponse;
+      });
+    })
+  );
 });
