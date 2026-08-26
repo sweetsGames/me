@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kids-games-universal-v1';
+const CACHE_NAME = 'kids-games-universal-v2';
 
 // インストール時は待たずに即時有効化
 self.addEventListener('install', (e) => {
