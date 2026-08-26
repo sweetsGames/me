@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>かずあわせスイーツキャッチ</title>
+  
+  <!-- PWA・全画面アプリ化設定 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ff69b4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="スイーツキャッチ">
+
+  <style>
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    body {
+      margin: 0; padding: 0; overflow: hidden;
+      background: #ffe4e1; font-family: "Hiragino Maru Gothic ProN", sans-serif;
+      touch-action: none;
+    }
+    #game-container { position: relative; width: 100vw; height: 100vh; }
+    canvas { display: block; width: 100%; height: 100%; }
+    
+    /* UIオーバーレイ */
+    .screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      background: rgba(255, 240, 245, 0.95); z-index: 10;
+    }
+    h1 { color: #ff1493; font-size: 28px; margin-bottom: 10px; text-align: center; }
+    p { color: #555; font-size: 16px; margin: 5px 20px 20px; text-align: center; line-height: 1.5; }
+    .mission-box {
+      background: #fff; border: 3px solid #ff69b4; border-radius: 15px;
+      padding: 10px 20px; font-size: 20px; font-weight: bold; color: #ff1493; margin-bottom: 20px;
+    }
+    .btn {
+      background: #ff69b4; color: white; font-size: 20px; font-weight: bold;
+      border: none; border-radius: 30px; padding: 12px 40px; margin: 8px;
+      box-shadow: 0 4px #c71585; cursor: pointer;
+    }
+    .btn:active { transform: translateY(3px); box-shadow: 0 1px #c71585; }
+    
+    .hud {
+      position: absolute; top: 15px; left: 15px; right: 15px;
+      display: none; justify-content: space-between; font-size: 20px;
+      font-weight: bold; color: #ff1493; z-index: 5;
+    }
+    .hud div { background: rgba(255,255,255,0.85); padding: 6px 14px; border-radius: 20px; }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <!-- タイトル画面 -->
+  <div id="title-screen" class="screen">
+    <h1>🍰 かずあわせ 🍓<br>スイーツキャッチ！</h1>
+    <div class="mission-box">【もんだい】<br>「<span id="target-number-text">5</span>」になるように<br>フルーツを ひろおう！</div>
+    <button class="btn" onclick="startGame()">あそぶ！</button>
+  </div>
+
+  <!-- ゲーム中UI -->
+  <div id="hud" class="hud">
+    <div id="target-display">めざすかず: 5</div>
+    <div id="current-display">いま: 0</div>
+    <div id="score-display">とくてん: 0</div>
+  </div>
+
+  <!-- ゲームクリア/オーバー画面 -->
+  <div id="result-screen" class="screen" style="display: none;">
+    <h1 id="result-title">せいかい！🎉</h1>
+    <p id="result-desc">ぴったり 5 に できたね！</p>
+    <button class="btn" onclick="resetGame()">もういっかい！</button>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+</div>
+
+<script>
+  // --- 1. Service Workerの登録（オフライン対応） ---
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    });
+  }
+
+  // --- 2. 効果音ジェネレーター（Web Audio API・外部通信不要） ---
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function playSound(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    const now = audioCtx.currentTime;
+
+    if (type === 'catch') {
+      osc.frequency.setValueAtTime(523.25, now); // C5
+      osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.1); // E5
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+      osc.start(now); osc.stop(now + 0.15);
+    } else if (type === 'win') {
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.1);
+      osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+      osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+      osc.start(now); osc.stop(now + 0.5);
+    } else if (type === 'bomb') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.linearRampToValueAtTime(50, now + 0.2);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now); osc.stop(now + 0.25);
+    }
+  }
+
+  // --- 3. ゲーム本体の処理 ---
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, playerX, isPlaying = false;
+  let targetNum = 5, currentSum = 0, score = 0;
+  let items = [], timer = 0;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    playerX = W / 2;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function startGame() {
+    targetNum = Math.floor(Math.random() * 5) + 5; // 5〜9の目標数
+    currentSum = 0;
+    document.getElementById('target-display').innerText = `めざすかず: ${targetNum}`;
+    document.getElementById('current-display').innerText = `いま: 0`;
+    document.getElementById('score-display').innerText = `とくてん: ${score}`;
+    
+    document.getElementById('title-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('hud').style.display = 'flex';
+    
+    items = [];
+    isPlaying = true;
+    requestAnimationFrame(gameLoop);
+  }
+
+  function resetGame() {
+    document.getElementById('result-screen').style.display = 'none';
+    startGame();
+  }
+
+  function spawnItem() {
+    const isBomb = Math.random() < 0.2;
+    const value = isBomb ? 0 : (Math.floor(Math.random() * 3) + 1); // 1〜3
+    const icon = isBomb ? '💣' : (value === 1 ? '🍓' : value === 2 ? '🍩' : '🍰');
+    items.push({
+      x: 30 + Math.random() * (W - 60),
+      y: -40,
+      val: value,
+      icon: icon,
+      isBomb: isBomb,
+      speed: 3 + Math.random() * 2
+    });
+  }
+
+  function gameLoop() {
+    if (!isPlaying) return;
+    ctx.clearRect(0, 0, W, H);
+
+    // カゴ（プレイヤー）描画
+    const basketY = H - 100;
+    ctx.font = "50px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("🧺", playerX, basketY);
+
+    // フルーツ落下＆当たり判定
+    for (let i = 0; i < items.length; i++) {
+      let item = items[i];
+      item.y += item.speed;
+      
+      // アイコンと数字の描画
+      ctx.font = "36px sans-serif";
+      ctx.fillText(item.icon, item.x, item.y);
+      if (!item.isBomb) {
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#ff1493";
+        ctx.lineWidth = 3;
+        ctx.strokeText(`+${item.val}`, item.x, item.y + 18);
+        ctx.fillText(`+${item.val}`, item.x, item.y + 18);
+      }
+
+      // キャッチ判定
+      const dist = Math.hypot(playerX - item.x, basketY - item.y);
+      if (dist < 45) {
+        if (item.isBomb) {
+          playSound('bomb');
+          currentSum = Math.max(0, currentSum - 2);
+        } else {
+          playSound('catch');
+          currentSum += item.val;
+        }
+        document.getElementById('current-display').innerText = `いま: ${currentSum}`;
+
+        // クリア判定
+        if (currentSum === targetNum) {
+          playSound('win');
+          score += 100;
+          isPlaying = false;
+          showResult(true);
+        } else if (currentSum > targetNum) {
+          playSound('bomb');
+          isPlaying = false;
+          showResult(false);
+        }
+        items.splice(i, 1);
+        i--;
+        continue;
+      }
+
+      if (item.y > H + 50) { items.splice(i, 1); i--; }
+    }
+
+    timer++;
+    if (timer % 45 === 0) spawnItem();
+    requestAnimationFrame(gameLoop);
+  }
+
+  function showResult(isWin) {
+    const resScreen = document.getElementById('result-screen');
+    const title = document.getElementById('result-title');
+    const desc = document.getElementById('result-desc');
+    resScreen.style.display = 'flex';
+    if (isWin) {
+      title.innerText = 'せいかい！🎉';
+      desc.innerText = `ぴったり ${targetNum} にできたね！すごい！`;
+    } else {
+      title.innerText = 'おしい！💦';
+      desc.innerText = `${targetNum} より おおきくなっちゃった！もういっかい！`;
+    }
+  }
+
+  // タッチ操作
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 0) {
+      playerX = e.touches[0].clientX;
+    }
+  }, { passive: true });
+</script>
+</body>
+</html>
