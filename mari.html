@@ -2,10 +2,10 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- 画面拡大・縮小・バウンスを防ぎ、全画面にフィットさせる -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>さんすうクエスト！ジャンプアドベンチャー</title>
   
-  <!-- PWA設定 -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#5c94fc">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,65 +13,102 @@
   <meta name="apple-mobile-web-app-title" content="さんすうマリオ">
 
   <style>
-    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
-    body {
-      overflow: hidden; background: #5c94fc;
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+      --sal: env(safe-area-inset-left, 0px);
+      --sar: env(safe-area-inset-right, 0px);
+    }
+    * {
+      box-sizing: border-box; user-select: none; -webkit-user-select: none;
+      margin: 0; padding: 0; -webkit-touch-callout: none;
+    }
+    html, body {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      height: 100dvh; overflow: hidden; background: #5c94fc;
       font-family: "Hiragino Maru Gothic ProN", "Arial Rounded MT Bold", sans-serif;
       touch-action: none;
     }
-    #game-container { position: relative; width: 100vw; height: 100vh; background: #5c94fc; }
+    #game-container { position: relative; width: 100%; height: 100%; }
     canvas { display: block; width: 100%; height: 100%; }
 
-    /* 上部HUD（スコア・問題表示） */
+    /* 上部HUD（見切れ防止・セーフエリア連動） */
     .hud {
-      position: absolute; top: 12px; left: 15px; right: 15px;
+      position: absolute;
+      top: max(10px, var(--sat));
+      left: max(12px, var(--sal));
+      right: max(12px, var(--sar));
       display: flex; justify-content: space-between; align-items: center;
-      z-index: 5; pointer-events: none;
+      gap: 10px; z-index: 10; pointer-events: none;
     }
     .hud-box {
-      background: rgba(255, 255, 255, 0.9); border: 3px solid #ff69b4;
-      border-radius: 20px; padding: 6px 16px; font-size: 18px; font-weight: bold; color: #d81b60;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+      background: rgba(255, 255, 255, 0.95); border: 3px solid #ff4081;
+      border-radius: 20px; padding: 6px 14px; font-size: clamp(14px, 3.5vw, 18px);
+      font-weight: bold; color: #d81b60; box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+      white-space: nowrap;
     }
     .mission-box {
-      font-size: 20px; color: #1565c0; border-color: #2196f3;
-      background: rgba(255, 255, 255, 0.95);
+      color: #1565c0; border-color: #2196f3; flex-shrink: 1; overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    /* スマホ用バーチャルコントローラー */
+    /* 下部コントローラー（見切れ防止・自動サイズ調整） */
     .controller {
-      position: absolute; bottom: 20px; left: 0; right: 0;
-      display: flex; justify-content: space-between; padding: 0 25px;
-      z-index: 10; pointer-events: none;
+      position: absolute;
+      bottom: max(12px, var(--sab));
+      left: max(12px, var(--sal));
+      right: max(12px, var(--sar));
+      display: flex; justify-content: space-between; align-items: flex-end;
+      z-index: 20; pointer-events: none;
     }
-    .dpad, .action-pad { display: flex; gap: 15px; pointer-events: auto; }
+    .dpad {
+      display: flex; gap: clamp(8px, 2.5vw, 18px);
+      pointer-events: auto;
+    }
+    .action-pad { pointer-events: auto; }
+    
     .touch-btn {
-      width: 72px; height: 72px; border-radius: 50%;
-      background: rgba(255, 255, 255, 0.85); border: 4px solid #fff;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.25);
+      width: clamp(58px, 14vw, 76px);
+      height: clamp(58px, 14vw, 76px);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.88); border: 3px solid #ffffff;
+      box-shadow: 0 5px 10px rgba(0,0,0,0.25);
       display: flex; justify-content: center; align-items: center;
-      font-size: 30px; font-weight: bold; color: #333;
-      active: transform: scale(0.92); cursor: pointer;
+      font-size: clamp(22px, 5.5vw, 30px); font-weight: bold; color: #333;
+      touch-action: none;
     }
-    .touch-btn:active { transform: scale(0.9); background: #ffe082; }
+    .touch-btn:active, .touch-btn.active {
+      transform: scale(0.92); background: #ffe082;
+    }
     .btn-jump {
-      width: 82px; height: 82px; background: #ff4081; color: white;
-      border-color: #ff80ab; font-size: 26px; box-shadow: 0 6px 12px rgba(255,64,129,0.4);
+      width: clamp(68px, 16vw, 88px);
+      height: clamp(68px, 16vw, 88px);
+      background: #ff4081; color: white; border-color: #ff80ab;
+      font-size: clamp(16px, 4vw, 22px);
+      box-shadow: 0 5px 12px rgba(255,64,129,0.45);
+    }
+    .btn-jump:active, .btn-jump.active {
+      background: #c2185b; transform: scale(0.92);
     }
 
-    /* タイトル・リザルト画面 */
+    /* タイトル・クリア画面 */
     .overlay {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(92, 148, 252, 0.95);
+      position: absolute; inset: 0; background: rgba(92, 148, 252, 0.96);
       display: flex; flex-direction: column; justify-content: center; align-items: center;
-      z-index: 20;
+      padding: 20px; z-index: 30;
     }
-    h1 { color: #fff; font-size: 32px; text-shadow: 3px 3px 0 #d81b60; margin-bottom: 15px; text-align: center; }
-    p { color: #fff; font-size: 18px; margin-bottom: 25px; text-align: center; line-height: 1.6; text-shadow: 1px 1px 2px #000; }
+    h1 {
+      color: #fff; font-size: clamp(24px, 6vw, 34px); text-shadow: 3px 3px 0 #d81b60;
+      margin-bottom: 15px; text-align: center; line-height: 1.3;
+    }
+    p {
+      color: #fff; font-size: clamp(15px, 4vw, 19px); margin-bottom: 25px;
+      text-align: center; line-height: 1.6; text-shadow: 1px 1px 2px #000;
+    }
     .btn-start {
-      background: #ffeb3b; color: #d81b60; font-size: 24px; font-weight: bold;
-      border: 4px solid #fff; border-radius: 40px; padding: 14px 45px;
-      box-shadow: 0 6px 0 #fbc02d; cursor: pointer;
+      background: #ffeb3b; color: #d81b60; font-size: clamp(18px, 5vw, 24px);
+      font-weight: bold; border: 4px solid #fff; border-radius: 40px;
+      padding: 12px 40px; box-shadow: 0 6px 0 #fbc02d; cursor: pointer;
     }
     .btn-start:active { transform: translateY(4px); box-shadow: 0 2px 0 #fbc02d; }
   </style>
@@ -88,21 +125,21 @@
   <!-- タイトル画面 -->
   <div id="title-screen" class="overlay">
     <h1>🌟 さんすうクエスト！ 🌟<br>ジャンプアドベンチャー</h1>
-    <p>せいかいの すうじブロックを<br>あたまから たたいて ゴールをめざそう！</p>
+    <p>せいかいの すうじブロックを たたくと<br>まほうのカベが ひらいて すすめるよ！</p>
     <button class="btn-start" onclick="startGame()">ぼうけんへ 出発！</button>
   </div>
 
   <!-- クリア画面 -->
   <div id="clear-screen" class="overlay" style="display: none;">
-    <h1>🎉 ステージクリア！ 🎉</h1>
-    <p id="clear-msg">ぜんぶの もんだいに せいかいしたよ！<br>すばらしい！</p>
+    <h1 id="clear-title">🎉 パーフェクトクリア！ 🎉</h1>
+    <p id="clear-msg">ぜんぶの もんだいに せいかいしたよ！<br>ゴールおめでとう！✨</p>
     <button class="btn-start" onclick="startGame()">もういっかい あそぶ！</button>
   </div>
 
   <!-- ゲーム画面 -->
   <canvas id="gameCanvas"></canvas>
 
-  <!-- タッチコントローラー -->
+  <!-- コントローラー -->
   <div class="controller">
     <div class="dpad">
       <div id="btn-left" class="touch-btn">◀</div>
@@ -115,12 +152,11 @@
 </div>
 
 <script>
-  // Service Worker登録
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
   }
 
-  // --- サウンドエンジン（Web Audio API・電子音自作） ---
+  // --- サウンドエンジン ---
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   function playSound(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -130,68 +166,80 @@
     osc.connect(gain); gain.connect(audioCtx.destination);
 
     if (type === 'jump') {
-      osc.frequency.setValueAtTime(220, now);
-      osc.frequency.exponentialRampToValueAtTime(660, now + 0.15);
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
-      osc.start(now); osc.stop(now + 0.15);
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(700, now + 0.14);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.14);
+      osc.start(now); osc.stop(now + 0.14);
     } else if (type === 'coin') {
-      osc.frequency.setValueAtTime(987.77, now); // B5
-      osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
-      osc.start(now); osc.stop(now + 0.25);
+      osc.frequency.setValueAtTime(987.77, now);
+      osc.frequency.setValueAtTime(1318.51, now + 0.08);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.22);
+      osc.start(now); osc.stop(now + 0.22);
     } else if (type === 'correct') {
       [523.25, 659.25, 783.99, 1046.50].forEach((f, idx) => {
         const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
         o.connect(g); g.connect(audioCtx.destination);
         o.frequency.value = f;
-        g.gain.setValueAtTime(0.3, now + idx * 0.08);
+        g.gain.setValueAtTime(0.25, now + idx * 0.08);
         g.gain.linearRampToValueAtTime(0.01, now + idx * 0.08 + 0.2);
         o.start(now + idx * 0.08); o.stop(now + idx * 0.08 + 0.2);
       });
-    } else if (type === 'stomp') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(300, now);
-      osc.frequency.linearRampToValueAtTime(100, now + 0.1);
-      gain.gain.setValueAtTime(0.4, now);
-      gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
-      osc.start(now); osc.stop(now + 0.12);
+    } else if (type === 'gate') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.linearRampToValueAtTime(880, now + 0.3);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+      osc.start(now); osc.stop(now + 0.35);
     } else if (type === 'miss') {
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(160, now);
       osc.frequency.linearRampToValueAtTime(80, now + 0.2);
-      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.setValueAtTime(0.25, now);
       gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
       osc.start(now); osc.stop(now + 0.25);
     }
   }
 
-  // --- ゲームシステム ---
+  // --- ゲームロジック ---
   const cvs = document.getElementById('gameCanvas');
   const ctx = cvs.getContext('2d');
-  let W, H;
-  function resize() { W = cvs.width = window.innerWidth; H = cvs.height = window.innerHeight; }
+  let W, H, groundY;
+
+  function resize() {
+    W = cvs.width = window.innerWidth;
+    H = cvs.height = window.innerHeight;
+    groundY = H - Math.min(100, Math.max(70, H * 0.18));
+  }
   window.addEventListener('resize', resize);
   resize();
 
-  // キー入力・タッチ状態管理
-  const input = { left: false, right: false, jump: false };
-  function setupBtn(id, key) {
+  // マルチタッチ操作管理
+  const input = { left: false, right: false };
+  function attachTouch(id, onStart, onEnd) {
     const el = document.getElementById(id);
-    const setKey = (val) => { input[key] = val; if (val && key === 'jump' && player.grounded) { player.vy = -14; playSound('jump'); } };
-    el.addEventListener('touchstart', (e) => { e.preventDefault(); setKey(true); });
-    el.addEventListener('touchend', (e) => { e.preventDefault(); setKey(false); });
-    el.addEventListener('mousedown', () => setKey(true));
-    el.addEventListener('mouseup', () => setKey(false));
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); el.classList.add('active'); onStart(); }, { passive: false });
+    el.addEventListener('touchend', (e) => { e.preventDefault(); el.classList.remove('active'); onEnd(); }, { passive: false });
+    el.addEventListener('touchcancel', (e) => { e.preventDefault(); el.classList.remove('active'); onEnd(); }, { passive: false });
+    el.addEventListener('mousedown', () => { el.classList.add('active'); onStart(); });
+    el.addEventListener('mouseup', () => { el.classList.remove('active'); onEnd(); });
+    el.addEventListener('mouseleave', () => { el.classList.remove('active'); onEnd(); });
   }
-  setupBtn('btn-left', 'left'); setupBtn('btn-right', 'right'); setupBtn('btn-jump', 'jump');
 
+  attachTouch('btn-left', () => input.left = true, () => input.left = false);
+  attachTouch('btn-right', () => input.right = true, () => input.right = false);
+  attachTouch('btn-jump', () => {
+    if (player.grounded) { player.vy = -14.5; playSound('jump'); }
+  }, () => {});
+
+  // キーボード操作（PCテスト用）
   window.addEventListener('keydown', (e) => {
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') input.left = true;
     if (e.code === 'ArrowRight' || e.code === 'KeyD') input.right = true;
     if ((e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') && player.grounded) {
-      player.vy = -14; playSound('jump');
+      player.vy = -14.5; playSound('jump');
     }
   });
   window.addEventListener('keyup', (e) => {
@@ -199,71 +247,80 @@
     if (e.code === 'ArrowRight' || e.code === 'KeyD') input.right = false;
   });
 
-  // プレイヤー定義
+  // プレイヤー
   const player = {
-    x: 100, y: 0, vx: 0, vy: 0, w: 44, h: 54,
+    x: 80, y: 0, vx: 0, vy: 0, w: 42, h: 52,
     grounded: false, facing: 1, anim: 0
   };
 
-  // ステージデータ
   let cameraX = 0, score = 0, isPlaying = false;
-  let platforms = [], blocks = [], enemies = [], coins = [], particles = [], goal = {};
-  
-  // 算数ミッション
-  let currentMission = { num1: 2, num2: 3, ans: 5, text: "2 ＋ 3 ＝ ？" };
+  let platforms = [], blocks = [], gates = [], coins = [], particles = [], goal = {};
+  let totalMissions = 2, solvedMissions = 0;
 
   function initStage() {
+    resize();
     score = 0;
+    solvedMissions = 0;
     cameraX = 0;
-    player.x = 100; player.y = H - 200; player.vx = 0; player.vy = 0;
+    player.x = 80; player.y = groundY - 100; player.vx = 0; player.vy = 0;
 
-    // 地面・足場
-    const groundY = H - 80;
+    // 足場・地面
     platforms = [
-      { x: 0, y: groundY, w: 900, h: 100 },
-      { x: 1050, y: groundY, w: 900, h: 100 },
-      { x: 2100, y: groundY, w: 1000, h: 100 },
+      { x: 0, y: groundY, w: 900, h: 120 },
+      { x: 1050, y: groundY, w: 950, h: 120 },
+      { x: 2150, y: groundY, w: 1000, h: 120 },
       // 浮島足場
-      { x: 350, y: groundY - 100, w: 160, h: 30 },
-      { x: 1350, y: groundY - 110, w: 180, h: 30 },
-      { x: 1650, y: groundY - 140, w: 140, h: 30 }
+      { x: 320, y: groundY - 90, w: 150, h: 25 },
+      { x: 1350, y: groundY - 100, w: 160, h: 25 },
+      { x: 1620, y: groundY - 130, w: 150, h: 25 }
     ];
 
-    // 算数ハテナブロック（3つ並ぶ）
-    currentMission = { num1: 3, num2: 2, ans: 5, text: "3 ＋ 2 ＝ ？" };
-    document.getElementById('mission-ui').innerText = `もんだい：${currentMission.text}`;
-    document.getElementById('score-ui').innerText = `🪙 ${score}`;
-
+    // 算数ハテナブロック（第1問：3+2=5 / 第2問：4+3=7）
     blocks = [
-      // 1問目ブロック
-      { x: 550, y: groundY - 150, w: 50, h: 50, val: 4, isCorrect: false, hit: false, bounce: 0 },
-      { x: 620, y: groundY - 150, w: 50, h: 50, val: 5, isCorrect: true, hit: false, bounce: 0 },
-      { x: 690, y: groundY - 150, w: 50, h: 50, val: 7, isCorrect: false, hit: false, bounce: 0 },
-      // 2問目ブロック（後半）
-      { x: 1800, y: groundY - 160, w: 50, h: 50, val: 8, isCorrect: false, hit: false, bounce: 0 },
-      { x: 1870, y: groundY - 160, w: 50, h: 50, val: 9, isCorrect: true, hit: false, bounce: 0 }, // 4+5=?
-      { x: 1940, y: groundY - 160, w: 50, h: 50, val: 6, isCorrect: false, hit: false, bounce: 0 }
+      // 1問目 (x: 520〜680)
+      { id: 1, x: 520, y: groundY - 140, w: 48, h: 48, val: 4, isCorrect: false, hit: false, bounce: 0 },
+      { id: 1, x: 600, y: groundY - 140, w: 48, h: 48, val: 5, isCorrect: true, hit: false, bounce: 0 },
+      { id: 1, x: 680, y: groundY - 140, w: 48, h: 48, val: 6, isCorrect: false, hit: false, bounce: 0 },
+
+      // 2問目 (x: 1720〜1880)
+      { id: 2, x: 1720, y: groundY - 150, w: 48, h: 48, val: 6, isCorrect: false, hit: false, bounce: 0 },
+      { id: 2, x: 1800, y: groundY - 150, w: 48, h: 48, val: 7, isCorrect: true, hit: false, bounce: 0 },
+      { id: 2, x: 1880, y: groundY - 150, w: 48, h: 48, val: 8, isCorrect: false, hit: false, bounce: 0 }
     ];
 
-    // 敵キャラ（クリボー風スライム）
-    enemies = [
-      { x: 450, y: groundY - 40, w: 40, h: 40, vx: -1.5, minX: 300, maxX: 750, alive: true },
-      { x: 1200, y: groundY - 40, w: 40, h: 40, vx: -1.5, minX: 1100, maxX: 1500, alive: true },
-      { x: 2300, y: groundY - 40, w: 40, h: 40, vx: -2, minX: 2150, maxX: 2600, alive: true }
+    // まほうのカベ（正解するまで通れないゲート）
+    gates = [
+      { id: 1, x: 800, y: groundY - 180, w: 30, h: 180, opened: false, label: "🔒 まほうのカベ" },
+      { id: 2, x: 2020, y: groundY - 180, w: 30, h: 180, opened: false, label: "🔒 まほうのカベ" }
     ];
 
     // コイン
     coins = [
-      { x: 200, y: groundY - 50, taken: false },
-      { x: 250, y: groundY - 50, taken: false },
-      { x: 390, y: groundY - 150, taken: false },
-      { x: 1400, y: groundY - 160, taken: false },
-      { x: 1700, y: groundY - 190, taken: false }
+      { x: 180, y: groundY - 45, taken: false },
+      { x: 240, y: groundY - 45, taken: false },
+      { x: 370, y: groundY - 130, taken: false },
+      { x: 1400, y: groundY - 145, taken: false },
+      { x: 1680, y: groundY - 175, taken: false }
     ];
 
-    // ゴール（城・フラッグ）
-    goal = { x: 2800, y: groundY - 180, w: 80, h: 180, reached: false };
+    // ゴール
+    goal = { x: 2850, y: groundY - 160, w: 70, h: 160, reached: false };
     particles = [];
+
+    updateHUD();
+  }
+
+  function updateHUD() {
+    let msg = "";
+    if (!gates[0].opened) {
+      msg = "もんだい①：3 ＋ 2 ＝ ？";
+    } else if (!gates.opened) {
+      msg = "もんだい②：4 ＋ 3 ＝ ？";
+    } else {
+      msg = "✨ まほうのかべ クリア！ ゴールへGO！";
+    }
+    document.getElementById('mission-ui').innerText = msg;
+    document.getElementById('score-ui').innerText = `🪙 ${score}`;
   }
 
   function startGame() {
@@ -275,37 +332,34 @@
   }
 
   function addSparkles(x, y, color) {
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 16; i++) {
       particles.push({
         x: x, y: y,
         vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8 - 3,
-        color: color, life: 30, maxLife: 30, size: 6 + Math.random() * 6
+        color: color, life: 30, maxLife: 30, size: 5 + Math.random() * 6
       });
     }
   }
 
-  // --- メインゲームループ ---
+  // --- メインループ ---
   function gameLoop() {
     if (!isPlaying) return;
 
-    // 1. プレイヤー物理演算
+    // 1. 移動・物理
     if (input.left) { player.vx = -5.5; player.facing = -1; }
     else if (input.right) { player.vx = 5.5; player.facing = 1; }
     else { player.vx *= 0.75; }
 
-    player.vy += 0.65; // 重力
+    player.vy += 0.65;
     player.x += player.vx;
     player.y += player.vy;
-
-    // アニメーション用
     if (Math.abs(player.vx) > 0.5) player.anim += 0.2;
 
-    // 2. 足場・地面との衝突判定
+    // 2. 足場・地面の判定
     player.grounded = false;
     platforms.forEach(p => {
       if (player.x + player.w > p.x && player.x < p.x + p.w) {
-        // 上から着地
-        if (player.y + player.h >= p.y && player.y + player.h <= p.y + player.vy + 10 && player.vy >= 0) {
+        if (player.y + player.h >= p.y && player.y + player.h <= p.y + player.vy + 12 && player.vy >= 0) {
           player.y = p.y - player.h;
           player.vy = 0;
           player.grounded = true;
@@ -313,11 +367,22 @@
       }
     });
 
-    // 3. ブロックとの衝突（頭突き＆乗る）
+    // 3. まほうのカベ（ゲート）の衝突判定（開くまで通れない）
+    gates.forEach(g => {
+      if (!g.opened) {
+        if (player.x + player.w > g.x && player.x < g.x + g.w &&
+            player.y + player.h > g.y && player.y < g.y + g.h) {
+          if (player.vx > 0) player.x = g.x - player.w;
+          else if (player.vx < 0) player.x = g.x + g.w;
+        }
+      }
+    });
+
+    // 4. ブロック判定（頭突き）
     blocks.forEach(b => {
-      // 下から頭突き
       if (player.x + player.w > b.x && player.x < b.x + b.w) {
-        if (player.y <= b.y + b.h && player.y >= b.y + b.h + player.vy - 8 && player.vy < 0) {
+        // 下から頭突き
+        if (player.y <= b.y + b.h && player.y >= b.y + b.h + player.vy - 10 && player.vy < 0) {
           player.y = b.y + b.h;
           player.vy = 2;
           b.bounce = -10;
@@ -327,16 +392,20 @@
             if (b.isCorrect) {
               playSound('correct');
               score += 100;
-              document.getElementById('score-ui').innerText = `🪙 ${score}`;
-              addSparkles(b.x + 25, b.y, '#ffd700');
-              // 2問目へミッション更新
-              if (b.x < 1000) {
-                currentMission = { num1: 4, num2: 5, ans: 9, text: "4 ＋ 5 ＝ ？" };
-                document.getElementById('mission-ui').innerText = `もんだい：${currentMission.text}`;
+              solvedMissions++;
+              addSparkles(b.x + 24, b.y, '#ffd700');
+              
+              // 対応するゲートを開放！
+              const targetGate = gates.find(g => g.id === b.id);
+              if (targetGate && !targetGate.opened) {
+                targetGate.opened = true;
+                playSound('gate');
+                addSparkles(targetGate.x + 15, targetGate.y + 80, '#00e676');
               }
+              updateHUD();
             } else {
               playSound('miss');
-              addSparkles(b.x + 25, b.y, '#aaa');
+              addSparkles(b.x + 24, b.y, '#aaa');
             }
           }
         }
@@ -347,108 +416,102 @@
           player.grounded = true;
         }
       }
-      // ブロックのアニメ復帰
       if (b.bounce < 0) b.bounce += 2;
     });
 
-    // 4. コイン獲得
+    // 5. コイン
     coins.forEach(c => {
-      if (!c.taken && Math.hypot(player.x + 20 - c.x, player.y + 25 - c.y) < 35) {
+      if (!c.taken && Math.hypot(player.x + 20 - c.x, player.y + 25 - c.y) < 36) {
         c.taken = true;
         score += 10;
-        document.getElementById('score-ui').innerText = `🪙 ${score}`;
         playSound('coin');
         addSparkles(c.x, c.y, '#ffeb3b');
+        updateHUD();
       }
     });
 
-    // 5. 敵の移動と踏みつけ
-    enemies.forEach(e => {
-      if (!e.alive) return;
-      e.x += e.vx;
-      if (e.x < e.minX || e.x > e.maxX) e.vx *= -1;
-
-      // プレイヤーと敵の判定
-      if (player.x + player.w > e.x && player.x < e.x + e.w &&
-          player.y + player.h > e.y && player.y < e.y + e.h) {
-        // 上から踏みつけた
-        if (player.vy > 0 && player.y + player.h < e.y + 25) {
-          e.alive = false;
-          player.vy = -11; // バウンド跳ね返り
-          playSound('stomp');
-          score += 50;
-          document.getElementById('score-ui').innerText = `🪙 ${score}`;
-          addSparkles(e.x + 20, e.y + 20, '#ff5722');
-        } else {
-          // 横から当たった（親切仕様：軽くノックバック）
-          player.vx = player.facing * -8;
-          player.vy = -6;
-          playSound('miss');
-        }
-      }
-    });
-
-    // 落下救済（落ちたら手前の地面に戻す）
+    // 落下時の救済
     if (player.y > H + 50) {
-      player.x = Math.max(100, player.x - 300);
-      player.y = H - 300;
+      player.x = Math.max(80, player.x - 280);
+      player.y = groundY - 200;
       player.vy = 0;
       playSound('miss');
     }
 
-    // 6. ゴール到達判定
+    // 6. ゴール判定＆正確なクリアメッセージ生成
     if (player.x > goal.x && !goal.reached) {
       goal.reached = true;
       playSound('correct');
       setTimeout(() => {
         isPlaying = false;
-        document.getElementById('clear-screen').style.display = 'flex';
+        showClearScreen();
       }, 500);
     }
 
     // カメラ追従
     cameraX = player.x - W * 0.35;
 
-    // --- 描画処理 ---
+    // --- 描画 ---
     ctx.clearRect(0, 0, W, H);
     ctx.save();
     ctx.translate(-cameraX, 0);
 
-    // 背景の雲・山
+    // 背景の雲
     ctx.fillStyle = "rgba(255,255,255,0.7)";
     for (let i = 0; i < 15; i++) {
       ctx.beginPath();
-      ctx.arc(i * 300 + 100, 120 + (i % 3) * 30, 40, 0, Math.PI * 2);
-      ctx.arc(i * 300 + 140, 110 + (i % 3) * 30, 55, 0, Math.PI * 2);
-      ctx.arc(i * 300 + 180, 120 + (i % 3) * 30, 40, 0, Math.PI * 2);
+      ctx.arc(i * 280 + 80, 100 + (i % 3) * 25, 35, 0, Math.PI * 2);
+      ctx.arc(i * 280 + 120, 90 + (i % 3) * 25, 50, 0, Math.PI * 2);
+      ctx.arc(i * 280 + 160, 100 + (i % 3) * 25, 35, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 足場・地面描画
+    // 足場・地面
     platforms.forEach(p => {
-      // 地面の草部分
       ctx.fillStyle = "#4caf50";
-      ctx.fillRect(p.x, p.y, p.w, 15);
-      // 土部分
+      ctx.fillRect(p.x, p.y, p.w, 14);
       ctx.fillStyle = "#8d6e63";
-      ctx.fillRect(p.x, p.y + 15, p.w, p.h - 15);
-      // レンガ模様
+      ctx.fillRect(p.x, p.y + 14, p.w, p.h - 14);
       ctx.strokeStyle = "#6d4c41"; ctx.lineWidth = 2;
       for (let bx = p.x; bx < p.x + p.w; bx += 40) {
-        ctx.strokeRect(bx, p.y + 15, 40, 25);
+        ctx.strokeRect(bx, p.y + 14, 40, 24);
       }
     });
 
-    // コイン描画
+    // まほうのカベ（ゲート）描画
+    gates.forEach(g => {
+      if (!g.opened) {
+        ctx.fillStyle = "rgba(233, 30, 99, 0.85)";
+        ctx.fillRect(g.x, g.y, g.w, g.h);
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+        ctx.strokeRect(g.x, g.y, g.w, g.h);
+        
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 14px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("🔒", g.x + g.w / 2, g.y + 40);
+        ctx.fillText("カ", g.x + g.w / 2, g.y + 70);
+        ctx.fillText("ベ", g.x + g.w / 2, g.y + 95);
+      } else {
+        // 開放時のエフェクト枠
+        ctx.strokeStyle = "rgba(76, 175, 80, 0.5)"; ctx.lineWidth = 2;
+        ctx.strokeRect(g.x, g.y, g.w, g.h);
+        ctx.fillStyle = "#4caf50";
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText("✨OPEN", g.x + g.w / 2, g.y + 20);
+      }
+    });
+
+    // コイン
     coins.forEach(c => {
       if (!c.taken) {
-        ctx.font = "28px sans-serif";
+        ctx.font = "26px sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("🪙", c.x, c.y);
       }
     });
 
-    // 算数ブロック描画
+    // 算数ブロック
     blocks.forEach(b => {
       const drawY = b.y + b.bounce;
       ctx.fillStyle = b.hit ? (b.isCorrect ? "#ffeb3b" : "#9e9e9e") : "#ff9800";
@@ -456,40 +519,27 @@
       ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
       ctx.strokeRect(b.x, drawY, b.w, b.h);
 
-      // ブロックの数字
-      ctx.fillStyle = "#fff";
+      ctx.fillStyle = b.hit && b.isCorrect ? "#d81b60" : "#fff";
       ctx.font = "bold 24px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(b.val, b.x + b.w / 2, drawY + 34);
+      ctx.fillText(b.val, b.x + b.w / 2, drawY + 33);
     });
 
-    // 敵描画
-    enemies.forEach(e => {
-      if (e.alive) {
-        ctx.font = "36px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("👾", e.x + e.w / 2, e.y + e.h - 5);
-      }
-    });
+    // ゴール（城・フラッグ）
+    ctx.font = "75px sans-serif";
+    ctx.fillText("🏰", goal.x + 35, goal.y + 110);
+    ctx.fillText("🚩", goal.x - 30, goal.y + 50);
 
-    // ゴールのお城と旗
-    ctx.font = "80px sans-serif";
-    ctx.fillText("🏰", goal.x + 40, goal.y + 120);
-    ctx.fillText("🚩", goal.x - 30, goal.y + 60);
-
-    // プレイヤー描画（かわいいマリオ風キャラクター）
+    // プレイヤー
     ctx.save();
     ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
     if (player.facing === -1) ctx.scale(-1, 1);
-    
-    // キャラクター絵文字（帽子＋マント風）
-    ctx.font = "46px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.font = "44px sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(player.grounded ? (Math.sin(player.anim) > 0 ? "🏃" : "🚶") : "🦸", 0, 0);
     ctx.restore();
 
-    // パーティクル描画
+    // パーティクル
     particles.forEach((pt, idx) => {
       pt.x += pt.vx; pt.y += pt.vy;
       pt.life--;
@@ -502,6 +552,20 @@
 
     ctx.restore();
     requestAnimationFrame(gameLoop);
+  }
+
+  function showClearScreen() {
+    const title = document.getElementById('clear-title');
+    const msg = document.getElementById('clear-msg');
+    
+    if (solvedMissions >= totalMissions) {
+      title.innerText = "🎉 パーフェクトクリア！ 🎉";
+      msg.innerHTML = `ぜんぶの もんだいに せいかいしたよ！<br>スコア：🪙 ${score} 点<br>すばらしい さんすうマスターだね！✨`;
+    } else {
+      title.innerText = "ゴールとうちゃく！🏁";
+      msg.innerHTML = `ゴールできたね！ スコア：🪙 ${score} 点<br>せいかい数：${solvedMissions} / ${totalMissions} もん<br>こんどは ぜんもん せいかいを めざそう！😊`;
+    }
+    document.getElementById('clear-screen').style.display = 'flex';
   }
 </script>
 </body>
