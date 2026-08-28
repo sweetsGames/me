@@ -104,7 +104,7 @@
 
   <!-- スタート画面 -->
   <div id="start-screen" class="screen">
-    <h1>AIテニスバトル🎾</h1>
+    <h1>AIテニスバトル</h1>
     <div class="desc">ボールをバーではじきかえそう！<br>さきに 5てん とったほうの かち！<br><span style="font-size: 0.8em; color: #555;">※バーの はし にあてると まがるよ</span></div>
     
     <div class="btn-group">
@@ -195,9 +195,9 @@ const MSG = document.getElementById('message-box');
 function showMsg(text) { MSG.innerText = text; MSG.style.opacity = 1; }
 function hideMsg() { MSG.style.opacity = 0; }
 
-let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 15, speed: 0 };
-let player = { x: 0, y: 0, w: 0, h: 20 };
-let cpu = { x: 0, y: 0, w: 0, h: 20, targetOffset: 0 }; // ミス時のズレ用
+let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 12, speed: 0 };
+let player = { x: 0, y: 0, w: 0, h: 18 };
+let cpu = { x: 0, y: 0, w: 0, h: 18, targetOffset: 0 };
 let touchX = 0;
 
 // --- 描画ロジック ---
@@ -217,19 +217,25 @@ function drawCourt() {
 }
 
 function drawObjects() {
+    // プレイヤーバー (オレンジ)
     ctx.fillStyle = '#ff9800';
-    ctx.beginPath(); ctx.roundRect(player.x - player.w/2, player.y - player.h/2, player.w, player.h, 10); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(player.x - player.w/2, player.y - player.h/2, player.w, player.h, 8); ctx.fill();
     ctx.strokeStyle = '#e65100'; ctx.lineWidth = 3; ctx.stroke();
     
+    // CPUバー (水色)
     ctx.fillStyle = '#29b6f6';
-    ctx.beginPath(); ctx.roundRect(cpu.x - cpu.w/2, cpu.y - cpu.h/2, cpu.w, cpu.h, 10); ctx.fill();
-    ctx.strokeStyle = '#0277bd'; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(cpu.x - cpu.w/2, cpu.y - cpu.h/2, cpu.w, cpu.h, 8); ctx.fill();
+    ctx.strokeStyle = '#0277bd'; ctx.lineWidth = 3; ctx.stroke();
 
-    // スタート前（starting）やプレイ中のみボールを描画
+    // ボール (シンプルな黄色い丸)
     if (state === 'starting' || state === 'playing' || state === 'scored') {
-        ctx.font = (ball.r * 2.5) + "px sans-serif";
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("🎾", ball.x, ball.y);
+        ctx.fillStyle = '#ccff00';
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#afb42b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
     }
 }
 
@@ -243,17 +249,17 @@ function update() {
     }
 
     if (state === 'starting') {
-        // スタート前の2秒カウントダウン
+        // スタート前のカウントダウン
         timer--;
         if (timer <= 0) {
             hideMsg();
-            resetBall(-1); // 必ずCPU側へサーブして開始
+            resetBall(); // 必ずCPU側へ向かって開始
             state = 'playing';
         }
     } else if (state === 'playing') {
         let diffObj = DIFFICULTIES[currentDiff];
         
-        // CPUの移動（ミス時のズレを加味してボールを追う）
+        // CPUの移動
         let cpuTarget = ball.x + cpu.targetOffset;
         let diff = cpuTarget - cpu.x;
         
@@ -269,7 +275,7 @@ function update() {
         ball.x += ball.vx;
         ball.y += ball.vy;
 
-        // 壁の反射 (左右)
+        // 壁の反射
         if (ball.x - ball.r < 0) { ball.x = ball.r; ball.vx *= -1; playSound('hit'); }
         if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.vx *= -1; playSound('hit'); }
 
@@ -280,16 +286,15 @@ function update() {
                 ball.vx = hitPoint * (ball.speed * 0.8);
                 ball.vy = -Math.abs(ball.vy);
                 ball.y = player.y - player.h/2 - ball.r;
-                ball.speed *= 1.02; // 徐々にスピードアップ
+                ball.speed *= 1.02; 
                 playSound('hit');
 
-                // ★ここでコンピュータがミスするかどうかを判定
+                // コンピュータのミス判定
                 if (Math.random() < diffObj.missChance) {
-                    // ボールが左半分なら右へ、右半分なら左へ逃げる（確実な空振りを作る）
                     let dir = (ball.x < W / 2) ? 1 : -1;
                     cpu.targetOffset = dir * (cpu.w/2 + ball.r + 40);
                 } else {
-                    cpu.targetOffset = 0; // 正常に追う
+                    cpu.targetOffset = 0;
                 }
             }
         }
@@ -320,8 +325,7 @@ function update() {
         timer--;
         if (timer <= 0) {
             hideMsg();
-            // 負けた方へサーブ
-            resetBall(ball.y < H/2 ? -1 : 1);
+            resetBall(); // 点が入った後も必ずCPU側へ向かって開始
             state = 'playing';
         }
     }
@@ -354,14 +358,18 @@ function checkWin() {
     }
 }
 
-// ボールの初期化
-function resetBall(directionVy) {
+// ボールの初期化（常に上＝CPU側に向かって飛ぶように固定）
+function resetBall() {
     ball.x = W / 2;
-    ball.y = H / 2;
+    ball.y = H / 2 + 50; // 少し手前（プレイヤー寄り）からスタート
     let diffObj = DIFFICULTIES[currentDiff];
     ball.speed = diffObj.ballSpeed;
+    
+    // X方向はランダムに少しブレさせる
     ball.vx = (Math.random() - 0.5) * ball.speed;
-    ball.vy = directionVy * ball.speed;
+    // Y方向は常にマイナス（上方向）
+    ball.vy = -Math.abs(ball.speed);
+    
     cpu.targetOffset = 0; // ミス状態リセット
 }
 
@@ -386,14 +394,13 @@ function startGame(level) {
     player.x = W / 2;
     cpu.x = W / 2;
 
-    // ボールは真ん中にセットするが、まだ動かさない
-    ball.x = W / 2; ball.y = H / 2;
+    // ボールはセットするが、まだ動かさない
+    ball.x = W / 2; ball.y = H / 2 + 50;
     ball.vx = 0; ball.vy = 0;
 
-    // ゲームスタートの準備
     showMsg("ゲームスタート！");
     state = 'starting';
-    timer = 120; // 約2秒間（60fps × 2）停止してメッセージ表示
+    timer = 120; // 約2秒間停止してメッセージ表示
 }
 
 function showStartScreen() {
