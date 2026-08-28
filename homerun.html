@@ -2,17 +2,16 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<!-- ガイドラインに基づくPWA・全画面表示のためのviewport設定 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>ホームランきょうそう</title>
 
-<!-- PWA・全画面表示設定 -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4caf50">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ホームラン">
 
-<!-- Service Worker 登録スクリプト -->
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
@@ -55,7 +54,7 @@
   
   /* Messages */
   #message-box {
-    position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
     font-size: clamp(32px, 8vw, 48px); font-weight: bold; text-align: center;
     color: white; text-shadow: 3px 3px 0 #d32f2f, -2px -2px 0 #d32f2f, 2px -2px 0 #d32f2f, -2px 2px 0 #d32f2f;
     opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 20; width: 100%;
@@ -81,10 +80,10 @@
     display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
   }
   h1 { font-size: clamp(36px, 10vw, 56px); color: #ff9800; margin-bottom: 20px; text-shadow: 2px 2px 0 #fff; text-align: center;}
-  .desc { font-size: clamp(20px, 6vw, 28px); color: #333; margin-bottom: 40px; font-weight: bold; text-align: center; line-height: 1.5; }
+  .desc { font-size: clamp(18px, 5vw, 24px); color: #333; margin-bottom: 40px; font-weight: bold; text-align: center; line-height: 1.5; }
   .start-btn {
     background: #4caf50; border-bottom: 8px solid #2e7d32; border-radius: 30px; padding: 15px 50px;
-    font-size: clamp(24px, 7vw, 32px); color: white; font-weight: bold; border-left:none; border-right:none; border-top:none;
+    font-size: clamp(24px, 7vw, 32px); color: white; font-weight: bold; border: none;
     cursor: pointer;
   }
   .start-btn:active { transform: translateY(8px); border-bottom-width: 0px; }
@@ -111,7 +110,7 @@
   <!-- スタート画面 -->
   <div id="start-screen" class="screen">
     <h1>ホームラン<br>きょうそう⚾</h1>
-    <div class="desc">ボールがきたら<br>タイミングよく<br>「うつ！」をおそう！</div>
+    <div class="desc">ゲージが<span style="color:red">あか色</span>のところで<br>「うつ！」をおそう！</div>
     <button class="start-btn" onclick="startGame()">スタート</button>
   </div>
 
@@ -124,7 +123,7 @@
 </div>
 
 <script>
-// --- Web Audio API (効果音シンセサイザー) ---
+// --- Web Audio API ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let actx;
 
@@ -141,45 +140,24 @@ function playSound(type) {
     const now = actx.currentTime;
     
     if (type === 'pitch') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, now);
-        osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.3);
-        osc.start(now); osc.stop(now + 0.3);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+        gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(now); osc.stop(now + 0.3);
     } else if (type === 'swing') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.linearRampToValueAtTime(100, now + 0.1);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.15);
-        osc.start(now); osc.stop(now + 0.15);
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(100, now + 0.1);
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.15); osc.start(now); osc.stop(now + 0.15);
     } else if (type === 'hit') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.15);
-        osc.start(now); osc.stop(now + 0.15);
+        osc.type = 'square'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.15); osc.start(now); osc.stop(now + 0.15);
     } else if (type === 'homerun') {
-        osc.type = 'square';
-        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
-            osc.frequency.setValueAtTime(freq, now + i*0.15);
-        });
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.7);
-        osc.start(now); osc.stop(now + 0.7);
+        osc.type = 'square'; [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => osc.frequency.setValueAtTime(freq, now + i*0.15));
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.7); osc.start(now); osc.stop(now + 0.7);
     } else if (type === 'out') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(300, now);
-        osc.frequency.linearRampToValueAtTime(150, now + 0.4);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0, now + 0.4);
-        osc.start(now); osc.stop(now + 0.4);
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, now); osc.frequency.linearRampToValueAtTime(150, now + 0.4);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.4); osc.start(now); osc.stop(now + 0.4);
     }
 }
 
-// --- Canvas & ゲーム設定 ---
+// --- Canvas設定 ---
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
 let W, H;
@@ -191,16 +169,16 @@ window.addEventListener('resize', resize);
 resize();
 
 // ゲーム状態変数
-let state = 'title'; // title, wait, pitch, fly, result
+let state = 'title';
 let pitchCount = 0;
 let hrCount = 0;
 const MAX_PITCHES = 10;
 let timer = 0;
 
-// ボール情報
-let ball = { t: 0, speed: 0, endX: 0, hitState: 0 }; // hitState: 0=なし, 1=フライ, 2=ホームラン
-// 飛んでいくボール情報
+// ボール＆バッター情報
+let ball = { t: 0, speed: 0, endX: 0, hitState: 0 }; 
 let flyBall = { x: 0, y: 0, vx: 0, vy: 0, gravity: 0, scale: 1, timer: 0, maxTime: 0 };
+let swingAnim = 0; // スイングアニメーション用フレーム
 
 const UI_PITCH = document.getElementById('pitch-count');
 const UI_HR = document.getElementById('hr-count');
@@ -208,83 +186,122 @@ const MSG = document.getElementById('message-box');
 const SWING_BTN = document.getElementById('swing-btn');
 
 function showMsg(text, color) {
-    MSG.innerText = text;
-    MSG.style.color = color || 'white';
-    MSG.style.opacity = 1;
+    MSG.innerText = text; MSG.style.color = color || 'white'; MSG.style.opacity = 1;
 }
-function hideMsg() {
-    MSG.style.opacity = 0;
-}
+function hideMsg() { MSG.style.opacity = 0; }
 
-// --- 画面描画ロジック ---
-// 1. バッターボックス視点
+// --- 描画ロジック ---
 function drawBatterView() {
-    // 背景(芝生と空)
-    ctx.fillStyle = '#4caf50';
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#87CEEB';
-    ctx.fillRect(0, 0, W, H*0.25);
+    // 背景
+    ctx.fillStyle = '#4caf50'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#87CEEB'; ctx.fillRect(0, 0, W, H*0.25);
     
-    // ピッチャーマウンド
+    // マウンドとホームベース
     ctx.fillStyle = '#8d6e63';
     ctx.beginPath(); ctx.ellipse(W/2, H*0.35, 60, 20, 0, 0, Math.PI*2); ctx.fill();
-    // ホームベース周りの土
     ctx.beginPath(); ctx.arc(W/2, H*0.8, 120, Math.PI, 0, true); ctx.fill();
-    // ホームベース
     ctx.fillStyle = 'white';
     ctx.beginPath(); ctx.moveTo(W/2, H*0.75); ctx.lineTo(W/2+20, H*0.73); ctx.lineTo(W/2+20, H*0.78); ctx.lineTo(W/2, H*0.82); ctx.lineTo(W/2-20, H*0.78); ctx.lineTo(W/2-20, H*0.73); ctx.fill();
     
-    // ピッチャー(奥)
+    // ピッチャー
     ctx.font = "40px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="bottom";
     ctx.fillText("🐒", W/2, H*0.35);
 
-    // バッター(手前)
-    ctx.font = "80px sans-serif";
-    if (state === 'swinging') {
-        ctx.save(); ctx.translate(W/2 - 60, H*0.8); ctx.rotate(-Math.PI/4); ctx.fillText("🏏", 0, 0); ctx.restore();
-    } else {
-        ctx.fillText("🧍", W/2 - 60, H*0.8);
+    // タイミングゲージの描画
+    if (state === 'pitch' || state === 'wait' || state === 'swinging') {
+        let barW = W * 0.8;
+        let barH = 24;
+        let barX = W * 0.1;
+        let barY = H * 0.55; // ピッチャーとバッターの間
+        
+        // ゲージ背景（グレー）
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 10); ctx.fill();
+        
+        // ゲージの範囲設定 (ball.tの 0.4 〜 1.3 をゲージ幅に対応させる)
+        let tStart = 0.4;
+        let tEnd = 1.3;
+        let tSpan = tEnd - tStart;
+        
+        // ヒットゾーン（黄色）: t=0.9 〜 1.15
+        let hitStart = (0.9 - tStart) / tSpan * barW;
+        let hitW = (1.15 - 0.9) / tSpan * barW;
+        ctx.fillStyle = '#ffeb3b';
+        ctx.fillRect(barX + hitStart, barY, hitW, barH);
+        
+        // ホームランゾーン（赤）: t=0.98 〜 1.05
+        let hrStart = (0.98 - tStart) / tSpan * barW;
+        let hrW = (1.05 - 0.98) / tSpan * barW;
+        ctx.fillStyle = '#f44336';
+        ctx.fillRect(barX + hrStart, barY, hrW, barH);
+        
+        // ゲージ枠線
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 10); ctx.stroke();
+        
+        // カーソル（ボールが近づくにつれて右へ動く）
+        if (state === 'pitch' || state === 'swinging') {
+            let cursorX = barX + ((ball.t - tStart) / tSpan) * barW;
+            if (cursorX < barX) cursorX = barX;
+            if (cursorX > barX + barW) cursorX = barX + barW;
+            
+            // カーソル描画
+            ctx.fillStyle = '#000';
+            ctx.fillRect(cursorX - 3, barY - 5, 6, barH + 10);
+            ctx.font = "20px sans-serif"; ctx.textBaseline="bottom";
+            ctx.fillText("⚾", cursorX, barY - 5);
+        }
     }
 
-    // ボール描画
+    // バッター（スイングアニメーション）
+    ctx.textBaseline = "alphabetic";
+    if (swingAnim > 0) {
+        // バットを振る動き（回転）
+        ctx.save();
+        ctx.translate(W/2 - 20, H*0.75); // バットの根本を軸に
+        let rotation = (Math.PI / 1.5) * (1 - swingAnim/15); // 15フレームで振り切る
+        ctx.rotate(rotation);
+        ctx.font = "70px sans-serif";
+        ctx.fillText("🏏", -10, 0);
+        ctx.restore();
+        
+        ctx.font = "80px sans-serif";
+        ctx.fillText("🧍", W/2 - 60, H*0.8);
+        swingAnim--;
+    } else {
+        // 構え
+        ctx.font = "80px sans-serif";
+        ctx.fillText("🧍", W/2 - 60, H*0.8);
+        ctx.font = "60px sans-serif";
+        ctx.fillText("🏏", W/2 - 35, H*0.75); // 構えているバット
+    }
+
+    // ボール（奥から手前へ）※大きさを固定して見やすく
     if (state === 'pitch' || state === 'wait') {
-        let bx = W/2; let by = H*0.33; let bSize = 10;
+        let bx = W/2; let by = H*0.33;
         if (state === 'pitch') {
             bx = W/2 + (ball.endX - W/2) * ball.t;
             by = H*0.33 + (H*0.75 - H*0.33) * ball.t;
-            bSize = 10 + 35 * ball.t;
-            // 影
-            ctx.fillStyle = "rgba(0,0,0,0.3)";
-            ctx.beginPath(); ctx.ellipse(bx, H*0.35 + (H*0.8 - H*0.35)*ball.t, bSize*0.8, bSize*0.3, 0, 0, Math.PI*2); ctx.fill();
         }
-        ctx.font = bSize*2 + "px sans-serif"; ctx.textBaseline="middle";
+        ctx.font = "30px sans-serif"; ctx.textBaseline="middle";
         ctx.fillText("⚾", bx, by);
     }
 }
 
-// 2. スタジアム全体視点 (飛んでいる時)
+// 2. スタジアム全体視点
 function drawStadiumView() {
-    // 芝生と内野の土
     ctx.fillStyle = '#2e7d32'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#8d6e63';
     ctx.beginPath(); ctx.moveTo(W/2, H*0.8); ctx.lineTo(W/2+100, H*0.6); ctx.lineTo(W/2, H*0.4); ctx.lineTo(W/2-100, H*0.6); ctx.fill();
-    // ベース
     ctx.fillStyle = 'white';
-    ctx.fillRect(W/2-15, H*0.8-10, 30, 20); // ホーム
-    ctx.fillRect(W/2+90, H*0.6-10, 20, 20); // 1塁
-    ctx.fillRect(W/2-10, H*0.4-10, 20, 20); // 2塁
-    ctx.fillRect(W/2-110, H*0.6-10, 20, 20); // 3塁
-    
-    // 外野フェンス
+    ctx.fillRect(W/2-15, H*0.8-10, 30, 20); ctx.fillRect(W/2+90, H*0.6-10, 20, 20);
+    ctx.fillRect(W/2-10, H*0.4-10, 20, 20); ctx.fillRect(W/2-110, H*0.6-10, 20, 20);
     ctx.strokeStyle = '#0277bd'; ctx.lineWidth = 15;
     ctx.beginPath(); ctx.arc(W/2, H*0.8, H*0.55, Math.PI*1.1, Math.PI*1.9); ctx.stroke();
 
-    // 飛んでいるボール
     if (state === 'fly') {
-        // 影
         ctx.fillStyle = "rgba(0,0,0,0.4)";
         ctx.beginPath(); ctx.ellipse(flyBall.x, H*0.8 - (H*0.8 - flyBall.y)*0.8, 15*flyBall.scale, 5*flyBall.scale, 0, 0, Math.PI*2); ctx.fill();
-        
         ctx.font = (20 * flyBall.scale) + "px sans-serif";
         ctx.fillText("⚾", flyBall.x, flyBall.y);
     }
@@ -294,53 +311,37 @@ function drawStadiumView() {
 function update() {
     if (state === 'pitch') {
         ball.t += ball.speed;
-        // 見逃し判定
+        // ゲージ右端（1.3）を超えたら見逃し
         if (ball.t > 1.3) {
-            playSound('out');
-            showMsg("ストライク！", "#ffeb3b");
+            playSound('out'); showMsg("ストライク！", "#ffeb3b");
             state = 'result'; timer = 90;
         }
     } else if (state === 'fly') {
-        // パラボラ軌道の計算（放物線）
-        flyBall.x += flyBall.vx;
-        flyBall.y += flyBall.vy;
-        flyBall.vy += flyBall.gravity; // 重力を足す
+        flyBall.x += flyBall.vx; flyBall.y += flyBall.vy; flyBall.vy += flyBall.gravity;
         flyBall.timer++;
         
-        // 上昇中は大きく、下降中は小さく
-        if (flyBall.vy < 0) flyBall.scale += 0.03;
-        else flyBall.scale = Math.max(0.5, flyBall.scale - 0.03);
+        if (flyBall.vy < 0) flyBall.scale += 0.03; else flyBall.scale = Math.max(0.5, flyBall.scale - 0.03);
 
-        // ボールが落ち切ったら結果判定へ
         if (flyBall.timer > flyBall.maxTime) {
             state = 'result'; timer = 120;
             if (ball.hitState === 2) {
-                playSound('homerun');
-                showMsg("すごい！\nホームラン！", "#ffd700");
-                hrCount++;
-                UI_HR.innerText = hrCount;
+                playSound('homerun'); showMsg("すごい！\nホームラン！", "#ffd700");
+                hrCount++; UI_HR.innerText = hrCount;
             } else {
-                playSound('out');
-                showMsg("おしい！\nフライだ...", "#90caf9");
+                playSound('out'); showMsg("おしい！\nフライだ...", "#90caf9");
             }
         }
     } else if (state === 'result') {
         timer--;
         if (timer <= 0) {
             hideMsg();
-            if (pitchCount >= MAX_PITCHES) endGame();
-            else nextPitch();
+            if (pitchCount >= MAX_PITCHES) endGame(); else nextPitch();
         }
     }
 
-    // 描画の切り替え
-    if (state === 'fly' || (state === 'result' && ball.hitState > 0)) {
-        drawStadiumView();
-    } else {
-        drawBatterView();
-    }
+    if (state === 'fly' || (state === 'result' && ball.hitState > 0)) drawStadiumView();
+    else drawBatterView();
     
-    // アニメーションをループさせる
     requestAnimationFrame(update);
 }
 
@@ -350,37 +351,30 @@ function startGame() {
     document.getElementById('start-screen').classList.add('hide');
     document.getElementById('result-screen').classList.add('hide');
     SWING_BTN.classList.remove('hide');
-    
     pitchCount = 0; hrCount = 0;
     UI_PITCH.innerText = pitchCount + 1; UI_HR.innerText = hrCount;
-    hideMsg();
-    nextPitch();
+    hideMsg(); nextPitch();
 }
 
 function nextPitch() {
     pitchCount++;
     if(pitchCount <= MAX_PITCHES) UI_PITCH.innerText = pitchCount;
-    ball.hitState = 0;
-    state = 'wait';
+    ball.hitState = 0; state = 'wait';
     
     setTimeout(() => {
         ball.t = 0;
-        // 少し遅めにして子供向けに調整
-        ball.speed = 0.01 + Math.random() * 0.015;
-        ball.endX = W/2 + (Math.random() - 0.5) * 150;
-        
-        playSound('pitch');
-        state = 'pitch';
+        // ゲージを見ながら打てるように球速を安定化
+        ball.speed = 0.012 + Math.random() * 0.006;
+        ball.endX = W/2 + (Math.random() - 0.5) * 120;
+        playSound('pitch'); state = 'pitch';
     }, 1000);
 }
 
 function endGame() {
-    SWING_BTN.classList.add('hide');
-    state = 'title';
+    SWING_BTN.classList.add('hide'); state = 'title';
     document.getElementById('final-score').innerText = hrCount;
     document.getElementById('result-screen').classList.remove('hide');
-    if (hrCount >= 5) playSound('homerun');
-    else playSound('out');
+    if (hrCount >= 5) playSound('homerun'); else playSound('out');
 }
 
 function showStartScreen() {
@@ -388,16 +382,17 @@ function showStartScreen() {
     document.getElementById('start-screen').classList.remove('hide');
 }
 
-// --- スイング判定 (タップ操作) ---
+// --- スイング判定 ---
 SWING_BTN.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     if (state !== 'pitch') return;
     
     playSound('swing');
-    let timing = ball.t; // t=1.0 がホームベース真上
+    swingAnim = 15; // スイングアニメーションを15フレーム再生
+    let timing = ball.t;
     
-    // ヒットの判定（少し甘めに調整）
-    if (timing >= 0.8 && timing <= 1.2) {
+    // ゲージの色分けに対応した判定
+    if (timing >= 0.9 && timing <= 1.15) {
         playSound('hit');
         state = 'swinging';
         
@@ -405,20 +400,15 @@ SWING_BTN.addEventListener('pointerdown', (e) => {
             state = 'fly';
             flyBall.x = W/2; flyBall.y = H*0.8; flyBall.scale = 1; flyBall.timer = 0;
             
-            if (timing >= 0.9 && timing <= 1.1) {
-                // ホームラン (ジャストミート)
+            // 赤ゾーン (0.98 ~ 1.05) でホームラン
+            if (timing >= 0.98 && timing <= 1.05) {
                 ball.hitState = 2;
-                flyBall.vx = (Math.random() - 0.5) * 6;
-                flyBall.vy = -14;
-                flyBall.gravity = 0.2; // 滞空時間が長い
-                flyBall.maxTime = 70;
-            } else {
-                // フライ
+                flyBall.vx = (Math.random() - 0.5) * 6; flyBall.vy = -14;
+                flyBall.gravity = 0.2; flyBall.maxTime = 70;
+            } else { // 黄色ゾーンはフライ
                 ball.hitState = 1;
-                flyBall.vx = (Math.random() - 0.5) * 10;
-                flyBall.vy = -10;
-                flyBall.gravity = 0.5; // すぐ落ちる
-                flyBall.maxTime = 40;
+                flyBall.vx = (Math.random() - 0.5) * 10; flyBall.vy = -10;
+                flyBall.gravity = 0.5; flyBall.maxTime = 40;
             }
         }, 150);
     } else {
@@ -427,14 +417,12 @@ SWING_BTN.addEventListener('pointerdown', (e) => {
         setTimeout(() => {
             if(state === 'swinging') {
                 showMsg("からぶり！", "#ffeb3b");
-                playSound('out');
-                state = 'result'; timer = 90;
+                playSound('out'); state = 'result'; timer = 90;
             }
         }, 300);
     }
 });
 
-// 【修正箇所】最初からアニメーションループを開始しておく
 requestAnimationFrame(update);
 </script>
 </body>
