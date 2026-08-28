@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<!-- ガイドラインに基づくPWA・全画面表示のためのviewport設定 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>ホームランきょうそう</title>
 
@@ -86,6 +85,7 @@
   .start-btn {
     background: #4caf50; border-bottom: 8px solid #2e7d32; border-radius: 30px; padding: 15px 50px;
     font-size: clamp(24px, 7vw, 32px); color: white; font-weight: bold; border-left:none; border-right:none; border-top:none;
+    cursor: pointer;
   }
   .start-btn:active { transform: translateY(8px); border-bottom-width: 0px; }
   
@@ -200,7 +200,7 @@ let timer = 0;
 // ボール情報
 let ball = { t: 0, speed: 0, endX: 0, hitState: 0 }; // hitState: 0=なし, 1=フライ, 2=ホームラン
 // 飛んでいくボール情報
-let flyBall = { x: 0, y: 0, vx: 0, vy: 0, scale: 1, timer: 0 };
+let flyBall = { x: 0, y: 0, vx: 0, vy: 0, gravity: 0, scale: 1, timer: 0, maxTime: 0 };
 
 const UI_PITCH = document.getElementById('pitch-count');
 const UI_HR = document.getElementById('hr-count');
@@ -219,10 +219,9 @@ function hideMsg() {
 // --- 画面描画ロジック ---
 // 1. バッターボックス視点
 function drawBatterView() {
-    // 背景(芝生)
+    // 背景(芝生と空)
     ctx.fillStyle = '#4caf50';
     ctx.fillRect(0, 0, W, H);
-    // 空
     ctx.fillStyle = '#87CEEB';
     ctx.fillRect(0, 0, W, H*0.25);
     
@@ -239,7 +238,7 @@ function drawBatterView() {
     ctx.font = "40px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="bottom";
     ctx.fillText("🐒", W/2, H*0.35);
 
-    // バッター(手前) - スイング判定でアニメーション
+    // バッター(手前)
     ctx.font = "80px sans-serif";
     if (state === 'swinging') {
         ctx.save(); ctx.translate(W/2 - 60, H*0.8); ctx.rotate(-Math.PI/4); ctx.fillText("🏏", 0, 0); ctx.restore();
@@ -247,11 +246,10 @@ function drawBatterView() {
         ctx.fillText("🧍", W/2 - 60, H*0.8);
     }
 
-    // ボール描画(pitch中)
+    // ボール描画
     if (state === 'pitch' || state === 'wait') {
         let bx = W/2; let by = H*0.33; let bSize = 10;
         if (state === 'pitch') {
-            // t(0.0〜1.0) に応じて手前に来る
             bx = W/2 + (ball.endX - W/2) * ball.t;
             by = H*0.33 + (H*0.75 - H*0.33) * ball.t;
             bSize = 10 + 35 * ball.t;
@@ -266,9 +264,8 @@ function drawBatterView() {
 
 // 2. スタジアム全体視点 (飛んでいる時)
 function drawStadiumView() {
-    // 芝生
+    // 芝生と内野の土
     ctx.fillStyle = '#2e7d32'; ctx.fillRect(0, 0, W, H);
-    // 内野の土
     ctx.fillStyle = '#8d6e63';
     ctx.beginPath(); ctx.moveTo(W/2, H*0.8); ctx.lineTo(W/2+100, H*0.6); ctx.lineTo(W/2, H*0.4); ctx.lineTo(W/2-100, H*0.6); ctx.fill();
     // ベース
@@ -278,7 +275,7 @@ function drawStadiumView() {
     ctx.fillRect(W/2-10, H*0.4-10, 20, 20); // 2塁
     ctx.fillRect(W/2-110, H*0.6-10, 20, 20); // 3塁
     
-    // 外野フェンス(円弧)
+    // 外野フェンス
     ctx.strokeStyle = '#0277bd'; ctx.lineWidth = 15;
     ctx.beginPath(); ctx.arc(W/2, H*0.8, H*0.55, Math.PI*1.1, Math.PI*1.9); ctx.stroke();
 
@@ -297,32 +294,32 @@ function drawStadiumView() {
 function update() {
     if (state === 'pitch') {
         ball.t += ball.speed;
-        // 見逃し
+        // 見逃し判定
         if (ball.t > 1.3) {
             playSound('out');
             showMsg("ストライク！", "#ffeb3b");
-            state = 'result'; timer = 90; // 約1.5秒待機
+            state = 'result'; timer = 90;
         }
     } else if (state === 'fly') {
+        // パラボラ軌道の計算（放物線）
         flyBall.x += flyBall.vx;
         flyBall.y += flyBall.vy;
+        flyBall.vy += flyBall.gravity; // 重力を足す
         flyBall.timer++;
         
-        // 飛ぶ高さの演出（スケール）
-        if (flyBall.timer < 30) flyBall.scale += 0.05;
+        // 上昇中は大きく、下降中は小さく
+        if (flyBall.vy < 0) flyBall.scale += 0.03;
         else flyBall.scale = Math.max(0.5, flyBall.scale - 0.03);
 
-        // 落下判定
-        if (flyBall.vy < 0 && flyBall.timer > flyBall.maxTime) {
+        // ボールが落ち切ったら結果判定へ
+        if (flyBall.timer > flyBall.maxTime) {
             state = 'result'; timer = 120;
             if (ball.hitState === 2) {
-                // HR
                 playSound('homerun');
                 showMsg("すごい！\nホームラン！", "#ffd700");
                 hrCount++;
                 UI_HR.innerText = hrCount;
             } else {
-                // Fly Out
                 playSound('out');
                 showMsg("おしい！\nフライだ...", "#90caf9");
             }
@@ -331,11 +328,8 @@ function update() {
         timer--;
         if (timer <= 0) {
             hideMsg();
-            if (pitchCount >= MAX_PITCHES) {
-                endGame();
-            } else {
-                nextPitch();
-            }
+            if (pitchCount >= MAX_PITCHES) endGame();
+            else nextPitch();
         }
     }
 
@@ -345,6 +339,8 @@ function update() {
     } else {
         drawBatterView();
     }
+    
+    // アニメーションをループさせる
     requestAnimationFrame(update);
 }
 
@@ -359,7 +355,6 @@ function startGame() {
     UI_PITCH.innerText = pitchCount + 1; UI_HR.innerText = hrCount;
     hideMsg();
     nextPitch();
-    if (state === 'title') { requestAnimationFrame(update); }
 }
 
 function nextPitch() {
@@ -369,10 +364,10 @@ function nextPitch() {
     state = 'wait';
     
     setTimeout(() => {
-        // ランダムな速度とコース
         ball.t = 0;
-        ball.speed = 0.015 + Math.random() * 0.02; // 速球や遅球
-        ball.endX = W/2 + (Math.random() - 0.5) * 150; // 左右のブレ
+        // 少し遅めにして子供向けに調整
+        ball.speed = 0.01 + Math.random() * 0.015;
+        ball.endX = W/2 + (Math.random() - 0.5) * 150;
         
         playSound('pitch');
         state = 'pitch';
@@ -394,17 +389,15 @@ function showStartScreen() {
 }
 
 // --- スイング判定 (タップ操作) ---
-// ガイドラインに従い touchstart / pointerdown で素早く反応させる
 SWING_BTN.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     if (state !== 'pitch') return;
     
     playSound('swing');
-    let timing = ball.t;
-    // t=1.0 がホームベース真上
+    let timing = ball.t; // t=1.0 がホームベース真上
     
-    if (timing >= 0.85 && timing <= 1.15) {
-        // ヒット!
+    // ヒットの判定（少し甘めに調整）
+    if (timing >= 0.8 && timing <= 1.2) {
         playSound('hit');
         state = 'swinging';
         
@@ -412,21 +405,22 @@ SWING_BTN.addEventListener('pointerdown', (e) => {
             state = 'fly';
             flyBall.x = W/2; flyBall.y = H*0.8; flyBall.scale = 1; flyBall.timer = 0;
             
-            // タイミングによる結果分岐
-            if (timing >= 0.95 && timing <= 1.05) {
+            if (timing >= 0.9 && timing <= 1.1) {
                 // ホームラン (ジャストミート)
                 ball.hitState = 2;
-                flyBall.vx = (Math.random() - 0.5) * 4;
-                flyBall.vy = -12; // 遠くまで飛ぶ
-                flyBall.maxTime = 50;
+                flyBall.vx = (Math.random() - 0.5) * 6;
+                flyBall.vy = -14;
+                flyBall.gravity = 0.2; // 滞空時間が長い
+                flyBall.maxTime = 70;
             } else {
-                // フライ (少しズレた)
+                // フライ
                 ball.hitState = 1;
-                flyBall.vx = (Math.random() - 0.5) * 8;
-                flyBall.vy = -6; // 手前に落ちる
-                flyBall.maxTime = 30;
+                flyBall.vx = (Math.random() - 0.5) * 10;
+                flyBall.vy = -10;
+                flyBall.gravity = 0.5; // すぐ落ちる
+                flyBall.maxTime = 40;
             }
-        }, 150); // スイング後少し待ってから視点切り替え
+        }, 150);
     } else {
         // 空振り
         state = 'swinging';
@@ -439,6 +433,9 @@ SWING_BTN.addEventListener('pointerdown', (e) => {
         }, 300);
     }
 });
+
+// 【修正箇所】最初からアニメーションループを開始しておく
+requestAnimationFrame(update);
 </script>
 </body>
 </html>
