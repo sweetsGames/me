@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<!-- ガイドラインに基づくPWA・全画面表示のためのviewport設定 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>AIテニスバトル</title>
+
+<!-- PWA・全画面表示設定 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2e7d32">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="テニス">
+
+<!-- Service Worker 登録スクリプト -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+  }
+</script>
+
+<style>
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+  * {
+    box-sizing: border-box; user-select: none; -webkit-user-select: none;
+    margin: 0; padding: 0; touch-action: none; font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif;
+  }
+  body {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden; background-color: #1b5e20; display: flex; flex-direction: column;
+  }
+  #game-area {
+    position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto;
+    background: #2e7d32; box-shadow: 0 0 15px rgba(0,0,0,0.4); overflow: hidden;
+  }
+  canvas {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  
+  /* Scores Overlay */
+  #score-board {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    pointer-events: none; z-index: 10; opacity: 0.3;
+  }
+  .score {
+    font-size: clamp(80px, 20vw, 150px); font-weight: bold; color: white;
+    margin: 20px 0; line-height: 1;
+  }
+
+  /* Messages */
+  #message-box {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: clamp(40px, 10vw, 60px); font-weight: bold; text-align: center;
+    color: #ffeb3b; text-shadow: 4px 4px 0 #f57f17, -2px -2px 0 #f57f17, 2px -2px 0 #f57f17, -2px 2px 0 #f57f17;
+    opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 20; width: 100%;
+  }
+
+  /* Screens */
+  .screen {
+    position: absolute; inset: 0; background: rgba(232, 245, 233, 0.95);
+    display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+  }
+  h1 { font-size: clamp(36px, 9vw, 56px); color: #2e7d32; margin-bottom: 20px; text-shadow: 2px 2px 0 #fff; text-align: center;}
+  .desc { font-size: clamp(16px, 4.5vw, 22px); color: #333; margin-bottom: 30px; font-weight: bold; text-align: center; line-height: 1.5; }
+  
+  /* Difficulty Buttons */
+  .btn-group { display: flex; flex-direction: column; gap: 15px; width: 80%; max-width: 280px; }
+  .diff-btn {
+    padding: 15px; border: none; border-radius: 30px;
+    font-size: clamp(20px, 6vw, 28px); font-weight: bold; color: white; cursor: pointer;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.2);
+  }
+  .diff-btn:active { transform: translateY(6px); box-shadow: none; margin-bottom: 6px;}
+
+  .btn-return {
+    background: #ff5722; border-radius: 30px; padding: 15px 50px; border: none;
+    font-size: clamp(24px, 7vw, 32px); color: white; font-weight: bold; box-shadow: 0 6px 0 #d84315;
+    margin-top: 20px;
+  }
+  .btn-return:active { transform: translateY(6px); box-shadow: none; margin-bottom: 6px;}
+  
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="game-area">
+  <canvas id="c"></canvas>
+  
+  <div id="score-board">
+    <div class="score" id="score-cpu">0</div>
+    <div style="width: 80%; height: 8px; background: white; border-radius: 4px;"></div>
+    <div class="score" id="score-player">0</div>
+  </div>
+  
+  <div id="message-box"></div>
+
+  <!-- スタート画面 -->
+  <div id="start-screen" class="screen">
+    <h1>AIテニスバトル🎾</h1>
+    <div class="desc">ボールをバーではじきかえそう！<br>さきに 5てん とったほうの かち！<br><span style="font-size: 0.8em; color: #555;">※バーの はし にあてると まがるよ</span></div>
+    
+    <div class="btn-group">
+      <button class="diff-btn" style="background:#00c853;" onclick="startGame(0)">超かんたん</button>
+      <button class="diff-btn" style="background:#ff9800;" onclick="startGame(1)">かんたん</button>
+      <button class="diff-btn" style="background:#f44336;" onclick="startGame(2)">むずかしい</button>
+      <button class="diff-btn" style="background:#9c27b0;" onclick="startGame(3)">超むずかしい</button>
+    </div>
+  </div>
+
+  <!-- 結果画面 -->
+  <div id="result-screen" class="screen hide">
+    <h1 id="result-title">かち！🎉</h1>
+    <div class="desc"><span id="final-score">5 - 3</span></div>
+    <button class="btn-return" onclick="showStartScreen()">もどる</button>
+  </div>
+</div>
+
+<script>
+// --- Web Audio API ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let actx;
+
+function initAudio() {
+    if (!actx) actx = new AudioContext();
+    if (actx.state === 'suspended') actx.resume();
+}
+
+function playSound(type) {
+    if (!actx) return;
+    const osc = actx.createOscillator();
+    const gain = actx.createGain();
+    osc.connect(gain); gain.connect(actx.destination);
+    const now = actx.currentTime;
+    
+    if (type === 'hit') {
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.1); osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'score-player') {
+        osc.type = 'square'; [440, 554, 659, 880].forEach((freq, i) => osc.frequency.setValueAtTime(freq, now + i*0.1));
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.5); osc.start(now); osc.stop(now + 0.5);
+    } else if (type === 'score-cpu') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(200, now + 0.4);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.4); osc.start(now); osc.stop(now + 0.4);
+    } else if (type === 'win') {
+        osc.type = 'square'; [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => osc.frequency.setValueAtTime(freq, now + i*0.15));
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 1.0); osc.start(now); osc.stop(now + 1.0);
+    } else if (type === 'lose') {
+        osc.type = 'sawtooth'; [300, 280, 250, 200].forEach((freq, i) => osc.frequency.setValueAtTime(freq, now + i*0.2));
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 1.0); osc.start(now); osc.stop(now + 1.0);
+    }
+}
+
+// --- Canvas設定 ---
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+let W, H;
+function resize() {
+    W = c.width = c.parentElement.clientWidth;
+    H = c.height = c.parentElement.clientHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- ゲーム設定・状態 ---
+const WIN_SCORE = 5;
+const DIFFICULTIES = [
+    { pWidth: 0.35, cpuSpeed: 0.04, cpuMaxV: 4,  ballSpeed: 6 },   // 超かんたん: CPUが遅くよくミスする。バー長い
+    { pWidth: 0.28, cpuSpeed: 0.08, cpuMaxV: 6,  ballSpeed: 7.5 }, // かんたん: やや普通
+    { pWidth: 0.20, cpuSpeed: 0.15, cpuMaxV: 9,  ballSpeed: 9 },   // むずかしい: CPU速い。バー短い
+    { pWidth: 0.15, cpuSpeed: 0.30, cpuMaxV: 15, ballSpeed: 11 }   // 超むずかしい: CPU完璧。バー激短
+];
+let currentDiff = 1;
+
+let state = 'title'; // title, playing, scored, result
+let scoreP = 0;
+let scoreC = 0;
+let timer = 0;
+
+const UI_P_SCORE = document.getElementById('score-player');
+const UI_C_SCORE = document.getElementById('score-cpu');
+const MSG = document.getElementById('message-box');
+
+function showMsg(text) { MSG.innerText = text; MSG.style.opacity = 1; }
+function hideMsg() { MSG.style.opacity = 0; }
+
+// オブジェクト
+let ball = { x: 0, y: 0, vx: 0, vy: 0, r: 15, speed: 0 };
+let player = { x: 0, y: 0, w: 0, h: 20 };
+let cpu = { x: 0, y: 0, w: 0, h: 20 };
+// タッチ操作用
+let touchX = 0;
+
+// --- 描画ロジック ---
+function drawCourt() {
+    ctx.clearRect(0, 0, W, H);
+    
+    // テニスコートのライン
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 4;
+    // 外枠
+    ctx.strokeRect(10, 10, W - 20, H - 20);
+    // センターライン（横）
+    ctx.beginPath(); ctx.moveTo(10, H/2); ctx.lineTo(W - 10, H/2); ctx.stroke();
+    // サービスライン（縦）
+    ctx.beginPath(); ctx.moveTo(W/2, 10); ctx.lineTo(W/2, H - 10); ctx.stroke();
+    
+    // ユーザー操作の死角を防ぐための、下部余白ライン（視覚的なガイド）
+    ctx.setLineDash([10, 10]);
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.beginPath(); ctx.moveTo(0, H - 100); ctx.lineTo(W, H - 100); ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+function drawObjects() {
+    // プレイヤーバー (オレンジ)
+    ctx.fillStyle = '#ff9800';
+    ctx.beginPath(); ctx.roundRect(player.x - player.w/2, player.y - player.h/2, player.w, player.h, 10); ctx.fill();
+    ctx.strokeStyle = '#e65100'; ctx.lineWidth = 3; ctx.stroke();
+    
+    // CPUバー (水色)
+    ctx.fillStyle = '#29b6f6';
+    ctx.beginPath(); ctx.roundRect(cpu.x - cpu.w/2, cpu.y - cpu.h/2, cpu.w, cpu.h, 10); ctx.fill();
+    ctx.strokeStyle = '#0277bd'; ctx.stroke();
+
+    // ボール (絵文字 🎾)
+    ctx.font = (ball.r * 2.5) + "px sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("🎾", ball.x, ball.y);
+}
+
+// --- メインループ ---
+function update() {
+    if (state === 'playing') {
+        // プレイヤーの移動 (タッチ座標に追従)
+        player.x = touchX;
+        // 画面外にはみ出ないようにクランプ
+        if (player.x - player.w/2 < 0) player.x = player.w/2;
+        if (player.x + player.w/2 > W) player.x = W - player.w/2;
+
+        // CPUの移動ロジック（難易度で変化）
+        let diffObj = DIFFICULTIES[currentDiff];
+        let cpuTarget = ball.x;
+        let diff = cpuTarget - cpu.x;
+        
+        // 速度制限と遅延追従を組み合わせる
+        let move = diff * diffObj.cpuSpeed;
+        if (move > diffObj.cpuMaxV) move = diffObj.cpuMaxV;
+        if (move < -diffObj.cpuMaxV) move = -diffObj.cpuMaxV;
+        cpu.x += move;
+        
+        // CPU画面外クランプ
+        if (cpu.x - cpu.w/2 < 0) cpu.x = cpu.w/2;
+        if (cpu.x + cpu.w/2 > W) cpu.x = W - cpu.w/2;
+
+        // ボールの移動
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+
+        // 壁の反射 (左右)
+        if (ball.x - ball.r < 0) { ball.x = ball.r; ball.vx *= -1; playSound('hit'); }
+        if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.vx *= -1; playSound('hit'); }
+
+        // プレイヤーバーとの衝突判定
+        if (ball.vy > 0 && ball.y + ball.r > player.y - player.h/2 && ball.y - ball.r < player.y + player.h/2) {
+            if (ball.x > player.x - player.w/2 - ball.r && ball.x < player.x + player.w/2 + ball.r) {
+                // 当たった位置から角度を計算 (端に当たるほど鋭角に)
+                let hitPoint = (ball.x - player.x) / (player.w / 2); // -1.0(左端) 〜 1.0(右端)
+                ball.vx = hitPoint * (ball.speed * 0.8);
+                ball.vy = -Math.abs(ball.vy);
+                ball.y = player.y - player.h/2 - ball.r; // めり込み防止
+                ball.speed *= 1.02; // 徐々にスピードアップ
+                playSound('hit');
+            }
+        }
+
+        // CPUバーとの衝突判定
+        if (ball.vy < 0 && ball.y - ball.r < cpu.y + cpu.h/2 && ball.y + ball.r > cpu.y - cpu.h/2) {
+            if (ball.x > cpu.x - cpu.w/2 - ball.r && ball.x < cpu.x + cpu.w/2 + ball.r) {
+                let hitPoint = (ball.x - cpu.x) / (cpu.w / 2);
+                ball.vx = hitPoint * (ball.speed * 0.8);
+                ball.vy = Math.abs(ball.vy);
+                ball.y = cpu.y + cpu.h/2 + ball.r;
+                ball.speed *= 1.02;
+                playSound('hit');
+            }
+        }
+
+        // 得点判定 (画面上下を通過)
+        if (ball.y < 0) { // プレイヤーの得点
+            scoreP++; UI_P_SCORE.innerText = scoreP;
+            playSound('score-player'); showMsg("ナイス！ 1てん！");
+            checkWin(1); // 1 = player
+        } else if (ball.y > H) { // CPUの得点
+            scoreC++; UI_C_SCORE.innerText = scoreC;
+            playSound('score-cpu'); showMsg("あぁっ！ しってん...");
+            checkWin(2); // 2 = CPU
+        }
+    } else if (state === 'scored') {
+        timer--;
+        if (timer <= 0) {
+            hideMsg();
+            resetBall(ball.y < H/2 ? -1 : 1); // 負けた方へサーブ
+            state = 'playing';
+        }
+    }
+
+    if (state !== 'title' && state !== 'result') {
+        drawCourt();
+        drawObjects();
+    }
+    requestAnimationFrame(update);
+}
+
+function checkWin(winnerId) {
+    if (scoreP >= WIN_SCORE || scoreC >= WIN_SCORE) {
+        state = 'result';
+        setTimeout(() => {
+            hideMsg();
+            document.getElementById('final-score').innerText = `${scoreC} - ${scoreP}`;
+            if (scoreP > scoreC) {
+                document.getElementById('result-title').innerText = "かち！🎉";
+                playSound('win');
+            } else {
+                document.getElementById('result-title').innerText = "まけ...😭";
+                playSound('lose');
+            }
+            document.getElementById('result-screen').classList.remove('hide');
+        }, 1500);
+    } else {
+        state = 'scored';
+        timer = 90; // 約1.5秒停止
+    }
+}
+
+// ボールの初期化
+function resetBall(directionVy) {
+    ball.x = W / 2;
+    ball.y = H / 2;
+    let diffObj = DIFFICULTIES[currentDiff];
+    ball.speed = diffObj.ballSpeed;
+    ball.vx = (Math.random() - 0.5) * ball.speed; // 最初は少し斜めに
+    ball.vy = directionVy * ball.speed;
+}
+
+// --- ゲーム進行制御 ---
+function startGame(level) {
+    currentDiff = level;
+    initAudio();
+    document.getElementById('start-screen').classList.add('hide');
+    document.getElementById('result-screen').classList.add('hide');
+    
+    scoreP = 0; scoreC = 0;
+    UI_P_SCORE.innerText = scoreP; UI_C_SCORE.innerText = scoreC;
+    hideMsg();
+    
+    // バーの初期設定
+    let diffObj = DIFFICULTIES[currentDiff];
+    player.w = W * diffObj.pWidth;
+    cpu.w = W * 0.35; // CPUのバーは常に一定幅
+    
+    // 【指の死角対策】プレイヤーバーを下から150pxの位置に配置し、下に余白を作る
+    player.y = H - 150;
+    cpu.y = 80;
+    
+    touchX = W / 2;
+    player.x = W / 2;
+    cpu.x = W / 2;
+
+    resetBall(1); // 最初はプレイヤーへ
+    state = 'playing';
+}
+
+function showStartScreen() {
+    document.getElementById('result-screen').classList.add('hide');
+    document.getElementById('start-screen').classList.remove('hide');
+}
+
+// --- タッチ操作 (指の位置にバーを連動) ---
+// 画面全体のどこを触っても、X座標（横）だけを取得してバーを動かします
+c.addEventListener('pointerdown', (e) => {
+    if (state !== 'playing') return;
+    let rect = c.getBoundingClientRect();
+    touchX = (e.clientX - rect.left) * (W / rect.width);
+});
+
+c.addEventListener('pointermove', (e) => {
+    if (state !== 'playing') return;
+    let rect = c.getBoundingClientRect();
+    touchX = (e.clientX - rect.left) * (W / rect.width);
+});
+
+requestAnimationFrame(update);
+</script>
+</body>
+</html>
