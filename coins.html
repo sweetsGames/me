@@ -555,4 +555,22 @@ document.addEventListener('touchend', (e) => {
     
     if (Math.max(absDx, absDy) > 30) {
         if (absDx > absDy) {
-            if (dx > 0) slid
+            if (dx > 0) slide(2); else slide(0);
+        } else {
+            if (dy > 0) slide(3); else slide(1);
+        }
+    }
+}, {passive: true});
+
+document.addEventListener('keydown', (e) => {
+    if (state !== 'playing') return;
+    if (e.key === 'ArrowLeft') slide(0);
+    if (e.key === 'ArrowUp') slide(1);
+    if (e.key === 'ArrowRight') slide(2);
+    if (e.key === 'ArrowDown') slide(3);
+});
+
+drawGridBg();
+</script>
+</body>
+</html>
