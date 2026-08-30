@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<!-- ガイドラインに基づくPWA・全画面表示のためのviewport設定 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>たしざん ふうせんわり</title>
+
+<!-- PWA・全画面表示設定 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4fc3f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ふうせんわり">
+
+<!-- Service Worker 登録スクリプト -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+  }
+</script>
+
+<style>
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+  * {
+    box-sizing: border-box; user-select: none; -webkit-user-select: none;
+    margin: 0; padding: 0; touch-action: none;
+    font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif;
+  }
+  html, body {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden; background-color: #e1f5fe; display: flex; flex-direction: column;
+  }
+  #game-wrapper {
+    position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto;
+    background: linear-gradient(to bottom, #4fc3f7 0%, #e1f5fe 100%);
+    box-shadow: 0 0 20px rgba(0,0,0,0.1); display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  
+  /* UI Header */
+  #header {
+    position: absolute; top: max(10px, var(--sat)); left: 0; width: 100%;
+    padding: 0 15px; display: flex; justify-content: space-between; align-items: center; z-index: 10;
+    pointer-events: none;
+  }
+  .status-box {
+    background: rgba(255, 255, 255, 0.9); padding: 8px 15px; border-radius: 12px;
+    font-size: clamp(16px, 5vw, 22px); font-weight: bold; color: #0277bd;
+    border: 3px solid #29b6f6; box-shadow: 0 4px 0 #0288d1;
+  }
+  
+  /* Question Board */
+  #question-board {
+    position: absolute; top: calc(max(10px, var(--sat)) + 70px); left: 50%; transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95); border: 5px solid #ff9800; border-radius: 20px;
+    padding: 10px 30px; font-size: clamp(36px, 10vw, 56px); font-weight: bold; color: #e65100;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.1); z-index: 10; text-align: center; pointer-events: none;
+    display: none; white-space: nowrap;
+  }
+
+  /* Canvas */
+  canvas {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+
+  /* Screens & Popups */
+  .screen {
+    position: absolute; inset: 0; background: rgba(225, 245, 254, 0.95);
+    display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+  }
+  h1 { font-size: clamp(36px, 10vw, 56px); color: #0288d1; margin-bottom: 20px; text-shadow: 3px 3px 0 #fff; text-align: center;}
+  .desc { font-size: clamp(18px, 5vw, 24px); color: #333; margin-bottom: 30px; font-weight: bold; text-align: center; line-height: 1.6; }
+  
+  .btn-group { display: flex; flex-direction: column; gap: 15px; width: 80%; max-width: 280px; }
+  .btn {
+    border: none; border-radius: 30px; padding: 15px 20px;
+    font-size: clamp(22px, 6vw, 28px); font-weight: bold; color: white;
+    cursor: pointer; box-shadow: 0 6px 0 rgba(0,0,0,0.2); touch-action: manipulation;
+  }
+  .btn:active { transform: translateY(6px); box-shadow: none; margin-bottom: 6px; }
+
+  #message-popup {
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0);
+    font-size: clamp(40px, 12vw, 60px); font-weight: bold; text-align: center;
+    color: #ffeb3b; text-shadow: 4px 4px 0 #f57f17, -2px -2px 0 #f57f17, 2px -2px 0 #f57f17, -2px 2px 0 #f57f17;
+    z-index: 50; pointer-events: none; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  #message-popup.show { transform: translate(-50%, -50%) scale(1); }
+
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="header">
+    <div class="status-box" id="ui-q">1/10 もん</div>
+    <div class="status-box">せいかい: <span id="ui-score">0</span></div>
+  </div>
+  
+  <div id="question-board">1 + 2 = ❓</div>
+  
+  <canvas id="c"></canvas>
+  
+  <div id="message-popup">せいかい！</div>
+
+  <!-- スタート画面 -->
+  <div id="start-screen" class="screen">
+    <h1>ふうせんわり🎈</h1>
+    <div class="desc">
+      そらに けいさんの もんだいが でるよ。<br>
+      せいかい の ふうせん を<br>タッチして わろう！
+    </div>
+    
+    <div class="btn-group">
+      <button class="btn" style="background:#4caf50; box-shadow: 0 6px 0 #2e7d32;" onclick="startGame(0)">かんたん（たす）</button>
+      <button class="btn" style="background:#ff9800; box-shadow: 0 6px 0 #e65100;" onclick="startGame(1)">ふつう（たす）</button>
+      <button class="btn" style="background:#e91e63; box-shadow: 0 6px 0 #c2185b;" onclick="startGame(2)">むずかしい（ひく）</button>
+    </div>
+  </div>
+
+  <!-- 結果画面 -->
+  <div id="result-screen" class="screen hide">
+    <h1 id="result-title">おつかれさま！</h1>
+    <div class="desc">
+      せいかい した かず<br>
+      <span id="final-score" style="color:#e65100; font-size:2em;">0</span> こ / 10こ
+    </div>
+    <button class="btn" style="background:#2196f3; box-shadow: 0 6px 0 #0d47a1; padding: 15px 40px;" onclick="showStartScreen()">もういっかい</button>
+  </div>
+</div>
+
+<script>
+// --- Web Audio API (効果音) ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let actx;
+
+function initAudio() {
+    if (!actx) actx = new AudioContext();
+    if (actx.state === 'suspended') actx.resume();
+}
+
+function playSound(type) {
+    if (!actx) return;
+    const now = actx.currentTime;
+    const osc = actx.createOscillator();
+    const gain = actx.createGain();
+    osc.connect(gain); gain.connect(actx.destination);
+    
+    if (type === 'pop') {
+        // ふうせんが割れる音 (パンッ！)
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'correct') {
+        // 正解音 (ピンポン！)
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(659.25, now); // E5
+        osc.frequency.setValueAtTime(880.00, now + 0.1); // A5
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.4);
+        osc.start(now); osc.stop(now + 0.4);
+    } else if (type === 'wrong') {
+        // 不正解音 (ブブー)
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.setValueAtTime(150, now + 0.3);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.start(now); osc.stop(now + 0.3);
+    } else if (type === 'clear') {
+        // リザルト音
+        osc.type = 'square';
+        [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => osc.frequency.setValueAtTime(f, now + i*0.15));
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.8);
+        osc.start(now); osc.stop(now + 0.8);
+    }
+}
+
+// --- Canvas 設定 ---
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+let W, H;
+function resize() {
+    W = c.width = c.parentElement.clientWidth;
+    H = c.height = c.parentElement.clientHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- ゲーム状態 ---
+let state = 'title'; // title, playing, result
+let currentDiff = 0;
+let qCount = 0;
+const MAX_Q = 10;
+let score = 0;
+let answer = 0;
+let timer = 0; // メッセージ表示用のタイマー
+
+let balloons = [];
+let particles = [];
+const BALLOON_COLORS = ['#f44336', '#4caf50', '#ffeb3b', '#9c27b0', '#ff9800'];
+
+const UI_Q = document.getElementById('ui-q');
+const UI_SCORE = document.getElementById('ui-score');
+const Q_BOARD = document.getElementById('question-board');
+const MSG = document.getElementById('message-popup');
+
+function showMsg(text, color) {
+    MSG.innerText = text;
+    MSG.style.color = color;
+    MSG.classList.add('show');
+}
+function hideMsg() {
+    MSG.classList.remove('show');
+}
+
+// --- 問題生成 ---
+function generateQuestion() {
+    qCount++;
+    UI_Q.innerText = `${qCount} / ${MAX_Q} もん`;
+    
+    let a, b, op;
+    if (currentDiff === 0) {
+        // かんたん (答えが10までの足し算)
+        a = Math.floor(Math.random() * 5) + 1;
+        b = Math.floor(Math.random() * 5) + 1;
+        op = '+';
+        answer = a + b;
+    } else if (currentDiff === 1) {
+        // ふつう (答えが20までの足し算)
+        a = Math.floor(Math.random() * 9) + 1;
+        b = Math.floor(Math.random() * 9) + 1;
+        op = '+';
+        answer = a + b;
+    } else {
+        // むずかしい (引き算、答えがマイナスにならないように)
+        a = Math.floor(Math.random() * 9) + 2; // 2~10
+        b = Math.floor(Math.random() * (a - 1)) + 1; // 1 ~ a-1
+        op = '-';
+        answer = a - b;
+    }
+    
+    Q_BOARD.innerText = `${a} ${op} ${b} = ❓`;
+    Q_BOARD.style.display = 'block';
+
+    // 風船の生成 (3つ。1つが正解、2つがダミー)
+    balloons = [];
+    let answers = [answer];
+    
+    // ダミーの答えを生成（正解に近い数字）
+    while(answers.length < 3) {
+        let dummy = answer + (Math.floor(Math.random() * 5) - 2);
+        if (dummy <= 0) dummy = answer + Math.floor(Math.random() * 3) + 1;
+        if (!answers.includes(dummy)) answers.push(dummy);
+    }
+    
+    // 答えをシャッフル
+    answers.sort(() => Math.random() - 0.5);
+
+    // 風船オブジェクトを作成
+    let slotW = W / 3;
+    for (let i = 0; i < 3; i++) {
+        balloons.push({
+            x: slotW * i + slotW / 2 + (Math.random() * 20 - 10),
+            y: H + 100 + Math.random() * 100, // 画面下からスタート
+            baseX: slotW * i + slotW / 2,
+            speedY: 2.5 + Math.random() * 1.5, // 浮上スピード
+            sway: Math.random() * Math.PI * 2, // 左右の揺れの初期値
+            num: answers[i],
+            color: BALLOON_COLORS[Math.floor(Math.random() * BALLOON_COLORS.length)],
+            isPopped: false
+        });
+    }
+    
+    state = 'playing';
+}
+
+// --- 描画ロジック ---
+function drawBalloon(b) {
+    if (b.isPopped) return;
+    
+    // ゆらゆら揺れる動き
+    b.sway += 0.03;
+    b.x = b.baseX + Math.sin(b.sway) * 20;
+    b.y -= b.speedY;
+    
+    let bw = 45; // 風船の幅
+    let bh = 55; // 風船の高さ
+    
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    
+    // 紐
+    ctx.beginPath();
+    ctx.moveTo(0, bh);
+    ctx.quadraticCurveTo(10, bh + 20, -5, bh + 40);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // 風船の結び目
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.moveTo(0, bh - 2);
+    ctx.lineTo(8, bh + 8);
+    ctx.lineTo(-8, bh + 8);
+    ctx.fill();
+
+    // 風船本体（楕円）
+    ctx.beginPath();
+    ctx.ellipse(0, 0, bw, bh, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // ハイライト (ツヤ)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(-15, -20, 10, 15, Math.PI / 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 数字
+    ctx.fillStyle = '#fff';
+    ctx.font = "bold 40px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(b.num, 0, 0);
+    
+    ctx.restore();
+}
+
+function drawParticles() {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.05;
+        
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+}
+
+function createPoppingParticles(x, y, color) {
+    playSound('pop');
+    for (let i = 0; i < 15; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.5) * 10,
+            life: 1.0,
+            size: Math.random() * 6 + 3,
+            color: color
+        });
+    }
+}
+
+// --- メインループ ---
+function update() {
+    ctx.clearRect(0, 0, W, H);
+    
+    if (state === 'playing') {
+        let allOffScreen = true;
+        
+        for (let b of balloons) {
+            drawBalloon(b);
+            // 画面上部へ消えたか判定
+            if (b.y > -100 && !b.isPopped) {
+                allOffScreen = false;
+            }
+        }
+        
+        // 全部の風船が逃げてしまったら（時間切れ）
+        if (allOffScreen) {
+            state = 'wait';
+            timer = 60;
+            showMsg("タイムアップ！", "#f44336");
+            playSound('wrong');
+        }
+        
+    } else if (state === 'wait') {
+        timer--;
+        if (timer <= 0) {
+            hideMsg();
+            if (qCount >= MAX_Q) endGame();
+            else generateQuestion();
+        }
+    }
+    
+    drawParticles();
+    requestAnimationFrame(update);
+}
+
+// --- ゲーム進行制御 ---
+function startGame(level) {
+    currentDiff = level;
+    initAudio();
+    document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
+    
+    qCount = 0;
+    score = 0;
+    UI_SCORE.innerText = score;
+    hideMsg();
+    generateQuestion();
+}
+
+function endGame() {
+    state = 'result';
+    Q_BOARD.style.display = 'none';
+    document.getElementById('final-score').innerText = score;
+    
+    let title = document.getElementById('result-title');
+    if (score === MAX_Q) {
+        title.innerText = "まんてん！すばらしい！";
+        title.style.color = "#4caf50";
+        playSound('clear');
+    } else {
+        title.innerText = "おつかれさま！";
+        title.style.color = "#0288d1";
+    }
+    
+    document.getElementById('result-screen').classList.remove('hide');
+}
+
+function showStartScreen() {
+    document.getElementById('result-screen').classList.add('hide');
+    document.getElementById('start-screen').classList.remove('hide');
+}
+
+// --- タッチ（風船割り）判定 ---
+c.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (state !== 'playing') return;
+    
+    let rect = c.getBoundingClientRect();
+    let tx = (e.clientX - rect.left) * (W / rect.width);
+    let ty = (e.clientY - rect.top) * (H / rect.height);
+    
+    // 風船との当たり判定
+    for (let b of balloons) {
+        if (b.isPopped) continue;
+        
+        // 楕円の大まかな当たり判定（距離で計算）
+        let dx = tx - b.x;
+        let dy = ty - b.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if (dist < 60) { // 風船の大きさより少し広めの判定
+            b.isPopped = true;
+            createPoppingParticles(b.x, b.y, b.color);
+            
+            if (b.num === answer) {
+                // 正解！
+                score++;
+                UI_SCORE.innerText = score;
+                playSound('correct');
+                showMsg("せいかい！", "#ffeb3b");
+                
+                // 他の風船も消す
+                balloons.forEach(otherB => {
+                    if (!otherB.isPopped) {
+                        otherB.isPopped = true;
+                        createPoppingParticles(otherB.x, otherB.y, '#fff');
+                    }
+                });
+                
+                state = 'wait';
+                timer = 60; // 1秒待って次の問題へ
+            } else {
+                // 不正解...
+                playSound('wrong');
+                showMsg("ちがうよ！", "#f44336");
+                state = 'wait';
+                timer = 60;
+                
+                // 答え合わせのために正解以外の風船を消す
+                balloons.forEach(otherB => {
+                    if (!otherB.isPopped && otherB.num !== answer) {
+                        otherB.isPopped = true;
+                        createPoppingParticles(otherB.x, otherB.y, '#fff');
+                    }
+                });
+            }
+            break; // 1回のタップで1つだけ割る
+        }
+    }
+});
+
+// 初期ループ開始
+requestAnimationFrame(update);
+</script>
+</body>
+</html>
