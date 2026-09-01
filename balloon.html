@@ -6,14 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>さんすう ふうせんわり</title>
 
-<!-- PWA・全画面表示設定 -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#4fc3f7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ふうせんわり">
 
-<!-- Service Worker 登録スクリプト -->
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
@@ -36,6 +34,29 @@
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
     overflow: hidden; background-color: #e1f5fe; display: flex; flex-direction: column;
   }
+  
+  /* --- オープニング演出用 --- */
+  #opening-screen {
+    position: fixed; inset: 0; background: #ffffff; z-index: 9999;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    transition: opacity 0.5s ease, visibility 0.5s;
+  }
+  .logo-container {
+    text-align: center;
+    /* ポップに飛び出すアニメーション */
+    animation: popIn 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  }
+  .logo-icon { font-size: clamp(50px, 15vw, 80px); margin-bottom: 10px; }
+  .logo-text { font-size: clamp(24px, 7vw, 36px); font-weight: bold; color: #333; letter-spacing: 2px; }
+  .logo-sub { font-size: clamp(18px, 5vw, 28px); font-weight: bold; color: #ff9800; letter-spacing: 4px; margin-top: 5px; }
+
+  @keyframes popIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    80% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  /* ---------------------- */
+
   #game-wrapper {
     position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto;
     background: linear-gradient(to bottom, #4fc3f7 0%, #e1f5fe 100%);
@@ -64,7 +85,6 @@
     display: none; white-space: nowrap;
   }
 
-  /* Canvas */
   canvas {
     display: block; width: 100%; height: 100%; object-fit: cover;
   }
@@ -98,6 +118,15 @@
 </head>
 <body>
 
+<!-- オープニング画面 -->
+<div id="opening-screen">
+  <div class="logo-container">
+    <div class="logo-icon">📱👨‍💻✨</div>
+    <div class="logo-text">めー＆SEパパ</div>
+    <div class="logo-sub">GAMES</div>
+  </div>
+</div>
+
 <div id="game-wrapper">
   <div id="header">
     <div class="status-box" id="ui-q">1/10 もん</div>
@@ -105,40 +134,42 @@
   </div>
   
   <div id="question-board">1 + 2 = ❓</div>
-  
   <canvas id="c"></canvas>
-  
   <div id="message-popup">せいかい！</div>
 
   <!-- スタート画面 -->
   <div id="start-screen" class="screen">
     <h1>さんすう🎈<br>ふうせんわり</h1>
-    <div class="desc">
-      そらに でる けいさんの 答えを<br>
-      タッチして わろう！
-    </div>
+    <div class="desc">そらに でる けいさんの 答えを<br>タッチして わろう！</div>
     
     <div class="btn-group">
       <button class="btn" style="background:#4caf50; box-shadow: 0 5px 0 #2e7d32;" onclick="startGame(0)">かんたん（たす）</button>
       <button class="btn" style="background:#ff9800; box-shadow: 0 5px 0 #e65100;" onclick="startGame(1)">ふつう（たす・ひく）</button>
       <button class="btn" style="background:#e91e63; box-shadow: 0 5px 0 #c2185b;" onclick="startGame(2)">むずかしい（かける・わる）</button>
-      <button class="btn" style="background:#9c27b0; box-shadow: 0 5px 0 #6a1b9a;" onclick="startGame(3)">超むずかしい（おとな向け）</button>
+      <button class="btn" style="background:#9c27b0; box-shadow: 0 5px 0 #6a1b9a;" onclick="startGame(3)">超むずかしい（大人向け）</button>
     </div>
   </div>
 
   <!-- 結果画面 -->
   <div id="result-screen" class="screen hide">
     <h1 id="result-title">おつかれさま！</h1>
-    <div class="desc">
-      せいかい した かず<br>
-      <span id="final-score" style="color:#e65100; font-size:2em;">0</span> こ / 10こ
-    </div>
+    <div class="desc">せいかい した かず<br><span id="final-score" style="color:#e65100; font-size:2em;">0</span> こ / 10こ</div>
     <button class="btn" style="background:#2196f3; box-shadow: 0 6px 0 #0d47a1; padding: 15px 40px;" onclick="showStartScreen()">もういっかい</button>
   </div>
 </div>
 
 <script>
-// --- Web Audio API (効果音) ---
+// --- オープニング制御 ---
+window.addEventListener('load', () => {
+    // 1.8秒後にフェードアウト開始
+    setTimeout(() => {
+        const opening = document.getElementById('opening-screen');
+        opening.style.opacity = '0';
+        opening.style.visibility = 'hidden';
+    }, 1800);
+});
+
+// --- Web Audio API ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let actx;
 
@@ -202,9 +233,7 @@ const UI_SCORE = document.getElementById('ui-score');
 const Q_BOARD = document.getElementById('question-board');
 const MSG = document.getElementById('message-popup');
 
-function showMsg(text, color) {
-    MSG.innerText = text; MSG.style.color = color; MSG.classList.add('show');
-}
+function showMsg(text, color) { MSG.innerText = text; MSG.style.color = color; MSG.classList.add('show'); }
 function hideMsg() { MSG.classList.remove('show'); }
 
 // --- 問題・ダミー生成 ---
@@ -213,85 +242,39 @@ function generateQuestion() {
     UI_Q.innerText = `${qCount} / ${MAX_Q} もん`;
     
     let a, b, op;
-    
-    // 難易度別の問題ロジック
     if (currentDiff === 0) {
-        // かんたん (答えが10までの足し算)
-        a = Math.floor(Math.random() * 5) + 1;
-        b = Math.floor(Math.random() * 5) + 1;
-        op = '+';
-        answer = a + b;
+        a = Math.floor(Math.random() * 5) + 1; b = Math.floor(Math.random() * 5) + 1; op = '+'; answer = a + b;
     } else if (currentDiff === 1) {
-        // ふつう (繰り上がり足し算 or 引き算)
-        if (Math.random() < 0.5) {
-            a = Math.floor(Math.random() * 9) + 5;
-            b = Math.floor(Math.random() * 9) + 2;
-            op = '+';
-            answer = a + b;
-        } else {
-            a = Math.floor(Math.random() * 9) + 10; // 10~18
-            b = Math.floor(Math.random() * 9) + 1;
-            op = '-';
-            answer = a - b;
-        }
+        if (Math.random() < 0.5) { a = Math.floor(Math.random() * 9) + 5; b = Math.floor(Math.random() * 9) + 2; op = '+'; answer = a + b; } 
+        else { a = Math.floor(Math.random() * 9) + 10; b = Math.floor(Math.random() * 9) + 1; op = '-'; answer = a - b; }
     } else if (currentDiff === 2) {
-        // むずかしい (かけ算 or わり算)
-        if (Math.random() < 0.5) {
-            a = Math.floor(Math.random() * 9) + 1;
-            b = Math.floor(Math.random() * 9) + 1;
-            op = '×';
-            answer = a * b;
-        } else {
-            b = Math.floor(Math.random() * 9) + 1;
-            answer = Math.floor(Math.random() * 9) + 1;
-            a = b * answer;
-            op = '÷';
-        }
+        if (Math.random() < 0.5) { a = Math.floor(Math.random() * 9) + 1; b = Math.floor(Math.random() * 9) + 1; op = '×'; answer = a * b; } 
+        else { b = Math.floor(Math.random() * 9) + 1; answer = Math.floor(Math.random() * 9) + 1; a = b * answer; op = '÷'; }
     } else {
-        // 超むずかしい (大人向け：2桁の暗算)
-        if (Math.random() < 0.5) {
-            a = Math.floor(Math.random() * 70) + 15;
-            b = Math.floor(Math.random() * 40) + 15;
-            op = '+';
-            answer = a + b;
-        } else {
-            a = Math.floor(Math.random() * 40) + 50; // 50~89
-            b = Math.floor(Math.random() * 30) + 15;
-            op = '-';
-            answer = a - b;
-        }
+        if (Math.random() < 0.5) { a = Math.floor(Math.random() * 70) + 15; b = Math.floor(Math.random() * 40) + 15; op = '+'; answer = a + b; } 
+        else { a = Math.floor(Math.random() * 40) + 50; b = Math.floor(Math.random() * 30) + 15; op = '-'; answer = a - b; }
     }
     
     Q_BOARD.innerText = `${a} ${op} ${b} = ❓`;
     Q_BOARD.style.display = 'block';
 
-    // ダミーの答えを生成（いじわるなダミーを作成）
     let answers = [answer];
     while(answers.length < 3) {
         let dummy = answer;
         if (currentDiff === 2) {
-            // かけ算・わり算のダミー（九九の間違いやすい数字）
-            if (Math.random() < 0.5) dummy = answer + a;
-            else dummy = answer - b;
+            if (Math.random() < 0.5) dummy = answer + a; else dummy = answer - b;
         } else if (currentDiff === 3) {
-            // 大人向けダミー（10の位を間違えやすくする）
-            if (Math.random() < 0.5) dummy = answer + 10;
-            else dummy = answer + (Math.floor(Math.random() * 5) - 2);
+            if (Math.random() < 0.5) dummy = answer + 10; else dummy = answer + (Math.floor(Math.random() * 5) - 2);
         } else {
             dummy = answer + (Math.floor(Math.random() * 7) - 3);
         }
-        
         if (dummy <= 0) dummy = answer + Math.floor(Math.random() * 3) + 1;
         if (dummy !== answer && !answers.includes(dummy)) answers.push(dummy);
     }
-    
-    // 答えをシャッフル
     answers.sort(() => Math.random() - 0.5);
 
     balloons = [];
     let slotW = W / 3;
-    
-    // 超むずかしいモードは風船のスピードアップ
     let speedMult = currentDiff === 3 ? 1.6 : 1.0;
 
     for (let i = 0; i < 3; i++) {
@@ -299,14 +282,13 @@ function generateQuestion() {
             x: slotW * i + slotW / 2 + (Math.random() * 20 - 10),
             y: H + 100 + Math.random() * 100,
             baseX: slotW * i + slotW / 2,
-            speedY: (2.5 + Math.random() * 1.5) * speedMult, // 浮上スピード
+            speedY: (2.5 + Math.random() * 1.5) * speedMult,
             sway: Math.random() * Math.PI * 2,
             num: answers[i],
             color: BALLOON_COLORS[Math.floor(Math.random() * BALLOON_COLORS.length)],
             isPopped: false
         });
     }
-    
     state = 'playing';
 }
 
@@ -314,9 +296,7 @@ function generateQuestion() {
 function drawBalloon(b) {
     if (b.isPopped) return;
     
-    b.sway += 0.03;
-    b.x = b.baseX + Math.sin(b.sway) * 20;
-    b.y -= b.speedY;
+    b.sway += 0.03; b.x = b.baseX + Math.sin(b.sway) * 20; b.y -= b.speedY;
     
     let bw = 45; let bh = 55;
     ctx.save(); ctx.translate(b.x, b.y);
@@ -328,7 +308,6 @@ function drawBalloon(b) {
     ctx.beginPath(); ctx.moveTo(0, bh - 2); ctx.lineTo(8, bh + 8); ctx.lineTo(-8, bh + 8); ctx.fill();
 
     ctx.beginPath(); ctx.ellipse(0, 0, bw, bh, 0, 0, Math.PI * 2); ctx.fill();
-    
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.beginPath(); ctx.ellipse(-15, -20, 10, 15, Math.PI / 8, 0, Math.PI * 2); ctx.fill();
 
@@ -355,8 +334,7 @@ function createPoppingParticles(x, y, color) {
     playSound('pop');
     for (let i = 0; i < 15; i++) {
         particles.push({
-            x: x, y: y,
-            vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10,
+            x: x, y: y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10,
             life: 1.0, size: Math.random() * 6 + 3, color: color
         });
     }
@@ -372,10 +350,8 @@ function update() {
             drawBalloon(b);
             if (b.y > -100 && !b.isPopped) allOffScreen = false;
         }
-        
         if (allOffScreen) {
-            state = 'wait'; timer = 60;
-            showMsg("タイムアップ！", "#f44336"); playSound('wrong');
+            state = 'wait'; timer = 60; showMsg("タイムアップ！", "#f44336"); playSound('wrong');
         }
     } else if (state === 'wait') {
         timer--;
@@ -384,14 +360,11 @@ function update() {
             if (qCount >= MAX_Q) endGame(); else generateQuestion();
         }
     }
-    
-    drawParticles();
-    requestAnimationFrame(update);
+    drawParticles(); requestAnimationFrame(update);
 }
 
 function startGame(level) {
-    currentDiff = level;
-    initAudio();
+    currentDiff = level; initAudio();
     document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
     qCount = 0; score = 0; UI_SCORE.innerText = score; hideMsg(); generateQuestion();
 }
@@ -400,11 +373,8 @@ function endGame() {
     state = 'result'; Q_BOARD.style.display = 'none';
     document.getElementById('final-score').innerText = score;
     let title = document.getElementById('result-title');
-    if (score === MAX_Q) {
-        title.innerText = "まんてん！すごい！"; title.style.color = "#4caf50"; playSound('clear');
-    } else {
-        title.innerText = "おつかれさま！"; title.style.color = "#0288d1";
-    }
+    if (score === MAX_Q) { title.innerText = "まんてん！すごい！"; title.style.color = "#4caf50"; playSound('clear'); } 
+    else { title.innerText = "おつかれさま！"; title.style.color = "#0288d1"; }
     document.getElementById('result-screen').classList.remove('hide');
 }
 
@@ -426,26 +396,15 @@ c.addEventListener('pointerdown', (e) => {
         if (b.isPopped) continue;
         let dx = tx - b.x; let dy = ty - b.y;
         if (Math.sqrt(dx*dx + dy*dy) < 60) {
-            b.isPopped = true;
-            createPoppingParticles(b.x, b.y, b.color);
-            
+            b.isPopped = true; createPoppingParticles(b.x, b.y, b.color);
             if (b.num === answer) {
-                score++; UI_SCORE.innerText = score;
-                playSound('correct'); showMsg("せいかい！", "#ffeb3b");
-                balloons.forEach(otherB => {
-                    if (!otherB.isPopped) {
-                        otherB.isPopped = true; createPoppingParticles(otherB.x, otherB.y, '#fff');
-                    }
-                });
+                score++; UI_SCORE.innerText = score; playSound('correct'); showMsg("せいかい！", "#ffeb3b");
+                balloons.forEach(otherB => { if (!otherB.isPopped) { otherB.isPopped = true; createPoppingParticles(otherB.x, otherB.y, '#fff'); } });
                 state = 'wait'; timer = 50; 
             } else {
                 playSound('wrong'); showMsg("ちがうよ！", "#f44336");
                 state = 'wait'; timer = 60;
-                balloons.forEach(otherB => {
-                    if (!otherB.isPopped && otherB.num !== answer) {
-                        otherB.isPopped = true; createPoppingParticles(otherB.x, otherB.y, '#fff');
-                    }
-                });
+                balloons.forEach(otherB => { if (!otherB.isPopped && otherB.num !== answer) { otherB.isPopped = true; createPoppingParticles(otherB.x, otherB.y, '#fff'); } });
             }
             break; 
         }
