@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>つなひき パワーチャージ</title>
+
+<!-- PWA・全画面表示設定 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4fc3f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="つなひき">
+
+<style>
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+  }
+  * {
+    box-sizing: border-box; user-select: none; -webkit-user-select: none;
+    margin: 0; padding: 0; touch-action: none;
+    font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif;
+  }
+  html, body {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
+    overflow: hidden; background-color: #81c784; display: flex; flex-direction: column;
+  }
+  
+  /* --- オープニング演出 --- */
+  #opening-screen {
+    position: fixed; inset: 0; background: #ffffff; z-index: 9999;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    transition: opacity 0.5s ease, visibility 0.5s;
+  }
+  .logo-container { animation: popIn 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; text-align: center; }
+  .logo-icon { font-size: clamp(50px, 15vw, 80px); margin-bottom: 10px; }
+  .logo-text { font-size: clamp(24px, 7vw, 36px); font-weight: bold; color: #333; letter-spacing: 2px; }
+  .logo-sub { font-size: clamp(18px, 5vw, 28px); font-weight: bold; color: #ff9800; letter-spacing: 4px; margin-top: 5px; }
+  @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+  
+  /* --- ゲーム領域 --- */
+  #game-wrapper {
+    position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto;
+    background: linear-gradient(to bottom, #4fc3f7 0%, #e1f5fe 60%, #aed581 60%, #8bc34a 100%);
+    box-shadow: 0 0 20px rgba(0,0,0,0.1); display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* --- UI ヘッダー --- */
+  #header {
+    position: absolute; top: max(10px, var(--sat)); left: 0; width: 100%;
+    padding: 0 15px; display: flex; justify-content: space-between; align-items: center; z-index: 10;
+    pointer-events: none;
+  }
+  .status-box {
+    background: rgba(255, 255, 255, 0.95); padding: 8px 15px; border-radius: 12px;
+    font-size: clamp(16px, 5vw, 22px); font-weight: bold; color: #d84315;
+    border: 3px solid #ff7043; box-shadow: 0 4px 0 #d84315;
+  }
+  #power-gauge-bg {
+    width: 150px; height: 25px; background: #eee; border: 3px solid #333; border-radius: 12px; overflow: hidden; position: relative;
+  }
+  #power-gauge-fill {
+    width: 0%; height: 100%; background: linear-gradient(90deg, #ffeb3b, #ff9800); transition: width 0.2s;
+  }
+  .power-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #000; }
+
+  /* --- キャンバス --- */
+  canvas { flex: 1; width: 100%; object-fit: cover; }
+
+  /* --- コントロール（下部） --- */
+  #controls {
+    height: calc(30% + var(--sab)); min-height: 200px; background: rgba(255,255,255,0.95);
+    border-top: 5px solid #333; display: flex; flex-direction: column; padding: 10px;
+    align-items: center; position: relative; z-index: 20;
+  }
+  #question-text {
+    font-size: clamp(28px, 8vw, 40px); font-weight: bold; color: #333; margin-bottom: 15px;
+  }
+  #answers {
+    display: flex; gap: 10px; width: 100%; justify-content: center;
+  }
+  .ans-btn {
+    flex: 1; max-width: 120px; padding: 15px 0; font-size: clamp(24px, 6vw, 32px); font-weight: bold;
+    color: white; background: #2196f3; border: none; border-radius: 15px;
+    box-shadow: 0 6px 0 #1565c0; cursor: pointer; touch-action: manipulation;
+  }
+  .ans-btn:active { transform: translateY(6px); box-shadow: none; }
+  
+  /* 連打ボタン（フィーバー用） */
+  #mash-btn {
+    display: none; width: 90%; height: 80%; background: #e91e63; color: white;
+    font-size: clamp(36px, 10vw, 50px); font-weight: bold; border: none; border-radius: 20px;
+    box-shadow: 0 10px 0 #880e4f; cursor: pointer; touch-action: manipulation;
+    animation: pulse 0.5s infinite alternate;
+  }
+  #mash-btn:active { transform: translateY(10px); box-shadow: none; background: #c2185b; }
+  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
+
+  /* --- 画面・設定UI --- */
+  .screen {
+    position: absolute; inset: 0; background: rgba(255, 255, 255, 0.95);
+    display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+  }
+  h1 { font-size: clamp(28px, 8vw, 45px); color: #d84315; margin-bottom: 15px; text-shadow: 2px 2px 0 #ffccbc; text-align: center;}
+  
+  .settings-box {
+    background: #f5f5f5; border-radius: 15px; padding: 15px; width: 90%; max-width: 350px; margin-bottom: 20px;
+    border: 3px solid #ccc;
+  }
+  .set-title { font-size: 18px; font-weight: bold; color: #555; margin-bottom: 10px; text-align: center; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
+  .opt-btn {
+    padding: 8px 12px; font-size: 16px; font-weight: bold; border: 2px solid #aaa;
+    border-radius: 8px; background: #fff; color: #555; cursor: pointer;
+  }
+  .opt-btn.active { background: #4caf50; color: white; border-color: #2e7d32; }
+
+  .start-btn {
+    padding: 15px 40px; font-size: 24px; font-weight: bold; color: white;
+    background: #ff9800; border: none; border-radius: 30px; box-shadow: 0 6px 0 #e65100;
+  }
+  .start-btn:active { transform: translateY(6px); box-shadow: none; }
+
+  #message-popup {
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0);
+    font-size: clamp(40px, 12vw, 60px); font-weight: bold; text-align: center;
+    color: #ffeb3b; text-shadow: 3px 3px 0 #f44336; z-index: 50; pointer-events: none;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  #message-popup.show { transform: translate(-50%, -50%) scale(1); }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- オープニング -->
+<div id="opening-screen">
+  <div class="logo-container">
+    <div class="logo-icon">📱👨‍💻✨</div>
+    <div class="logo-text">めー＆SEパパ</div>
+    <div class="logo-sub">GAMES</div>
+  </div>
+</div>
+
+<div id="game-wrapper">
+  <div id="header">
+    <div class="status-box">⏱ <span id="ui-time">30</span>秒</div>
+    <div>
+      <div id="power-gauge-bg">
+        <div id="power-gauge-fill"></div>
+        <div class="power-text">パワー <span id="ui-power">0</span>%</div>
+      </div>
+    </div>
+  </div>
+  
+  <canvas id="c"></canvas>
+  
+  <div id="controls">
+    <div id="math-mode">
+      <div id="question-text">1 + 2 = ❓</div>
+      <div id="answers">
+        <button class="ans-btn" onclick="checkAns(0)">1</button>
+        <button class="ans-btn" onclick="checkAns(1)">2</button>
+        <button class="ans-btn" onclick="checkAns(2)">3</button>
+      </div>
+    </div>
+    <button id="mash-btn" onclick="mashRope()">ひっぱれ！！💥</button>
+  </div>
+  
+  <div id="message-popup">パワーMAX!</div>
+
+  <!-- スタート画面（カスタマイズ機能つき） -->
+  <div id="start-screen" class="screen">
+    <h1>つなひき💪<br>パワーチャージ</h1>
+    
+    <div class="settings-box">
+      <div class="set-title">１．なんいど を えらぶ</div>
+      <div class="btn-row" id="diff-group">
+        <button class="opt-btn active" onclick="selDiff(0)">かんたん</button>
+        <button class="opt-btn" onclick="selDiff(1)">ふつう</button>
+        <button class="opt-btn" onclick="selDiff(2)">むずかしい</button>
+        <button class="opt-btn" onclick="selDiff(3)">超むずかしい</button>
+      </div>
+      
+      <div class="set-title">２．じかん を えらぶ</div>
+      <div class="btn-row" id="time-group">
+        <button class="opt-btn active" onclick="selTime(30)">30びょう</button>
+        <button class="opt-btn" onclick="selTime(60)">60びょう</button>
+      </div>
+    </div>
+    
+    <button class="start-btn" onclick="startGame()">スタート！</button>
+  </div>
+
+  <!-- 結果画面 -->
+  <div id="result-screen" class="screen hide">
+    <h1 id="result-title">タイムアップ！</h1>
+    <div style="font-size:100px; margin-bottom:10px;" id="result-emoji">🏅</div>
+    <p style="font-size:24px; font-weight:bold; color:#333; margin-bottom:20px;" id="result-desc">きみの かち！</p>
+    <button class="start-btn" onclick="showStartScreen()">もういっかい</button>
+  </div>
+</div>
+
+<script>
+// --- オープニング ---
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const opening = document.getElementById('opening-screen');
+        opening.style.opacity = '0';
+        opening.style.visibility = 'hidden';
+    }, 1800);
+});
+
+// --- 効果音 (Web Audio API) ---
+let actx;
+function initAudio() { if (!actx) { actx = new AudioContext(); if (actx.state === 'suspended') actx.resume(); } }
+function playSound(type) {
+    if (!actx) return;
+    const now = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
+    osc.connect(gain); gain.connect(actx.destination);
+    
+    if (type === 'correct') {
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(659.25, now); osc.frequency.setValueAtTime(880.00, now + 0.1);
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.2); osc.start(now); osc.stop(now + 0.2);
+    } else if (type === 'wrong') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.setValueAtTime(150, now + 0.3);
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(now); osc.stop(now + 0.3);
+    } else if (type === 'mash') {
+        osc.type = 'square'; osc.frequency.setValueAtTime(400 + Math.random()*200, now);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1); osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'win') {
+        osc.type = 'square'; [523, 659, 783, 1046].forEach((f, i) => osc.frequency.setValueAtTime(f, now + i*0.15));
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.8); osc.start(now); osc.stop(now + 0.8);
+    } else if (type === 'lose') {
+        osc.type = 'sawtooth'; [300, 250, 200].forEach((f, i) => osc.frequency.setValueAtTime(f, now + i*0.2));
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.8); osc.start(now); osc.stop(now + 0.8);
+    }
+}
+
+// --- 設定・変数 ---
+let diffSelected = 0;
+let timeSelected = 30;
+
+function selDiff(val) {
+    diffSelected = val;
+    document.querySelectorAll('#diff-group .opt-btn').forEach((b, i) => b.classList.toggle('active', i === val));
+}
+function selTime(val) {
+    timeSelected = val;
+    document.querySelectorAll('#time-group .opt-btn').forEach(b => b.classList.toggle('active', parseInt(b.innerText) === val));
+}
+
+// --- Canvas設定 ---
+const c = document.getElementById('c'); const ctx = c.getContext('2d');
+let W, H;
+function resize() { W = c.width = c.clientWidth; H = c.height = c.clientHeight; }
+window.addEventListener('resize', resize); resize();
+
+// --- ゲーム状態 ---
+let state = 'title'; // title, math, mash, end
+let ropeX = 0; // -100(Player) to +100(CPU)
+let power = 0;
+let timeLeft = 0;
+let lastTime = 0;
+let answerIndex = 0;
+let answersData = [];
+
+// UI要素
+const uiTime = document.getElementById('ui-time');
+const uiPower = document.getElementById('ui-power');
+const uiGauge = document.getElementById('power-gauge-fill');
+const msg = document.getElementById('message-popup');
+const mathModeUI = document.getElementById('math-mode');
+const mashBtn = document.getElementById('mash-btn');
+const ansBtns = document.querySelectorAll('.ans-btn');
+const qText = document.getElementById('question-text');
+
+function showMsg(text) { msg.innerText = text; msg.classList.add('show'); setTimeout(() => msg.classList.remove('show'), 1000); }
+
+// --- 算数ロジック ---
+function genMath() {
+    let a, b, op, ans;
+    if (diffSelected === 0) {
+        a = Math.floor(Math.random() * 5) + 1; b = Math.floor(Math.random() * 5) + 1; op = '+'; ans = a + b;
+    } else if (diffSelected === 1) {
+        if (Math.random() < 0.5) { a = Math.floor(Math.random() * 9) + 5; b = Math.floor(Math.random() * 9) + 2; op = '+'; ans = a + b; } 
+        else { a = Math.floor(Math.random() * 9) + 10; b = Math.floor(Math.random() * 9) + 1; op = '-'; ans = a - b; }
+    } else if (diffSelected === 2) {
+        if (Math.random() < 0.5) { a = Math.floor(Math.random() * 9) + 1; b = Math.floor(Math.random() * 9) + 1; op = '×'; ans = a * b; } 
+        else { b = Math.floor(Math.random() * 9) + 1; ans = Math.floor(Math.random() * 9) + 1; a = b * ans; op = '÷'; }
+    } else {
+        if (Math.random() < 0.5) { a = Math.floor(Math.random() * 70) + 15; b = Math.floor(Math.random() * 40) + 15; op = '+'; ans = a + b; } 
+        else { a = Math.floor(Math.random() * 40) + 50; b = Math.floor(Math.random() * 30) + 15; op = '-'; ans = a - b; }
+    }
+    
+    qText.innerText = `${a} ${op} ${b} = ❓`;
+    
+    answersData = [ans];
+    while(answersData.length < 3) {
+        let dummy = ans + (Math.floor(Math.random() * 9) - 4);
+        if (dummy <= 0) dummy = ans + Math.floor(Math.random() * 3) + 1;
+        if (dummy !== ans && !answersData.includes(dummy)) answersData.push(dummy);
+    }
+    answersData.sort(() => Math.random() - 0.5);
+    answerIndex = answersData.indexOf(ans);
+    
+    ansBtns.forEach((btn, i) => { btn.innerText = answersData[i]; btn.style.background = "#2196f3"; });
+}
+
+function checkAns(idx) {
+    if (state !== 'math') return;
+    if (idx === answerIndex) {
+        playSound('correct');
+        power += 34; // 3問正解で100%超え
+        if (power >= 100) { power = 100; startMashMode(); } 
+        else { updateGauge(); genMath(); }
+    } else {
+        playSound('wrong');
+        ansBtns[idx].style.background = "#9e9e9e"; // 間違えたボタンをグレーに
+        ropeX += 10; // ペナルティで少し引かれる
+    }
+}
+
+function updateGauge() {
+    uiPower.innerText = Math.floor(power);
+    uiGauge.style.width = power + '%';
+}
+
+function startMashMode() {
+    state = 'mash'; updateGauge(); showMsg("パワーMAX!!\n連打しろ!");
+    mathModeUI.style.display = 'none'; mashBtn.style.display = 'block';
+    
+    // 4秒間連打モード
+    setTimeout(() => {
+        if (state === 'mash') {
+            state = 'math'; power = 0; updateGauge();
+            mathModeUI.style.display = 'block'; mashBtn.style.display = 'none';
+            genMath();
+        }
+    }, 4000);
+}
+
+function mashRope() {
+    if (state !== 'mash') return;
+    playSound('mash'); ropeX -= 8; // 連打で大きく引く
+}
+
+// --- メインループ ---
+function update(time) {
+    if (!lastTime) lastTime = time;
+    let dt = (time - lastTime) / 1000; lastTime = time;
+    
+    ctx.clearRect(0, 0, W, H);
+    
+    // 描画（背景の地面・線）
+    ctx.fillStyle = '#8bc34a'; ctx.fillRect(0, H/2 + 20, W, H/2);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(W/2, H/2 + 20); ctx.lineTo(W/2, H); ctx.stroke();
+    
+    if (state === 'math' || state === 'mash') {
+        // CPUの自動引き（難易度で強さが変わる）
+        let cpuSpeed = 5 + (diffSelected * 2.5); 
+        ropeX += cpuSpeed * dt;
+        
+        // タイム減少
+        timeLeft -= dt;
+        uiTime.innerText = Math.ceil(timeLeft);
+        if (timeLeft <= 0) { timeLeft = 0; endGame(); }
+        
+        // 限界突破（画面端で決着）
+        if (ropeX < -W/2 + 50) endGame();
+        if (ropeX > W/2 - 50) endGame();
+    }
+    
+    // キャラと綱の描画
+    let centerX = W/2 + ropeX;
+    
+    // 綱
+    ctx.strokeStyle = '#795548'; ctx.lineWidth = 15;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+    
+    // センターの旗
+    ctx.fillStyle = '#f44336';
+    ctx.fillRect(centerX - 10, H/2 - 30, 20, 40);
+    
+    // プレイヤーとCPU (絵文字で代用)
+    ctx.font = "clamp(60px, 15vw, 90px) sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    
+    // プレイヤー (左)
+    let pY = state === 'mash' ? H/2 - 10 + Math.random()*10 : H/2 - 10;
+    ctx.fillText("👦", centerX - 80, pY + 20);
+    
+    // CPU (右)
+    ctx.fillText("🦍", centerX + 80, H/2 + 10);
+    
+    requestAnimationFrame(update);
+}
+
+function startGame() {
+    initAudio();
+    document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
+    timeLeft = timeSelected; ropeX = 0; power = 0; state = 'math';
+    updateGauge();
+    mathModeUI.style.display = 'block'; mashBtn.style.display = 'none';
+    genMath(); lastTime = 0;
+}
+
+function endGame() {
+    state = 'end';
+    document.getElementById('result-screen').classList.remove('hide');
+    let title = document.getElementById('result-title');
+    let desc = document.getElementById('result-desc');
+    let emoji = document.getElementById('result-emoji');
+    
+    if (ropeX < 0) {
+        title.innerText = "タイムアップ！"; title.style.color = "#d84315";
+        desc.innerText = "きみの かち！🎉"; emoji.innerText = "👦✨"; playSound('win');
+    } else if (ropeX > 0) {
+        title.innerText = "タイムアップ！"; title.style.color = "#333";
+        desc.innerText = "ゴリラの かち...💦"; emoji.innerText = "🦍💢"; playSound('lose');
+    } else {
+        title.innerText = "タイムアップ！"; title.style.color = "#333";
+        desc.innerText = "ひきわけ！"; emoji.innerText = "🤝";
+    }
+}
+
+function showStartScreen() {
+    document.getElementById('result-screen').classList.add('hide');
+    document.getElementById('start-screen').classList.remove('hide');
+}
+
+requestAnimationFrame(update);
+</script>
+</body>
+</html>
