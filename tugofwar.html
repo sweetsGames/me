@@ -19,7 +19,7 @@
   }
   * {
     box-sizing: border-box; user-select: none; -webkit-user-select: none;
-    margin: 0; padding: 0; touch-action: none;
+    margin: 0; padding: 0; touch-action: none; /* 全体の標準タッチ操作を無効化 */
     font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif;
   }
   html, body {
@@ -88,7 +88,7 @@
     font-size: clamp(28px, 8vw, 40px); font-weight: bold; color: #333; margin: 0;
   }
   #mash-btn {
-    display: none; /* 初期は非表示 */
+    display: none; 
     width: 90%; max-width: 400px; padding: 15px 0;
     background: #e91e63; color: white;
     font-size: clamp(28px, 8vw, 40px); font-weight: bold; border: none; border-radius: 15px;
@@ -172,14 +172,15 @@
     <!-- 上段：問題テキスト or 連打ボタン -->
     <div id="q-area">
       <div id="question-text">1 + 2 = ❓</div>
-      <button id="mash-btn" onclick="mashRope()">ひっぱれ！！💥</button>
+      <!-- onpointerdownで即座に反応し、event.preventDefault()でSafariのズームを無効化 -->
+      <button id="mash-btn" onpointerdown="event.preventDefault(); mashRope()">ひっぱれ！！💥</button>
     </div>
     
     <!-- 下段：選択肢ボタン -->
     <div id="answers">
-      <button class="ans-btn" onclick="checkAns(0)">1</button>
-      <button class="ans-btn" onclick="checkAns(1)">2</button>
-      <button class="ans-btn" onclick="checkAns(2)">3</button>
+      <button class="ans-btn" onpointerdown="event.preventDefault(); checkAns(0)">1</button>
+      <button class="ans-btn" onpointerdown="event.preventDefault(); checkAns(1)">2</button>
+      <button class="ans-btn" onpointerdown="event.preventDefault(); checkAns(2)">3</button>
     </div>
   </div>
   
@@ -218,6 +219,9 @@
 </div>
 
 <script>
+// --- Safari等のダブルタップ拡大を防止（念のため全体にも適用） ---
+document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
+
 // --- オープニング ---
 window.addEventListener('load', () => {
     setTimeout(() => {
@@ -293,12 +297,11 @@ const ansBtns = document.querySelectorAll('.ans-btn');
 
 function showMsg(text) { msg.innerText = text; msg.classList.add('show'); setTimeout(() => msg.classList.remove('show'), 1000); }
 
-// --- 算数ロジック ---
+// --- 算数ロジック (虫食い算対応) ---
 function genMath() {
     let a, b, c, op, ans, displayStr;
     let pattern = 0; // 0: 右辺が❓, 1: 左辺の左が❓, 2: 左辺の右が❓
 
-    // 「かんたん(0)」と「ふつう(1)」の時だけ、3つのパターンからランダム選択
     if (diffSelected === 0 || diffSelected === 1) {
         pattern = Math.floor(Math.random() * 3);
     }
@@ -346,21 +349,16 @@ function genMath() {
         }
     }
     
-    // パターンに応じて出題テキストと正解を振り分け
     if (pattern === 0) {
-        ans = c;
-        displayStr = `${a} ${op} ${b} = ❓`;
+        ans = c; displayStr = `${a} ${op} ${b} = ❓`;
     } else if (pattern === 1) {
-        ans = a;
-        displayStr = `❓ ${op} ${b} = ${c}`;
+        ans = a; displayStr = `❓ ${op} ${b} = ${c}`;
     } else if (pattern === 2) {
-        ans = b;
-        displayStr = `${a} ${op} ❓ = ${c}`;
+        ans = b; displayStr = `${a} ${op} ❓ = ${c}`;
     }
     
     qText.innerText = displayStr;
     
-    // ダミーの選択肢を作成
     answersData = [ans];
     while(answersData.length < 3) {
         let dummy = ans + (Math.floor(Math.random() * 9) - 4);
@@ -395,22 +393,16 @@ function updateGauge() {
 function startMashMode() {
     state = 'mash'; updateGauge(); showMsg("パワーMAX!!\n連打しろ!");
     
-    /* 1. 問題テキストを消して、同じ場所に連打ボタンを出す */
     qText.style.display = 'none'; 
     mashBtn.style.display = 'block';
-    
-    /* 2. 選択肢を「見えなくする（レイアウトの高さは維持する）」 */
     answersArea.style.visibility = 'hidden'; 
     
     setTimeout(() => {
         if (state === 'mash') {
             state = 'math'; power = 0; updateGauge();
-            
-            /* 元に戻す */
             qText.style.display = 'block';
             mashBtn.style.display = 'none';
             answersArea.style.visibility = 'visible';
-            
             genMath();
         }
     }, 4000);
@@ -452,7 +444,10 @@ function update(time) {
     ctx.fillStyle = '#f44336';
     ctx.fillRect(centerX - 10, H/2 - 30, 20, 40);
     
-    ctx.font = "clamp(60px, 15vw, 90px) sans-serif";
+    // --- 【修正点】ブラウザ間での文字サイズ統一 ---
+    // CSSのclampを使わず、画面幅から安全なピクセル数を算出して描画します
+    let emojiSize = Math.max(50, Math.min(90, W * 0.15));
+    ctx.font = emojiSize + "px sans-serif";
     ctx.textAlign = "center"; ctx.textBaseline = "bottom";
     
     let pY = state === 'mash' ? H/2 - 10 + Math.random()*10 : H/2 - 10;
@@ -503,3 +498,4 @@ requestAnimationFrame(update);
 </script>
 </body>
 </html>
+
