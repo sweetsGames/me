@@ -64,7 +64,7 @@
   #power-gauge-fill {
     width: 0%; height: 100%; background: linear-gradient(90deg, #ffeb3b, #ff9800); transition: width 0.2s;
   }
-  .power-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #000; }
+  .power-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #000; font-weight: bold; }
 
   /* --- キャンバス --- */
   canvas { flex: 1; width: 100%; object-fit: cover; }
@@ -74,6 +74,9 @@
     height: calc(30% + var(--sab)); min-height: 200px; background: rgba(255,255,255,0.95);
     border-top: 5px solid #333; display: flex; flex-direction: column; padding: 10px;
     align-items: center; position: relative; z-index: 20;
+  }
+  #math-mode {
+    width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;
   }
   #question-text {
     font-size: clamp(28px, 8vw, 40px); font-weight: bold; color: #333; margin-bottom: 15px;
@@ -88,15 +91,22 @@
   }
   .ans-btn:active { transform: translateY(6px); box-shadow: none; }
   
-  /* 連打ボタン（フィーバー用） */
+  /* --- 連打ボタン（画面中央に独立して配置） --- */
   #mash-btn {
-    display: none; width: 90%; height: 80%; background: #e91e63; color: white;
+    display: none; position: absolute; 
+    top: 40%; left: 50%; /* 画面中央に配置 */
+    width: 85%; height: 120px; 
+    background: #e91e63; color: white;
     font-size: clamp(36px, 10vw, 50px); font-weight: bold; border: none; border-radius: 20px;
-    box-shadow: 0 10px 0 #880e4f; cursor: pointer; touch-action: manipulation;
-    animation: pulse 0.5s infinite alternate;
+    box-shadow: 0 10px 0 #880e4f, 0 0 30px rgba(233, 30, 99, 0.6); 
+    cursor: pointer; touch-action: manipulation; z-index: 60;
+    animation: pulse 0.4s infinite alternate;
   }
-  #mash-btn:active { transform: translateY(10px); box-shadow: none; background: #c2185b; }
-  @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
+  #mash-btn:active { background: #c2185b; box-shadow: 0 0 10px rgba(233, 30, 99, 0.4); }
+  @keyframes pulse { 
+    from { transform: translate(-50%, -50%) scale(1); } 
+    to { transform: translate(-50%, -50%) scale(1.05); } 
+  }
 
   /* --- 画面・設定UI --- */
   .screen {
@@ -124,8 +134,8 @@
   .start-btn:active { transform: translateY(6px); box-shadow: none; }
 
   #message-popup {
-    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0);
-    font-size: clamp(40px, 12vw, 60px); font-weight: bold; text-align: center;
+    position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%) scale(0);
+    font-size: clamp(30px, 8vw, 50px); font-weight: bold; text-align: center;
     color: #ffeb3b; text-shadow: 3px 3px 0 #f44336; z-index: 50; pointer-events: none;
     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
@@ -157,6 +167,9 @@
   
   <canvas id="c"></canvas>
   
+  <!-- 画面中央の連打ボタン -->
+  <button id="mash-btn" onclick="mashRope()">ひっぱれ！！💥</button>
+  
   <div id="controls">
     <div id="math-mode">
       <div id="question-text">1 + 2 = ❓</div>
@@ -166,7 +179,6 @@
         <button class="ans-btn" onclick="checkAns(2)">3</button>
       </div>
     </div>
-    <button id="mash-btn" onclick="mashRope()">ひっぱれ！！💥</button>
   </div>
   
   <div id="message-popup">パワーMAX!</div>
@@ -313,13 +325,13 @@ function checkAns(idx) {
     if (state !== 'math') return;
     if (idx === answerIndex) {
         playSound('correct');
-        power += 34; // 3問正解で100%超え
+        power += 34;
         if (power >= 100) { power = 100; startMashMode(); } 
         else { updateGauge(); genMath(); }
     } else {
         playSound('wrong');
-        ansBtns[idx].style.background = "#9e9e9e"; // 間違えたボタンをグレーに
-        ropeX += 10; // ペナルティで少し引かれる
+        ansBtns[idx].style.background = "#9e9e9e";
+        ropeX += 10;
     }
 }
 
@@ -330,13 +342,17 @@ function updateGauge() {
 
 function startMashMode() {
     state = 'mash'; updateGauge(); showMsg("パワーMAX!!\n連打しろ!");
-    mathModeUI.style.display = 'none'; mashBtn.style.display = 'block';
+    mathModeUI.style.opacity = '0.3'; // 連打中は算数ボタンを半透明に
+    mathModeUI.style.pointerEvents = 'none'; // 連打中は算数ボタンを押せなくする
+    mashBtn.style.display = 'block';
     
     // 4秒間連打モード
     setTimeout(() => {
         if (state === 'mash') {
             state = 'math'; power = 0; updateGauge();
-            mathModeUI.style.display = 'block'; mashBtn.style.display = 'none';
+            mathModeUI.style.opacity = '1';
+            mathModeUI.style.pointerEvents = 'auto';
+            mashBtn.style.display = 'none';
             genMath();
         }
     }, 4000);
@@ -344,7 +360,7 @@ function startMashMode() {
 
 function mashRope() {
     if (state !== 'mash') return;
-    playSound('mash'); ropeX -= 8; // 連打で大きく引く
+    playSound('mash'); ropeX -= 8;
 }
 
 // --- メインループ ---
@@ -354,46 +370,35 @@ function update(time) {
     
     ctx.clearRect(0, 0, W, H);
     
-    // 描画（背景の地面・線）
     ctx.fillStyle = '#8bc34a'; ctx.fillRect(0, H/2 + 20, W, H/2);
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.moveTo(W/2, H/2 + 20); ctx.lineTo(W/2, H); ctx.stroke();
     
     if (state === 'math' || state === 'mash') {
-        // CPUの自動引き（難易度で強さが変わる）
         let cpuSpeed = 5 + (diffSelected * 2.5); 
         ropeX += cpuSpeed * dt;
         
-        // タイム減少
         timeLeft -= dt;
         uiTime.innerText = Math.ceil(timeLeft);
         if (timeLeft <= 0) { timeLeft = 0; endGame(); }
         
-        // 限界突破（画面端で決着）
         if (ropeX < -W/2 + 50) endGame();
         if (ropeX > W/2 - 50) endGame();
     }
     
-    // キャラと綱の描画
     let centerX = W/2 + ropeX;
     
-    // 綱
     ctx.strokeStyle = '#795548'; ctx.lineWidth = 15;
     ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
     
-    // センターの旗
     ctx.fillStyle = '#f44336';
     ctx.fillRect(centerX - 10, H/2 - 30, 20, 40);
     
-    // プレイヤーとCPU (絵文字で代用)
     ctx.font = "clamp(60px, 15vw, 90px) sans-serif";
     ctx.textAlign = "center"; ctx.textBaseline = "bottom";
     
-    // プレイヤー (左)
     let pY = state === 'mash' ? H/2 - 10 + Math.random()*10 : H/2 - 10;
     ctx.fillText("👦", centerX - 80, pY + 20);
-    
-    // CPU (右)
     ctx.fillText("🦍", centerX + 80, H/2 + 10);
     
     requestAnimationFrame(update);
@@ -404,7 +409,8 @@ function startGame() {
     document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
     timeLeft = timeSelected; ropeX = 0; power = 0; state = 'math';
     updateGauge();
-    mathModeUI.style.display = 'block'; mashBtn.style.display = 'none';
+    mathModeUI.style.opacity = '1'; mathModeUI.style.pointerEvents = 'auto';
+    mashBtn.style.display = 'none';
     genMath(); lastTime = 0;
 }
 
