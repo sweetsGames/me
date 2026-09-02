@@ -66,14 +66,14 @@
   }
   .power-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #000; font-weight: bold; }
 
-  /* --- キャンバス --- */
+  /* --- キャンバス（キャラクター描画用） --- */
   canvas { flex: 1; width: 100%; object-fit: cover; }
 
-  /* --- コントロール（下部） --- */
+  /* --- コントロール（画面下部） --- */
   #controls {
     height: calc(30% + var(--sab)); min-height: 200px; background: rgba(255,255,255,0.95);
     border-top: 5px solid #333; display: flex; flex-direction: column; padding: 10px;
-    align-items: center; position: relative; z-index: 20;
+    align-items: center; justify-content: center; position: relative; z-index: 20;
   }
   #math-mode {
     width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;
@@ -91,11 +91,11 @@
   }
   .ans-btn:active { transform: translateY(6px); box-shadow: none; }
   
-  /* --- 連打ボタン（画面中央に独立して配置） --- */
+  /* --- 連打ボタン（コントロール領域の中央に被せる） --- */
   #mash-btn {
     display: none; position: absolute; 
-    top: 40%; left: 50%; /* 画面中央に配置 */
-    width: 85%; height: 120px; 
+    top: 50%; left: 50%; 
+    width: 90%; height: 85%; /* コントロールエリアをほぼ覆い隠す */
     background: #e91e63; color: white;
     font-size: clamp(36px, 10vw, 50px); font-weight: bold; border: none; border-radius: 20px;
     box-shadow: 0 10px 0 #880e4f, 0 0 30px rgba(233, 30, 99, 0.6); 
@@ -105,7 +105,7 @@
   #mash-btn:active { background: #c2185b; box-shadow: 0 0 10px rgba(233, 30, 99, 0.4); }
   @keyframes pulse { 
     from { transform: translate(-50%, -50%) scale(1); } 
-    to { transform: translate(-50%, -50%) scale(1.05); } 
+    to { transform: translate(-50%, -50%) scale(1.03); } 
   }
 
   /* --- 画面・設定UI --- */
@@ -167,10 +167,10 @@
   
   <canvas id="c"></canvas>
   
-  <!-- 画面中央の連打ボタン -->
-  <button id="mash-btn" onclick="mashRope()">ひっぱれ！！💥</button>
-  
   <div id="controls">
+    <!-- 連打ボタン（コントロール領域の上に被さる） -->
+    <button id="mash-btn" onclick="mashRope()">ひっぱれ！！💥</button>
+    
     <div id="math-mode">
       <div id="question-text">1 + 2 = ❓</div>
       <div id="answers">
@@ -342,16 +342,13 @@ function updateGauge() {
 
 function startMashMode() {
     state = 'mash'; updateGauge(); showMsg("パワーMAX!!\n連打しろ!");
-    mathModeUI.style.opacity = '0.3'; // 連打中は算数ボタンを半透明に
-    mathModeUI.style.pointerEvents = 'none'; // 連打中は算数ボタンを押せなくする
+    mathModeUI.style.opacity = '0.3'; mathModeUI.style.pointerEvents = 'none';
     mashBtn.style.display = 'block';
     
-    // 4秒間連打モード
     setTimeout(() => {
         if (state === 'mash') {
             state = 'math'; power = 0; updateGauge();
-            mathModeUI.style.opacity = '1';
-            mathModeUI.style.pointerEvents = 'auto';
+            mathModeUI.style.opacity = '1'; mathModeUI.style.pointerEvents = 'auto';
             mashBtn.style.display = 'none';
             genMath();
         }
