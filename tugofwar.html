@@ -23,7 +23,6 @@
     font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif;
   }
   html, body {
-    /* vh/dvhの計算ズレを防ぐため、100%固定で画面に張り付ける設定に変更 */
     position: fixed; inset: 0; width: 100%; height: 100%;
     overflow: hidden; background-color: #81c784; display: flex; flex-direction: column;
   }
@@ -67,18 +66,21 @@
   }
   .power-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #000; font-weight: bold; }
 
-  /* --- キャンバス（キャラクター描画用） --- */
-  /* 余った高さをすべてキャンバスに割り当て、潰れないようにmin-heightを設定 */
+  /* --- キャンバス --- */
   canvas { flex: 1; width: 100%; min-height: 0; object-fit: cover; }
 
   /* --- コントロール（画面下部） --- */
   #controls {
-    flex: none; /* 高さを固定せず、中身（ボタン）のサイズに自動で合わせる */
-    padding: 15px 15px calc(20px + var(--sab)) 15px; /* 下部に安全な余白を確保 */
+    /* キャンバスの揺れを防ぐため、最低限の高さを確保 */
+    min-height: calc(180px + var(--sab)); 
+    padding: 15px 15px calc(20px + var(--sab)) 15px;
     background: rgba(255,255,255,0.95);
-    border-top: 5px solid #333; display: flex; flex-direction: column;
+    border-top: 5px solid #333; 
+    display: flex; flex-direction: column;
     align-items: center; justify-content: center; position: relative; z-index: 20;
   }
+  
+  /* --- 算数モードUI --- */
   #math-mode {
     width: 100%; display: flex; flex-direction: column; align-items: center;
   }
@@ -95,20 +97,20 @@
   }
   .ans-btn:active { transform: translateY(6px); box-shadow: none; }
   
-  /* --- 連打ボタン（コントロール領域の内側にピッタリ被せる） --- */
+  /* --- 連打ボタン（算数モードと完全に入れ替わる） --- */
   #mash-btn {
-    display: none; position: absolute; 
-    /* コントロールエリアの四隅に合わせて自動リサイズ */
-    top: 15px; left: 15px; right: 15px; bottom: max(15px, var(--sab));
+    display: none; /* 初期は非表示 */
+    width: 90%; max-width: 400px; 
+    padding: 25px 0; /* 高さを抑えてスッキリさせる */
     background: #e91e63; color: white;
     font-size: clamp(32px, 8vw, 45px); font-weight: bold; border: none; border-radius: 15px;
-    box-shadow: 0 8px 0 #880e4f; cursor: pointer; touch-action: manipulation; z-index: 60;
+    box-shadow: 0 8px 0 #880e4f; cursor: pointer; touch-action: manipulation;
     animation: pulse 0.4s infinite alternate;
   }
-  #mash-btn:active { background: #c2185b; box-shadow: 0 0 10px rgba(233, 30, 99, 0.4); }
+  #mash-btn:active { background: #c2185b; box-shadow: 0 0 5px rgba(233, 30, 99, 0.4); transform: translateY(8px); }
   @keyframes pulse { 
     from { transform: scale(1); } 
-    to { transform: scale(1.02); } 
+    to { transform: scale(1.03); } 
   }
 
   /* --- 画面・設定UI --- */
@@ -171,7 +173,7 @@
   <canvas id="c"></canvas>
   
   <div id="controls">
-    <!-- 連打ボタン -->
+    <!-- 連打ボタン（算数モードと表示を切り替える） -->
     <button id="mash-btn" onclick="mashRope()">ひっぱれ！！💥</button>
     
     <div id="math-mode">
@@ -274,8 +276,8 @@ function resize() { W = c.width = c.clientWidth; H = c.height = c.clientHeight; 
 window.addEventListener('resize', resize); resize();
 
 // --- ゲーム状態 ---
-let state = 'title'; // title, math, mash, end
-let ropeX = 0; // -100(Player) to +100(CPU)
+let state = 'title';
+let ropeX = 0;
 let power = 0;
 let timeLeft = 0;
 let lastTime = 0;
@@ -345,13 +347,16 @@ function updateGauge() {
 
 function startMashMode() {
     state = 'mash'; updateGauge(); showMsg("パワーMAX!!\n連打しろ!");
-    mathModeUI.style.opacity = '0.3'; mathModeUI.style.pointerEvents = 'none';
+    
+    /* 算数エリアを完全に非表示にし、連打ボタンを表示する */
+    mathModeUI.style.display = 'none'; 
     mashBtn.style.display = 'block';
     
     setTimeout(() => {
         if (state === 'mash') {
             state = 'math'; power = 0; updateGauge();
-            mathModeUI.style.opacity = '1'; mathModeUI.style.pointerEvents = 'auto';
+            /* 連打エリアを非表示にし、算数エリアを復活させる */
+            mathModeUI.style.display = 'flex';
             mashBtn.style.display = 'none';
             genMath();
         }
@@ -409,8 +414,11 @@ function startGame() {
     document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
     timeLeft = timeSelected; ropeX = 0; power = 0; state = 'math';
     updateGauge();
-    mathModeUI.style.opacity = '1'; mathModeUI.style.pointerEvents = 'auto';
+    
+    /* 初期状態は算数エリアのみ表示 */
+    mathModeUI.style.display = 'flex';
     mashBtn.style.display = 'none';
+    
     genMath(); lastTime = 0;
 }
 
