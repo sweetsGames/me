@@ -161,13 +161,13 @@
 document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
 window.addEventListener('contextmenu', function(e) { e.preventDefault(); });
 
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        const opening = document.getElementById('opening-screen');
+setTimeout(() => {
+    const opening = document.getElementById('opening-screen');
+    if(opening) {
         opening.style.opacity = '0';
-        opening.style.visibility = 'hidden';
-    }, 1800);
-});
+        setTimeout(() => { opening.style.visibility = 'hidden'; }, 500);
+    }
+}, 1800);
 
 let actx;
 function initAudio() { if (!actx) { actx = new AudioContext(); if (actx.state === 'suspended') actx.resume(); } }
@@ -194,12 +194,11 @@ function playSound(type) {
 }
 
 let diffSelected = 0; let timeSelected = 60;
-let currentPatternIndex = 0;
+let remainingQuestions = []; // ★今回のキモ：出題可能な問題のプール
 
 function selDiff(val) { diffSelected = val; document.querySelectorAll('#diff-group .opt-btn').forEach((b, i) => b.classList.toggle('active', i === val)); }
 function selTime(val) { timeSelected = val; document.querySelectorAll('#time-group .opt-btn').forEach(b => b.classList.toggle('active', parseInt(b.innerText) === val)); }
 
-// --- 5パターン分割の大増量辞書データ ---
 const dictionaries = [
     // 0: かんたん（2文字）
     [
@@ -217,7 +216,7 @@ const dictionaries = [
         [{q:"おにぎり", a:["お","に","ぎ","り"], d:"h"}, {q:"たまご", a:["た","ま","ご"], d:"h"}, {q:"ごはん", a:["ご","は","ん"], d:"h"}],
         [{q:"さくら", a:["さ","く","ら"], d:"h"}, {q:"ひまわり", a:["ひ","ま","わ","り"], d:"h"}, {q:"もみじ", a:["も","み","じ"], d:"h"}]
     ],
-    // 2: むずかしい（小学1〜2年の漢字。漢字→読み、読み→漢字）
+    // 2: むずかしい（小学1〜2年の漢字）
     [
         [{q:"学校", a:["が","っ","こ","う"], d:"h"}, {q:"がっこう", a:["学","校"], d:"k"}, {q:"先生", a:["せ","ん","せ","い"], d:"h"}, {q:"せんせい", a:["先","生"], d:"k"}],
         [{q:"毎日", a:["ま","い","に","ち"], d:"h"}, {q:"まいにち", a:["毎","日"], d:"k"}, {q:"日記", a:["に","っ","き"], d:"h"}, {q:"にっき", a:["日","記"], d:"k"}],
@@ -225,7 +224,7 @@ const dictionaries = [
         [{q:"国語", a:["こ","く","ご"], d:"h"}, {q:"こくご", a:["国","語"], d:"k"}, {q:"算数", a:["さ","ん","す","う"], d:"h"}, {q:"さんすう", a:["算","数"], d:"k"}],
         [{q:"元気", a:["げ","ん","き"], d:"h"}, {q:"げんき", a:["元","気"], d:"k"}, {q:"名前", a:["な","ま","え"], d:"h"}, {q:"なまえ", a:["名","前"], d:"k"}]
     ],
-    // 3: 超むずかしい（四字熟語など。交互に出るよう単語を増量）
+    // 3: 超むずかしい（四字熟語など）
     [
         [{q:"一石二鳥", a:["い","っ","せ","き","に","ち","ょ","う"], d:"h"}, {q:"いっせきにちょう", a:["一","石","二","鳥"], d:"k"}, {q:"前代未聞", a:["ぜ","ん","だ","い","み","も","ん"], d:"h"}, {q:"ぜんだいみもん", a:["前","代","未","聞"], d:"k"}],
         [{q:"十人十色", a:["じ","ゅ","う","に","ん","と","い","ろ"], d:"h"}, {q:"じゅうにんといろ", a:["十","人","十","色"], d:"k"}, {q:"春夏秋冬", a:["し","ゅ","ん","か","し","ゅ","う","と","う"], d:"h"}, {q:"しゅんかしゅうとう", a:["春","夏","秋","冬"], d:"k"}],
@@ -270,32 +269,30 @@ function updateYomiDisplay() {
 }
 
 function spawnWord() {
-    let currentSet = dictionaries[diffSelected][currentPatternIndex];
-    let candidates = currentSet;
-    
-    // 【ロジック1】連続出題の防止：直前の問題を候補から除外する
-    if (currentWord) {
-        candidates = candidates.filter(w => w.q !== currentWord.q);
+    // 【ロジック変更】プール(remainingQuestions)が空になったら、その瞬間にゲームクリア！
+    if (remainingQuestions.length === 0) {
+        endGame(true); // true を渡すと「ぜんもんクリア」扱いになる
+        return;
     }
+
+    let candidates = remainingQuestions;
     
-    // 【ロジック2】交互出題の徹底：h（ひらがな）とk（漢字）の切り替え
-    let hasH = candidates.some(w => w.d === "h");
-    let hasK = candidates.some(w => w.d === "k");
-    
-    if (hasH && hasK && currentWord) {
-        // 直前が h なら k を、k なら h を次のターゲットにする
-        let targetType = currentWord.d === "h" ? "k" : "h";
-        let typeCandidates = candidates.filter(w => w.d === targetType);
-        if (typeCandidates.length > 0) {
-            candidates = typeCandidates;
+    // 交互出題の徹底：直前の問題が h なら次は k を、k なら h を探す
+    if (currentWord) {
+        let targetType = currentWord.d === "h" ? "k" : (currentWord.d === "k" ? "h" : null);
+        if (targetType) {
+            let typeCandidates = remainingQuestions.filter(w => w.d === targetType);
+            if (typeCandidates.length > 0) {
+                candidates = typeCandidates; // 該当タイプがあればそれに絞り込む
+            }
         }
     }
     
-    // 安全装置（万が一候補が空になったらリセット）
-    if (candidates.length === 0) candidates = currentSet;
-    
     // 絞り込まれた候補の中からランダムに1つ決定
     currentWord = candidates[Math.floor(Math.random() * candidates.length)];
+    
+    // ★出題された問題をプールから完全に削除（二度と出ない）
+    remainingQuestions = remainingQuestions.filter(w => w.q !== currentWord.q);
     
     charIndex = 0;
     Q_KANJI.innerText = currentWord.q;
@@ -375,7 +372,7 @@ function update(time) {
     if (state === 'play') {
         timeLeft -= dt;
         UI_TIME.innerText = Math.ceil(Math.max(0, timeLeft));
-        if (timeLeft <= 0) endGame();
+        if (timeLeft <= 0) endGame(false); // 時間切れは false
         
         let boardTop = H - 120; 
         
@@ -440,10 +437,10 @@ function startGame() {
     initAudio();
     document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
     
-    let setsInDiff = dictionaries[diffSelected].length;
-    currentPatternIndex = Math.floor(Math.random() * setsInDiff);
+    // 【ロジック変更】選んだ難易度の5グループ（全20問）を平坦化して1つの大きなプールにする
+    remainingQuestions = dictionaries[diffSelected].flat();
     
-    currentWord = null; // リスタート時に直前の問題をリセット
+    currentWord = null;
     timeLeft = timeSelected; score = 0; UI_SCORE.innerText = score;
     Q_BOARD.style.display = 'flex';
     state = 'play'; lastTime = 0;
@@ -451,9 +448,20 @@ function startGame() {
     spawnWord();
 }
 
-function endGame() {
+function endGame(isPerfect = false) {
     state = 'end'; Q_BOARD.style.display = 'none';
     document.getElementById('result-screen').classList.remove('hide');
+    
+    // パーフェクトかどうかで結果画面のタイトルを変える
+    let titleEl = document.getElementById('result-title');
+    if (isPerfect) {
+        titleEl.innerText = "ぜんもんクリア！🎉";
+        titleEl.style.color = "#e91e63"; // 特別な色
+    } else {
+        titleEl.innerText = "タイムアップ！";
+        titleEl.style.color = "#8e44ad"; // 通常の色
+    }
+    
     document.getElementById('final-score').innerText = score;
     playSound('end');
 }
