@@ -194,42 +194,47 @@ function playSound(type) {
 }
 
 let diffSelected = 0; let timeSelected = 60;
+let currentPatternIndex = 0; // 今回のプレイで選ばれた問題パターン
+
 function selDiff(val) { diffSelected = val; document.querySelectorAll('#diff-group .opt-btn').forEach((b, i) => b.classList.toggle('active', i === val)); }
 function selTime(val) { timeSelected = val; document.querySelectorAll('#time-group .opt-btn').forEach(b => b.classList.toggle('active', parseInt(b.innerText) === val)); }
 
-// --- 漢字・ひらがな混合辞書データ（d: "h" はひらがなダミー, d: "k" は漢字ダミーを使用） ---
+// --- 5パターン分割の大増量辞書データ ---
 const dictionaries = [
-    // 0: かんたん（2文字）
+    // 0: かんたん（2文字） - 5パターン
     [
-        {q:"いぬ", a:["い","ぬ"], d:"h"}, {q:"ねこ", a:["ね","こ"], d:"h"}, {q:"うし", a:["う","し"], d:"h"}, 
-        {q:"くま", a:["く","ま"], d:"h"}, {q:"ほん", a:["ほ","ん"], d:"h"}, {q:"そら", a:["そ","ら"], d:"h"}
+        [{q:"いぬ", a:["い","ぬ"], d:"h"}, {q:"ねこ", a:["ね","こ"], d:"h"}, {q:"うし", a:["う","し"], d:"h"}, {q:"うま", a:["う","ま"], d:"h"}], // 動物
+        [{q:"そら", a:["そ","ら"], d:"h"}, {q:"うみ", a:["う","み"], d:"h"}, {q:"やま", a:["や","ま"], d:"h"}, {q:"かわ", a:["か","わ"], d:"h"}], // 自然
+        [{q:"あか", a:["あ","か"], d:"h"}, {q:"あお", a:["あ","お"], d:"h"}, {q:"くろ", a:["く","ろ"], d:"h"}, {q:"しろ", a:["し","ろ"], d:"h"}], // 色
+        [{q:"ほん", a:["ほ","ん"], d:"h"}, {q:"はこ", a:["は","こ"], d:"h"}, {q:"かぎ", a:["か","ぎ"], d:"h"}, {q:"かさ", a:["か","さ"], d:"h"}], // モノ
+        [{q:"あし", a:["あ","し"], d:"h"}, {q:"かお", a:["か","お"], d:"h"}, {q:"ゆび", a:["ゆ","び"], d:"h"}, {q:"くち", a:["く","ち"], d:"h"}]  // 体
     ],
-    // 1: ふつう（3〜4文字）
+    // 1: ふつう（3〜4文字） - 5パターン
     [
-        {q:"くるま", a:["く","る","ま"], d:"h"}, {q:"りんご", a:["り","ん","ご"], d:"h"}, {q:"めがね", a:["め","が","ね"], d:"h"},
-        {q:"ひこうき", a:["ひ","こ","う","き"], d:"h"}, {q:"おにぎり", a:["お","に","ぎ","り"], d:"h"}
+        [{q:"くるま", a:["く","る","ま"], d:"h"}, {q:"ふね", a:["ふ","ね"], d:"h"}, {q:"ひこうき", a:["ひ","こ","う","き"], d:"h"}], // 乗り物
+        [{q:"りんご", a:["り","ん","ご"], d:"h"}, {q:"ばなな", a:["ば","な","な"], d:"h"}, {q:"みかん", a:["み","か","ん"], d:"h"}], // くだもの
+        [{q:"めがね", a:["め","が","ね"], d:"h"}, {q:"ぼうし", a:["ぼ","う","し"], d:"h"}, {q:"とけい", a:["と","け","い"], d:"h"}], // 身につけるもの
+        [{q:"おにぎり", a:["お","に","ぎ","り"], d:"h"}, {q:"たまご", a:["た","ま","ご"], d:"h"}, {q:"ごはん", a:["ご","は","ん"], d:"h"}], // 食べ物
+        [{q:"さくら", a:["さ","く","ら"], d:"h"}, {q:"ひまわり", a:["ひ","ま","わ","り"], d:"h"}, {q:"もみじ", a:["も","み","じ"], d:"h"}] // 花・植物
     ],
-    // 2: むずかしい（小学1〜2年の漢字。「漢字→読み」と「読み→漢字」をミックス！）
+    // 2: むずかしい（小学1〜2年の漢字。漢字→読み、読み→漢字をペアで！） - 5パターン
     [
-        {q:"学校", a:["が","っ","こ","う"], d:"h"}, {q:"がっこう", a:["学","校"], d:"k"},
-        {q:"先生", a:["せ","ん","せ","い"], d:"h"}, {q:"せんせい", a:["先","生"], d:"k"},
-        {q:"毎日", a:["ま","い","に","ち"], d:"h"}, {q:"まいにち", a:["毎","日"], d:"k"},
-        {q:"青空", a:["あ","お","ぞ","ら"], d:"h"}, {q:"あおぞら", a:["青","空"], d:"k"},
-        {q:"図工", a:["ず","こ","う"], d:"h"},       {q:"ずこう", a:["図","工"], d:"k"},
-        {q:"算数", a:["さ","ん","す","う"], d:"h"}, {q:"さんすう", a:["算","数"], d:"k"},
-        {q:"国語", a:["こ","く","ご"], d:"h"},       {q:"こくご", a:["国","語"], d:"k"},
-        {q:"元気", a:["げ","ん","き"], d:"h"},       {q:"げんき", a:["元","気"], d:"k"}
+        [{q:"学校", a:["が","っ","こ","う"], d:"h"}, {q:"がっこう", a:["学","校"], d:"k"}, {q:"先生", a:["せ","ん","せ","い"], d:"h"}, {q:"せんせい", a:["先","生"], d:"k"}],
+        [{q:"毎日", a:["ま","い","に","ち"], d:"h"}, {q:"まいにち", a:["毎","日"], d:"k"}, {q:"日記", a:["に","っ","き"], d:"h"}, {q:"にっき", a:["日","記"], d:"k"}],
+        [{q:"青空", a:["あ","お","ぞ","ら"], d:"h"}, {q:"あおぞら", a:["青","空"], d:"k"}, {q:"夕方", a:["ゆ","う","が","た"], d:"h"}, {q:"ゆうがた", a:["夕","方"], d:"k"}],
+        [{q:"国語", a:["こ","く","ご"], d:"h"}, {q:"こくご", a:["国","語"], d:"k"}, {q:"算数", a:["さ","ん","す","う"], d:"h"}, {q:"さんすう", a:["算","数"], d:"k"}],
+        [{q:"元気", a:["げ","ん","き"], d:"h"}, {q:"げんき", a:["元","気"], d:"k"}, {q:"名前", a:["な","ま","え"], d:"h"}, {q:"なまえ", a:["名","前"], d:"k"}]
     ],
-    // 3: 超むずかしい（四字熟語など）
+    // 3: 超むずかしい（四字熟語など） - 5パターン
     [
-        {q:"一石二鳥", a:["い","っ","せ","き","に","ち","ょ","う"], d:"h"},
-        {q:"いっせきにちょう", a:["一","石","二","鳥"], d:"k"},
-        {q:"前代未聞", a:["ぜ","ん","だ","い","み","も","ん"], d:"h"},
-        {q:"ぜんだいみもん", a:["前","代","未","聞"], d:"k"}
+        [{q:"一石二鳥", a:["い","っ","せ","き","に","ち","ょ","う"], d:"h"}, {q:"いっせきにちょう", a:["一","石","二","鳥"], d:"k"}],
+        [{q:"前代未聞", a:["ぜ","ん","だ","い","み","も","ん"], d:"h"}, {q:"ぜんだいみもん", a:["前","代","未","聞"], d:"k"}],
+        [{q:"十人十色", a:["じ","ゅ","う","に","ん","と","い","ろ"], d:"h"}, {q:"じゅうにんといろ", a:["十","人","十","色"], d:"k"}],
+        [{q:"春夏秋冬", a:["し","ゅ","ん","か","し","ゅ","う","と","う"], d:"h"}, {q:"しゅんかしゅうとう", a:["春","夏","秋","冬"], d:"k"}],
+        [{q:"一生懸命", a:["い","っ","し","ょ","う","け","ん","め","い"], d:"h"}, {q:"いっしょうけんめい", a:["一","生","懸","命"], d:"k"}]
     ]
 ];
 
-// ダミー生成用の文字列（ひらがな用と漢字用）
 const dummyHiragana = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん";
 const dummyKanji = "春夏秋冬上下左右日月火水木金土山川林森男女父母子大小中高本気生休学先毎空青名日記図工音算国体元友公雨夕朝見";
 
@@ -265,8 +270,10 @@ function updateYomiDisplay() {
 }
 
 function spawnWord() {
-    let dict = dictionaries[diffSelected];
-    currentWord = dict[Math.floor(Math.random() * dict.length)];
+    // 今回選ばれたパターンのグループから単語を抽出
+    let currentSet = dictionaries[diffSelected][currentPatternIndex];
+    currentWord = currentSet[Math.floor(Math.random() * currentSet.length)];
+    
     charIndex = 0;
     Q_KANJI.innerText = currentWord.q;
     updateYomiDisplay();
@@ -274,7 +281,6 @@ function spawnWord() {
     items = [];
     let requiredChars = [...currentWord.a];
     
-    // 問題のタイプ（h/k）に応じてダミー文字を生成
     let dummySource = currentWord.d === "k" ? dummyKanji : dummyHiragana;
     let dummyCount = 3 + diffSelected * 2; 
     
@@ -282,7 +288,6 @@ function spawnWord() {
         requiredChars.push(dummySource[Math.floor(Math.random() * dummySource.length)]);
     }
     
-    // 【修正1】文字のサイズを遊びやすく微調整（大きすぎず小さすぎず）
     let itemSize = Math.max(30, Math.min(48, W * 0.09));
     
     requiredChars.forEach(char => {
@@ -351,7 +356,6 @@ function update(time) {
         
         let boardTop = H - 120; 
         
-        // 【修正2】文字同士がぶつかって反射する物理エンジン（重なり防止）
         for(let i = 0; i < items.length; i++) {
             for(let j = i + 1; j < items.length; j++) {
                 let it1 = items[i];
@@ -364,7 +368,6 @@ function update(time) {
                 let minDist = it1.size + it2.size;
                 
                 if(dist < minDist) {
-                    // 弾き合い処理
                     let angle = Math.atan2(dy, dx);
                     let overlap = minDist - dist;
                     it1.x -= Math.cos(angle) * overlap / 2;
@@ -372,7 +375,6 @@ function update(time) {
                     it2.x += Math.cos(angle) * overlap / 2;
                     it2.y += Math.sin(angle) * overlap / 2;
                     
-                    // ベクトルの入れ替え
                     let v1x = it1.vx, v1y = it1.vy;
                     it1.vx = it2.vx; it1.vy = it2.vy;
                     it2.vx = v1x; it2.vy = v1y;
@@ -386,7 +388,6 @@ function update(time) {
             it.x += it.vx * dt;
             it.y += it.vy * dt;
             
-            // 壁でバウンド（弾き合いの後に補正して画面外へ飛び出さないようにする）
             if(it.x < it.size) { it.x = it.size; it.vx *= -1; }
             if(it.x > W - it.size) { it.x = W - it.size; it.vx *= -1; }
             if(it.y < it.size) { it.y = it.size; it.vy *= -1; }
@@ -398,7 +399,7 @@ function update(time) {
             ctx.lineWidth = 4; ctx.strokeStyle = '#8e44ad'; ctx.stroke();
             
             ctx.fillStyle = '#2c3e50';
-            let fontSize = it.size * 1.1; // 円に対する文字サイズの比率
+            let fontSize = it.size * 1.1; 
             ctx.font = `bold ${fontSize}px sans-serif`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.fillText(it.char, it.x, it.y + it.size*0.1);
@@ -415,6 +416,10 @@ function update(time) {
 function startGame() {
     initAudio();
     document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
+    
+    // ゲーム開始時に、今回の「問題パターン（0〜4）」をランダムに決定
+    let setsInDiff = dictionaries[diffSelected].length;
+    currentPatternIndex = Math.floor(Math.random() * setsInDiff);
     
     timeLeft = timeSelected; score = 0; UI_SCORE.innerText = score;
     Q_BOARD.style.display = 'flex';
