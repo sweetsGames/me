@@ -227,45 +227,44 @@ function playSound(type) {
 // --- 設定・変数 ---
 let diffSelected = 0;
 let timeSelected = 30;
+let currentPatternIndex = 0; // 反復学習用：現在選ばれている問題パターン
 
 function selDiff(val) { diffSelected = val; document.querySelectorAll('#diff-group .opt-btn').forEach((b, i) => b.classList.toggle('active', i === val)); }
 function selTime(val) { timeSelected = val; document.querySelectorAll('#time-group .opt-btn').forEach(b => b.classList.toggle('active', parseInt(b.innerText) === val)); }
 
-// --- 英語辞書データ ---
+// --- 英語辞書データ (反復学習のため、難易度ごとに5つのグループに分割) ---
 const dictionaries = [
-    // 0: かんたん (アルファベット小文字)
+    // 0: かんたん (大文字/小文字) - 5パターン
     [
-        {q: "A", a: "a", d: ["b","c","d","e"]}, {q: "B", a: "b", d: ["d","p","q","a"]},
-        {q: "C", a: "c", d: ["o","e","a","d"]}, {q: "M", a: "m", d: ["n","w","u","h"]},
-        {q: "P", a: "p", d: ["q","b","d","g"]}, {q: "R", a: "r", d: ["n","h","m","l"]},
-        {q: "G", a: "g", d: ["q","p","y","j"]}, {q: "L", a: "l", d: ["i","t","j","f"]}
+        [{q:"A",a:"a",d:["b","c","d"]}, {q:"B",a:"b",d:["d","p","q"]}, {q:"C",a:"c",d:["o","e","a"]}],
+        [{q:"D",a:"d",d:["b","p","q"]}, {q:"E",a:"e",d:["a","o","c"]}, {q:"F",a:"f",d:["t","l","i"]}],
+        [{q:"G",a:"g",d:["q","p","y"]}, {q:"H",a:"h",d:["n","m","b"]}, {q:"I",a:"i",d:["l","j","t"]}],
+        [{q:"J",a:"j",d:["i","g","l"]}, {q:"K",a:"k",d:["x","h","y"]}, {q:"L",a:"l",d:["i","t","j"]}],
+        [{q:"M",a:"m",d:["n","w","u"]}, {q:"P",a:"p",d:["q","b","d"]}, {q:"R",a:"r",d:["n","h","m"]}]
     ],
-    // 1: ふつう (身近な単語)
+    // 1: ふつう (身近な単語) - 5パターン
     [
-        {q: "あか", a: "Red", d: ["Blue","Green","Yellow","Pink"]},
-        {q: "いぬ", a: "Dog", d: ["Cat","Pig","Bird","Fox"]},
-        {q: "りんご", a: "Apple", d: ["Banana","Orange","Grape","Peach"]},
-        {q: "くるま", a: "Car", d: ["Bus","Train","Bike","Ship"]},
-        {q: "きいろ", a: "Yellow", d: ["White","Black","Brown","Pink"]},
-        {q: "ほし", a: "Star", d: ["Sun","Moon","Sky","Cloud"]}
+        [{q:"あか",a:"Red",d:["Blue","Green","Pink"]}, {q:"あお",a:"Blue",d:["Red","Black","White"]}, {q:"きいろ",a:"Yellow",d:["Brown","Green","Pink"]}], // 色
+        [{q:"いぬ",a:"Dog",d:["Cat","Pig","Bird"]}, {q:"ねこ",a:"Cat",d:["Dog","Cow","Fox"]}, {q:"とり",a:"Bird",d:["Fish","Duck","Bear"]}], // 動物
+        [{q:"りんご",a:"Apple",d:["Banana","Peach","Grape"]}, {q:"バナナ",a:"Banana",d:["Apple","Lemon","Melon"]}, {q:"ぶどう",a:"Grape",d:["Peach","Apple","Berry"]}], // くだもの
+        [{q:"くるま",a:"Car",d:["Bus","Bike","Ship"]}, {q:"バス",a:"Bus",d:["Car","Train","Taxi"]}, {q:"でんしゃ",a:"Train",d:["Ship","Bus","Bike"]}], // 乗り物
+        [{q:"ほし",a:"Star",d:["Sun","Moon","Sky"]}, {q:"たいよう",a:"Sun",d:["Star","Moon","Cloud"]}, {q:"つき",a:"Moon",d:["Sun","Star","Earth"]}] // 自然
     ],
-    // 2: むずかしい (小2〜小3レベル)
+    // 2: むずかしい (小2〜小3レベル) - 5パターン
     [
-        {q: "にちようび", a: "Sunday", d: ["Monday","Friday","Saturday","Tuesday"]},
-        {q: "としょかん", a: "Library", d: ["School","Hospital","Station","Park"]},
-        {q: "８がつ", a: "August", d: ["April","October","Autumn","Summer"]},
-        {q: "あさごはん", a: "Breakfast", d: ["Lunch","Dinner","Snack","Meat"]},
-        {q: "すいようび", a: "Wednesday", d: ["Thursday","Tuesday","Weekend","Monday"]},
-        {q: "みず", a: "Water", d: ["Fire","Wood","Earth","Wind"]}
+        [{q:"げつようび",a:"Monday",d:["Sunday","Friday","Tuesday"]}, {q:"すいようび",a:"Wednesday",d:["Thursday","Tuesday","Monday"]}, {q:"きんようび",a:"Friday",d:["Sunday","Monday","Thursday"]}], // 曜日
+        [{q:"１がつ",a:"January",d:["February","July","June"]}, {q:"４がつ",a:"April",d:["August","March","May"]}, {q:"８がつ",a:"August",d:["Autumn","April","October"]}], // 月
+        [{q:"がっこう",a:"School",d:["Library","Hospital","Park"]}, {q:"としょかん",a:"Library",d:["School","Station","Bank"]}, {q:"こうえん",a:"Park",d:["Pool","Yard","Garden"]}], // 場所
+        [{q:"あさごはん",a:"Breakfast",d:["Lunch","Dinner","Snack"]}, {q:"ひるごはん",a:"Lunch",d:["Dinner","Breakfast","Meal"]}, {q:"ばんごはん",a:"Dinner",d:["Lunch","Breakfast","Desert"]}], // 食事
+        [{q:"みず",a:"Water",d:["Fire","Wood","Earth"]}, {q:"き（木）",a:"Wood",d:["Water","Fire","Wind"]}, {q:"ひ（火）",a:"Fire",d:["Water","Earth","Wood"]}] // 自然
     ],
-    // 3: 超むずかしい (大人向けひっかけ)
+    // 3: 超むずかしい (大人向け) - 5パターン
     [
-        {q: "右・正しい", a: "Right", d: ["Light","Night","Sight","Flight"]},
-        {q: "口（くち）", a: "Mouth", d: ["Mouse","Month","Moth","Math"]},
-        {q: "静かな", a: "Quiet", d: ["Quite","Quit","Quick","Quest"]},
-        {q: "砂漠（さばく）", a: "Desert", d: ["Dessert","Insert","Divert","Expert"]},
-        {q: "日記（にっき）", a: "Diary", d: ["Dairy","Daily","Daisy","Delay"]},
-        {q: "考える", a: "Think", d: ["Sink","Thing","Thank","Thick"]}
+        [{q:"右・正しい",a:"Right",d:["Light","Night","Sight"]}, {q:"光・明るい",a:"Light",d:["Right","Night","Sight"]}, {q:"夜",a:"Night",d:["Right","Light","Sight"]}], // L/R/N
+        [{q:"口（くち）",a:"Mouth",d:["Mouse","Month","Moth"]}, {q:"ネズミ",a:"Mouse",d:["Mouth","Month","Moth"]}, {q:"月（カレンダー）",a:"Month",d:["Mouth","Mouse","Moth"]}], // th/s
+        [{q:"静かな",a:"Quiet",d:["Quite","Quit","Quick"]}, {q:"かなり・まったく",a:"Quite",d:["Quiet","Quit","Quick"]}, {q:"やめる",a:"Quit",d:["Quiet","Quite","Quick"]}], // q-
+        [{q:"砂漠（さばく）",a:"Desert",d:["Dessert","Insert","Divert"]}, {q:"デザート",a:"Dessert",d:["Desert","Assert","Insert"]}, {q:"日記（にっき）",a:"Diary",d:["Dairy","Daily","Daisy"]}], // スペル似
+        [{q:"考える",a:"Think",d:["Sink","Thing","Thank"]}, {q:"沈む",a:"Sink",d:["Think","Sing","Sick"]}, {q:"もの・こと",a:"Thing",d:["Think","Sing","Thin"]}] // th/s 2
     ]
 ];
 
@@ -304,8 +303,9 @@ function setLane(lane) {
 }
 
 function spawnGate() {
-    let dict = dictionaries[diffSelected];
-    let qObj = dict[Math.floor(Math.random() * dict.length)];
+    // 選ばれた難易度の中から、ゲーム開始時に固定されたパターン（currentPatternIndex）の問題だけを出題
+    let currentSet = dictionaries[diffSelected][currentPatternIndex];
+    let qObj = currentSet[Math.floor(Math.random() * currentSet.length)];
     
     Q_BOARD.innerText = qObj.q;
     
@@ -401,7 +401,9 @@ function update(time) {
             let fontSize = Math.min(24, laneW * 0.25);
             ctx.font = `bold ${fontSize}px sans-serif`;
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillText(gate.words[i], cx, gate.y);
+            
+            // 【修正】第4引数で最大幅（laneW * 0.85）を指定し、長い単語のはみ出しを防止！
+            ctx.fillText(gate.words[i], cx, gate.y, laneW * 0.85);
         }
     }
     
@@ -419,6 +421,11 @@ function update(time) {
 function startGame() {
     initAudio();
     document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
+    
+    // ゲーム開始時に、今回の「問題パターン（0〜4）」をランダムに決定
+    let setsInDiff = dictionaries[diffSelected].length;
+    currentPatternIndex = Math.floor(Math.random() * setsInDiff);
+    
     timeLeft = timeSelected; score = 0; UI_SCORE.innerText = score;
     carLane = 1; carX = (W / 3) * 1 + (W / 3) / 2; // 真ん中スタート
     
