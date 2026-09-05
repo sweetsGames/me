@@ -68,9 +68,12 @@
   #question-board {
     position: absolute; top: calc(max(10px, var(--sat)) + 60px); left: 50%; transform: translateX(-50%);
     background: rgba(255, 255, 255, 0.95); border: 5px solid #ff9800; border-radius: 20px;
-    padding: 10px 30px; font-size: clamp(28px, 7vw, 40px); font-weight: bold; color: #e65100;
+    padding: 10px 20px; 
+    width: 85%; max-width: 400px; /* 横幅の安全マージン */
+    font-size: clamp(22px, 6vw, 36px); font-weight: bold; color: #e65100;
     box-shadow: 0 8px 15px rgba(0,0,0,0.1); z-index: 10; text-align: center; pointer-events: none;
-    display: none; white-space: nowrap;
+    display: none; 
+    white-space: normal; word-break: keep-all; line-height: 1.2; /* 改行許容・はみ出し防止 */
   }
 
   canvas { display: block; flex: 1; width: 100%; min-height: 0; object-fit: cover; }
@@ -82,7 +85,7 @@
     display: flex; gap: 10px; width: 100%; justify-content: space-between; z-index: 20;
   }
   .lane-btn {
-    flex: 1; padding: 15px 0; font-size: clamp(20px, 5vw, 28px); font-weight: bold;
+    flex: 1; padding: 15px 0; font-size: clamp(16px, 4.5vw, 26px); font-weight: bold; /* フォント微調整 */
     color: white; border: none; border-radius: 15px; cursor: pointer; touch-action: manipulation;
   }
   #btn-left { background: #e91e63; box-shadow: 0 6px 0 #880e4f; }
@@ -104,7 +107,7 @@
   .set-title { font-size: 18px; font-weight: bold; color: #555; margin-bottom: 10px; text-align: center; }
   .btn-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
   .opt-btn {
-    padding: 8px 12px; font-size: 16px; font-weight: bold; border: 2px solid #aaa;
+    padding: 8px 12px; font-size: 14px; font-weight: bold; border: 2px solid #aaa;
     border-radius: 8px; background: #fff; color: #555; cursor: pointer;
   }
   .opt-btn.active { background: #4caf50; color: white; border-color: #2e7d32; }
@@ -244,27 +247,27 @@ const dictionaries = [
     ],
     // 1: ふつう (身近な単語) - 5パターン
     [
-        [{q:"あか",a:"Red",d:["Blue","Green","Pink"]}, {q:"あお",a:"Blue",d:["Red","Black","White"]}, {q:"きいろ",a:"Yellow",d:["Brown","Green","Pink"]}], // 色
-        [{q:"いぬ",a:"Dog",d:["Cat","Pig","Bird"]}, {q:"ねこ",a:"Cat",d:["Dog","Cow","Fox"]}, {q:"とり",a:"Bird",d:["Fish","Duck","Bear"]}], // 動物
-        [{q:"りんご",a:"Apple",d:["Banana","Peach","Grape"]}, {q:"バナナ",a:"Banana",d:["Apple","Lemon","Melon"]}, {q:"ぶどう",a:"Grape",d:["Peach","Apple","Berry"]}], // くだもの
-        [{q:"くるま",a:"Car",d:["Bus","Bike","Ship"]}, {q:"バス",a:"Bus",d:["Car","Train","Taxi"]}, {q:"でんしゃ",a:"Train",d:["Ship","Bus","Bike"]}], // 乗り物
-        [{q:"ほし",a:"Star",d:["Sun","Moon","Sky"]}, {q:"たいよう",a:"Sun",d:["Star","Moon","Cloud"]}, {q:"つき",a:"Moon",d:["Sun","Star","Earth"]}] // 自然
+        [{q:"あか",a:"Red",d:["Blue","Green","Pink"]}, {q:"あお",a:"Blue",d:["Red","Black","White"]}, {q:"きいろ",a:"Yellow",d:["Brown","Green","Pink"]}], 
+        [{q:"いぬ",a:"Dog",d:["Cat","Pig","Bird"]}, {q:"ねこ",a:"Cat",d:["Dog","Cow","Fox"]}, {q:"とり",a:"Bird",d:["Fish","Duck","Bear"]}], 
+        [{q:"りんご",a:"Apple",d:["Banana","Peach","Grape"]}, {q:"バナナ",a:"Banana",d:["Apple","Lemon","Melon"]}, {q:"ぶどう",a:"Grape",d:["Peach","Apple","Berry"]}], 
+        [{q:"くるま",a:"Car",d:["Bus","Bike","Ship"]}, {q:"バス",a:"Bus",d:["Car","Train","Taxi"]}, {q:"でんしゃ",a:"Train",d:["Ship","Bus","Bike"]}], 
+        [{q:"ほし",a:"Star",d:["Sun","Moon","Sky"]}, {q:"たいよう",a:"Sun",d:["Star","Moon","Cloud"]}, {q:"つき",a:"Moon",d:["Sun","Star","Earth"]}] 
     ],
     // 2: むずかしい (小2〜小3レベル) - 5パターン
     [
-        [{q:"げつようび",a:"Monday",d:["Sunday","Friday","Tuesday"]}, {q:"すいようび",a:"Wednesday",d:["Thursday","Tuesday","Monday"]}, {q:"きんようび",a:"Friday",d:["Sunday","Monday","Thursday"]}], // 曜日
-        [{q:"１がつ",a:"January",d:["February","July","June"]}, {q:"４がつ",a:"April",d:["August","March","May"]}, {q:"８がつ",a:"August",d:["Autumn","April","October"]}], // 月
-        [{q:"がっこう",a:"School",d:["Library","Hospital","Park"]}, {q:"としょかん",a:"Library",d:["School","Station","Bank"]}, {q:"こうえん",a:"Park",d:["Pool","Yard","Garden"]}], // 場所
-        [{q:"あさごはん",a:"Breakfast",d:["Lunch","Dinner","Snack"]}, {q:"ひるごはん",a:"Lunch",d:["Dinner","Breakfast","Meal"]}, {q:"ばんごはん",a:"Dinner",d:["Lunch","Breakfast","Desert"]}], // 食事
-        [{q:"みず",a:"Water",d:["Fire","Wood","Earth"]}, {q:"き（木）",a:"Wood",d:["Water","Fire","Wind"]}, {q:"ひ（火）",a:"Fire",d:["Water","Earth","Wood"]}] // 自然
+        [{q:"げつようび",a:"Monday",d:["Sunday","Friday","Tuesday"]}, {q:"すいようび",a:"Wednesday",d:["Thursday","Tuesday","Monday"]}, {q:"きんようび",a:"Friday",d:["Sunday","Monday","Thursday"]}], 
+        [{q:"１がつ",a:"January",d:["February","July","June"]}, {q:"４がつ",a:"April",d:["August","March","May"]}, {q:"８がつ",a:"August",d:["Autumn","April","October"]}], 
+        [{q:"がっこう",a:"School",d:["Library","Hospital","Park"]}, {q:"としょかん",a:"Library",d:["School","Station","Bank"]}, {q:"こうえん",a:"Park",d:["Pool","Yard","Garden"]}], 
+        [{q:"あさごはん",a:"Breakfast",d:["Lunch","Dinner","Snack"]}, {q:"ひるごはん",a:"Lunch",d:["Dinner","Breakfast","Meal"]}, {q:"ばんごはん",a:"Dinner",d:["Lunch","Breakfast","Desert"]}], 
+        [{q:"みず",a:"Water",d:["Fire","Wood","Earth"]}, {q:"き（木）",a:"Wood",d:["Water","Fire","Wind"]}, {q:"ひ（火）",a:"Fire",d:["Water","Earth","Wood"]}] 
     ],
     // 3: 超むずかしい (大人向け) - 5パターン
     [
-        [{q:"右・正しい",a:"Right",d:["Light","Night","Sight"]}, {q:"光・明るい",a:"Light",d:["Right","Night","Sight"]}, {q:"夜",a:"Night",d:["Right","Light","Sight"]}], // L/R/N
-        [{q:"口（くち）",a:"Mouth",d:["Mouse","Month","Moth"]}, {q:"ネズミ",a:"Mouse",d:["Mouth","Month","Moth"]}, {q:"月（カレンダー）",a:"Month",d:["Mouth","Mouse","Moth"]}], // th/s
-        [{q:"静かな",a:"Quiet",d:["Quite","Quit","Quick"]}, {q:"かなり・まったく",a:"Quite",d:["Quiet","Quit","Quick"]}, {q:"やめる",a:"Quit",d:["Quiet","Quite","Quick"]}], // q-
-        [{q:"砂漠（さばく）",a:"Desert",d:["Dessert","Insert","Divert"]}, {q:"デザート",a:"Dessert",d:["Desert","Assert","Insert"]}, {q:"日記（にっき）",a:"Diary",d:["Dairy","Daily","Daisy"]}], // スペル似
-        [{q:"考える",a:"Think",d:["Sink","Thing","Thank"]}, {q:"沈む",a:"Sink",d:["Think","Sing","Sick"]}, {q:"もの・こと",a:"Thing",d:["Think","Sing","Thin"]}] // th/s 2
+        [{q:"右・正しい",a:"Right",d:["Light","Night","Sight"]}, {q:"光・明るい",a:"Light",d:["Right","Night","Sight"]}, {q:"夜",a:"Night",d:["Right","Light","Sight"]}], 
+        [{q:"口（くち）",a:"Mouth",d:["Mouse","Month","Moth"]}, {q:"ネズミ",a:"Mouse",d:["Mouth","Month","Moth"]}, {q:"月（カレンダー）",a:"Month",d:["Mouth","Mouse","Moth"]}], 
+        [{q:"静かな",a:"Quiet",d:["Quite","Quit","Quick"]}, {q:"かなり・まったく",a:"Quite",d:["Quiet","Quit","Quick"]}, {q:"やめる",a:"Quit",d:["Quiet","Quite","Quick"]}], 
+        [{q:"砂漠（さばく）",a:"Desert",d:["Dessert","Insert","Divert"]}, {q:"デザート",a:"Dessert",d:["Desert","Assert","Insert"]}, {q:"日記（にっき）",a:"Diary",d:["Dairy","Daily","Daisy"]}], 
+        [{q:"考える",a:"Think",d:["Sink","Thing","Thank"]}, {q:"沈む",a:"Sink",d:["Think","Sing","Sick"]}, {q:"もの・こと",a:"Thing",d:["Think","Sing","Thin"]}] 
     ]
 ];
 
@@ -303,16 +306,13 @@ function setLane(lane) {
 }
 
 function spawnGate() {
-    // 選ばれた難易度の中から、ゲーム開始時に固定されたパターン（currentPatternIndex）の問題だけを出題
     let currentSet = dictionaries[diffSelected][currentPatternIndex];
     let qObj = currentSet[Math.floor(Math.random() * currentSet.length)];
     
     Q_BOARD.innerText = qObj.q;
     
-    // 正解レーンをランダムに決定
     gate.answerLane = Math.floor(Math.random() * 3);
     
-    // ダミーをシャッフルして2つ選ぶ
     let dummies = [...qObj.d].sort(() => Math.random() - 0.5);
     
     gate.words = ["", "", ""];
@@ -327,7 +327,6 @@ function spawnGate() {
     gate.y = -100;
     gate.active = true;
     
-    // 難易度に応じたスピード
     speedY = H * (0.008 + (diffSelected * 0.002));
 }
 
@@ -338,11 +337,9 @@ function update(time) {
     
     ctx.clearRect(0, 0, W, H);
     
-    // 道路の描画
     let laneW = W / 3;
-    ctx.fillStyle = '#616161'; ctx.fillRect(0, 0, W, H); // アスファルト
+    ctx.fillStyle = '#616161'; ctx.fillRect(0, 0, W, H); 
     
-    // 白線（動く）
     if (state === 'play') roadOffset = (roadOffset + speedY) % (H * 0.2);
     ctx.strokeStyle = '#fff'; ctx.lineWidth = W * 0.02;
     ctx.setLineDash([H * 0.1, H * 0.1]);
@@ -357,61 +354,63 @@ function update(time) {
         UI_TIME.innerText = Math.ceil(Math.max(0, timeLeft));
         if (timeLeft <= 0) endGame();
         
-        // 車の滑らかな移動
         let targetX = laneW * carLane + laneW / 2;
         carX += (targetX - carX) * 0.2;
         
-        // ゲートの移動
         if (gate.active) {
             gate.y += speedY;
-            
-            // 衝突判定 (車のY位置は H - 120あたり)
             let carY = H - 120;
             if (gate.y > carY - 40 && gate.y < carY + 40) {
                 if (carLane === gate.answerLane) {
                     playSound('correct'); score++; UI_SCORE.innerText = score;
                     showMsg("Good!", "#ffeb3b");
-                    speedY *= 1.5; // 一瞬スピードアップ
+                    speedY *= 1.5; 
                 } else {
                     playSound('wrong');
                     showMsg("Crash!", "#f44336");
                 }
                 gate.active = false;
-                setTimeout(spawnGate, 300); // 次の問題へ
+                setTimeout(spawnGate, 300); 
             }
         }
     }
     
-    // ゲート描画
     if (gate.active) {
         let boxH = 60;
-        ctx.fillStyle = '#333'; ctx.fillRect(0, gate.y - 10, W, 20); // 横のバー
+        ctx.fillStyle = '#333'; ctx.fillRect(0, gate.y - 10, W, 20); 
         
         for(let i=0; i<3; i++) {
             let cx = laneW * i + laneW / 2;
             
-            // 看板の背景
             ctx.fillStyle = i === 0 ? '#e91e63' : i === 1 ? '#4caf50' : '#2196f3';
             ctx.fillRect(cx - laneW*0.45, gate.y - boxH/2, laneW*0.9, boxH);
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
             ctx.strokeRect(cx - laneW*0.45, gate.y - boxH/2, laneW*0.9, boxH);
             
-            // テキスト
             ctx.fillStyle = '#fff';
-            let fontSize = Math.min(24, laneW * 0.25);
-            ctx.font = `bold ${fontSize}px sans-serif`;
-            ctx.textAlign = "center"; ctx.textBaseline = "middle";
             
-            // 【修正】第4引数で最大幅（laneW * 0.85）を指定し、長い単語のはみ出しを防止！
-            ctx.fillText(gate.words[i], cx, gate.y, laneW * 0.85);
+            // 【本質的な修正】事前に文字幅を測り、枠より大きい場合はフォントサイズ自体を縮小する
+            let text = gate.words[i];
+            let baseFontSize = Math.min(24, laneW * 0.22); // 基本サイズ
+            ctx.font = `bold ${baseFontSize}px sans-serif`;
+            
+            let textWidth = ctx.measureText(text).width;
+            let maxTextWidth = laneW * 0.8; // はみ出さない安全な最大幅
+            
+            if (textWidth > maxTextWidth) {
+                // はみ出る場合のみ、比率を計算してフォントを小さくする
+                let scaleRatio = maxTextWidth / textWidth;
+                ctx.font = `bold ${baseFontSize * scaleRatio}px sans-serif`;
+            }
+            
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(text, cx, gate.y); // 第4引数の強制潰しを撤廃
         }
     }
     
-    // 車描画
     let carSize = Math.max(50, Math.min(90, W * 0.15));
     ctx.font = `${carSize}px sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    // アイドリング時でも車を描画
     let drawX = carX || (laneW * carLane + laneW / 2);
     ctx.fillText("🚗", drawX, H - 120);
     
@@ -422,12 +421,11 @@ function startGame() {
     initAudio();
     document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
     
-    // ゲーム開始時に、今回の「問題パターン（0〜4）」をランダムに決定
     let setsInDiff = dictionaries[diffSelected].length;
     currentPatternIndex = Math.floor(Math.random() * setsInDiff);
     
     timeLeft = timeSelected; score = 0; UI_SCORE.innerText = score;
-    carLane = 1; carX = (W / 3) * 1 + (W / 3) / 2; // 真ん中スタート
+    carLane = 1; carX = (W / 3) * 1 + (W / 3) / 2; 
     
     Q_BOARD.style.display = 'block';
     state = 'play'; lastTime = 0;
