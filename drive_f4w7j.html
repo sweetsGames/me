@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>えいご ドライブゴーゴー</title>
+
+<!-- PWA・全画面表示設定 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4fc3f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="えいごドライブ">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+  }
+</script>
+
+<style>
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+  }
+  * {
+    box-sizing: border-box; user-select: none; -webkit-user-select: none;
+    margin: 0; padding: 0; 
+    touch-action: none; /* スマホブラウザの標準ズーム・スクロールを無効化 */
+    font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif;
+  }
+  html, body {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    overflow: hidden; background-color: #aed581; display: flex; flex-direction: column;
+  }
+  
+  /* --- オープニング演出 --- */
+  #opening-screen {
+    position: fixed; inset: 0; background: #ffffff; z-index: 9999;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    transition: opacity 0.5s ease, visibility 0.5s;
+  }
+  .logo-container { text-align: center; animation: popIn 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+  .logo-icon { font-size: clamp(50px, 15vw, 80px); margin-bottom: 10px; }
+  .logo-text { font-size: clamp(24px, 7vw, 36px); font-weight: bold; color: #333; letter-spacing: 2px; }
+  .logo-sub { font-size: clamp(18px, 5vw, 28px); font-weight: bold; color: #ff9800; letter-spacing: 4px; margin-top: 5px; }
+  @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+
+  #game-wrapper {
+    position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto;
+    background: #8bc34a; box-shadow: 0 0 20px rgba(0,0,0,0.1); 
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  
+  /* UI Header */
+  #header {
+    position: absolute; top: max(10px, var(--sat)); left: 0; width: 100%;
+    padding: 0 15px; display: flex; justify-content: space-between; align-items: center; z-index: 10;
+    pointer-events: none;
+  }
+  .status-box {
+    background: rgba(255, 255, 255, 0.95); padding: 8px 15px; border-radius: 12px;
+    font-size: clamp(16px, 5vw, 22px); font-weight: bold; color: #333;
+    border: 3px solid #7cb342; box-shadow: 0 4px 0 #558b2f;
+  }
+  
+  /* Question Board */
+  #question-board {
+    position: absolute; top: calc(max(10px, var(--sat)) + 60px); left: 50%; transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95); border: 5px solid #ff9800; border-radius: 20px;
+    padding: 10px 30px; font-size: clamp(28px, 7vw, 40px); font-weight: bold; color: #e65100;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.1); z-index: 10; text-align: center; pointer-events: none;
+    display: none; white-space: nowrap;
+  }
+
+  canvas { display: block; flex: 1; width: 100%; min-height: 0; object-fit: cover; }
+
+  /* ハンドル操作（画面下部） */
+  #controls {
+    padding: 10px 10px calc(20px + var(--sab)) 10px;
+    background: rgba(255,255,255,0.95); border-top: 5px solid #333; 
+    display: flex; gap: 10px; width: 100%; justify-content: space-between; z-index: 20;
+  }
+  .lane-btn {
+    flex: 1; padding: 15px 0; font-size: clamp(20px, 5vw, 28px); font-weight: bold;
+    color: white; border: none; border-radius: 15px; cursor: pointer; touch-action: manipulation;
+  }
+  #btn-left { background: #e91e63; box-shadow: 0 6px 0 #880e4f; }
+  #btn-center { background: #4caf50; box-shadow: 0 6px 0 #1b5e20; }
+  #btn-right { background: #2196f3; box-shadow: 0 6px 0 #0d47a1; }
+  .lane-btn:active { transform: translateY(6px); box-shadow: none; }
+
+  /* Screens & Popups */
+  .screen {
+    position: absolute; inset: 0; background: rgba(241, 248, 233, 0.95);
+    display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+  }
+  h1 { font-size: clamp(32px, 8vw, 45px); color: #2e7d32; margin-bottom: 15px; text-shadow: 2px 2px 0 #c8e6c9; text-align: center;}
+  
+  .settings-box {
+    background: #fff; border-radius: 15px; padding: 15px; width: 90%; max-width: 350px; margin-bottom: 20px;
+    border: 3px solid #ccc; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  }
+  .set-title { font-size: 18px; font-weight: bold; color: #555; margin-bottom: 10px; text-align: center; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 15px; }
+  .opt-btn {
+    padding: 8px 12px; font-size: 16px; font-weight: bold; border: 2px solid #aaa;
+    border-radius: 8px; background: #fff; color: #555; cursor: pointer;
+  }
+  .opt-btn.active { background: #4caf50; color: white; border-color: #2e7d32; }
+
+  .start-btn {
+    padding: 15px 40px; font-size: 24px; font-weight: bold; color: white;
+    background: #ff9800; border: none; border-radius: 30px; box-shadow: 0 6px 0 #e65100;
+  }
+  .start-btn:active { transform: translateY(6px); box-shadow: none; }
+
+  #message-popup {
+    position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0);
+    font-size: clamp(40px, 10vw, 60px); font-weight: bold; text-align: center;
+    color: #ffeb3b; text-shadow: 3px 3px 0 #f44336; z-index: 50; pointer-events: none;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  #message-popup.show { transform: translate(-50%, -50%) scale(1); }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- オープニング -->
+<div id="opening-screen">
+  <div class="logo-container">
+    <div class="logo-icon">📱👨‍💻✨</div>
+    <div class="logo-text">めー＆SEパパ</div>
+    <div class="logo-sub">GAMES</div>
+  </div>
+</div>
+
+<div id="game-wrapper">
+  <div id="header">
+    <div class="status-box">⏱ <span id="ui-time">30</span>秒</div>
+    <div class="status-box">⭕️ <span id="ui-score">0</span></div>
+  </div>
+  
+  <div id="question-board">お題</div>
+  <canvas id="c"></canvas>
+  
+  <!-- コントロールボタン -->
+  <div id="controls">
+    <button id="btn-left" class="lane-btn" onpointerdown="event.preventDefault(); setLane(0)">◀️ 左</button>
+    <button id="btn-center" class="lane-btn" onpointerdown="event.preventDefault(); setLane(1)">⬆️ 真ん中</button>
+    <button id="btn-right" class="lane-btn" onpointerdown="event.preventDefault(); setLane(2)">右 ▶️</button>
+  </div>
+  
+  <div id="message-popup">Good!</div>
+
+  <!-- スタート画面 -->
+  <div id="start-screen" class="screen">
+    <h1>🚗 えいご<br>ドライブ・ゴーゴー</h1>
+    
+    <div class="settings-box">
+      <div class="set-title">１．レベルをえらぶ</div>
+      <div class="btn-row" id="diff-group">
+        <button class="opt-btn active" onclick="selDiff(0)">かんたん(大文字/小文字)</button>
+        <button class="opt-btn" onclick="selDiff(1)">ふつう(色・動物)</button>
+        <button class="opt-btn" onclick="selDiff(2)">むずかしい(曜日・月)</button>
+        <button class="opt-btn" onclick="selDiff(3)">超むずかしい(大人向け)</button>
+      </div>
+      
+      <div class="set-title">２．じかんをえらぶ</div>
+      <div class="btn-row" id="time-group">
+        <button class="opt-btn active" onclick="selTime(30)">30びょう</button>
+        <button class="opt-btn" onclick="selTime(60)">60びょう</button>
+      </div>
+    </div>
+    <button class="start-btn" onclick="startGame()">スタート！</button>
+  </div>
+
+  <!-- 結果画面 -->
+  <div id="result-screen" class="screen hide">
+    <h1 id="result-title">タイムアップ！</h1>
+    <div style="font-size:80px; margin-bottom:10px;" id="result-emoji">🏅</div>
+    <p style="font-size:24px; font-weight:bold; color:#333; margin-bottom:20px;">
+      せいかい：<span id="final-score" style="color:#e65100; font-size:1.5em;">0</span> こ
+    </p>
+    <button class="start-btn" onclick="showStartScreen()">もういっかい</button>
+  </div>
+</div>
+
+<script>
+// --- Safariダブルタップ防止 ---
+document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
+
+// --- オープニング ---
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const opening = document.getElementById('opening-screen');
+        opening.style.opacity = '0';
+        opening.style.visibility = 'hidden';
+    }, 1800);
+});
+
+// --- Web Audio API ---
+let actx;
+function initAudio() { if (!actx) { actx = new AudioContext(); if (actx.state === 'suspended') actx.resume(); } }
+function playSound(type) {
+    if (!actx) return;
+    const now = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
+    osc.connect(gain); gain.connect(actx.destination);
+    
+    if (type === 'move') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'correct') {
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(659.25, now); osc.frequency.setValueAtTime(880.00, now + 0.1);
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(now); osc.stop(now + 0.3);
+    } else if (type === 'wrong') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.setValueAtTime(100, now + 0.3);
+        gain.gain.setValueAtTime(0.4, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(now); osc.stop(now + 0.3);
+    } else if (type === 'end') {
+        osc.type = 'square'; [523, 659, 783, 1046].forEach((f, i) => osc.frequency.setValueAtTime(f, now + i*0.15));
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.8); osc.start(now); osc.stop(now + 0.8);
+    }
+}
+
+// --- 設定・変数 ---
+let diffSelected = 0;
+let timeSelected = 30;
+
+function selDiff(val) { diffSelected = val; document.querySelectorAll('#diff-group .opt-btn').forEach((b, i) => b.classList.toggle('active', i === val)); }
+function selTime(val) { timeSelected = val; document.querySelectorAll('#time-group .opt-btn').forEach(b => b.classList.toggle('active', parseInt(b.innerText) === val)); }
+
+// --- 英語辞書データ ---
+const dictionaries = [
+    // 0: かんたん (アルファベット小文字)
+    [
+        {q: "A", a: "a", d: ["b","c","d","e"]}, {q: "B", a: "b", d: ["d","p","q","a"]},
+        {q: "C", a: "c", d: ["o","e","a","d"]}, {q: "M", a: "m", d: ["n","w","u","h"]},
+        {q: "P", a: "p", d: ["q","b","d","g"]}, {q: "R", a: "r", d: ["n","h","m","l"]},
+        {q: "G", a: "g", d: ["q","p","y","j"]}, {q: "L", a: "l", d: ["i","t","j","f"]}
+    ],
+    // 1: ふつう (身近な単語)
+    [
+        {q: "あか", a: "Red", d: ["Blue","Green","Yellow","Pink"]},
+        {q: "いぬ", a: "Dog", d: ["Cat","Pig","Bird","Fox"]},
+        {q: "りんご", a: "Apple", d: ["Banana","Orange","Grape","Peach"]},
+        {q: "くるま", a: "Car", d: ["Bus","Train","Bike","Ship"]},
+        {q: "きいろ", a: "Yellow", d: ["White","Black","Brown","Pink"]},
+        {q: "ほし", a: "Star", d: ["Sun","Moon","Sky","Cloud"]}
+    ],
+    // 2: むずかしい (小2〜小3レベル)
+    [
+        {q: "にちようび", a: "Sunday", d: ["Monday","Friday","Saturday","Tuesday"]},
+        {q: "としょかん", a: "Library", d: ["School","Hospital","Station","Park"]},
+        {q: "８がつ", a: "August", d: ["April","October","Autumn","Summer"]},
+        {q: "あさごはん", a: "Breakfast", d: ["Lunch","Dinner","Snack","Meat"]},
+        {q: "すいようび", a: "Wednesday", d: ["Thursday","Tuesday","Weekend","Monday"]},
+        {q: "みず", a: "Water", d: ["Fire","Wood","Earth","Wind"]}
+    ],
+    // 3: 超むずかしい (大人向けひっかけ)
+    [
+        {q: "右・正しい", a: "Right", d: ["Light","Night","Sight","Flight"]},
+        {q: "口（くち）", a: "Mouth", d: ["Mouse","Month","Moth","Math"]},
+        {q: "静かな", a: "Quiet", d: ["Quite","Quit","Quick","Quest"]},
+        {q: "砂漠（さばく）", a: "Desert", d: ["Dessert","Insert","Divert","Expert"]},
+        {q: "日記（にっき）", a: "Diary", d: ["Dairy","Daily","Daisy","Delay"]},
+        {q: "考える", a: "Think", d: ["Sink","Thing","Thank","Thick"]}
+    ]
+];
+
+// --- Canvas設定 ---
+const c = document.getElementById('c'); const ctx = c.getContext('2d');
+let W, H;
+function resize() { W = c.width = c.clientWidth; H = c.height = c.clientHeight; }
+window.addEventListener('resize', resize); resize();
+
+// --- ゲーム状態 ---
+let state = 'title';
+let score = 0;
+let timeLeft = 0;
+let lastTime = 0;
+
+let carLane = 1; // 0:左, 1:中, 2:右
+let carX = 0; 
+let speedY = 0;
+let roadOffset = 0;
+
+let gate = { y: 0, active: false, answerLane: 1, words: ["", "", ""] };
+const UI_TIME = document.getElementById('ui-time');
+const UI_SCORE = document.getElementById('ui-score');
+const Q_BOARD = document.getElementById('question-board');
+const MSG = document.getElementById('message-popup');
+
+function showMsg(text, color) {
+    MSG.innerText = text; MSG.style.color = color;
+    MSG.classList.add('show'); setTimeout(() => MSG.classList.remove('show'), 800);
+}
+
+function setLane(lane) {
+    if (state !== 'play') return;
+    if (carLane !== lane) playSound('move');
+    carLane = lane;
+}
+
+function spawnGate() {
+    let dict = dictionaries[diffSelected];
+    let qObj = dict[Math.floor(Math.random() * dict.length)];
+    
+    Q_BOARD.innerText = qObj.q;
+    
+    // 正解レーンをランダムに決定
+    gate.answerLane = Math.floor(Math.random() * 3);
+    
+    // ダミーをシャッフルして2つ選ぶ
+    let dummies = [...qObj.d].sort(() => Math.random() - 0.5);
+    
+    gate.words = ["", "", ""];
+    gate.words[gate.answerLane] = qObj.a;
+    let dummyIdx = 0;
+    for(let i=0; i<3; i++) {
+        if(i !== gate.answerLane) {
+            gate.words[i] = dummies[dummyIdx]; dummyIdx++;
+        }
+    }
+    
+    gate.y = -100;
+    gate.active = true;
+    
+    // 難易度に応じたスピード
+    speedY = H * (0.008 + (diffSelected * 0.002));
+}
+
+// --- メインループ ---
+function update(time) {
+    if (!lastTime) lastTime = time;
+    let dt = (time - lastTime) / 1000; lastTime = time;
+    
+    ctx.clearRect(0, 0, W, H);
+    
+    // 道路の描画
+    let laneW = W / 3;
+    ctx.fillStyle = '#616161'; ctx.fillRect(0, 0, W, H); // アスファルト
+    
+    // 白線（動く）
+    if (state === 'play') roadOffset = (roadOffset + speedY) % (H * 0.2);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = W * 0.02;
+    ctx.setLineDash([H * 0.1, H * 0.1]);
+    
+    ctx.beginPath();
+    ctx.moveTo(laneW, -H + roadOffset); ctx.lineTo(laneW, H + roadOffset);
+    ctx.moveTo(laneW*2, -H + roadOffset); ctx.lineTo(laneW*2, H + roadOffset);
+    ctx.stroke(); ctx.setLineDash([]);
+    
+    if (state === 'play') {
+        timeLeft -= dt;
+        UI_TIME.innerText = Math.ceil(Math.max(0, timeLeft));
+        if (timeLeft <= 0) endGame();
+        
+        // 車の滑らかな移動
+        let targetX = laneW * carLane + laneW / 2;
+        carX += (targetX - carX) * 0.2;
+        
+        // ゲートの移動
+        if (gate.active) {
+            gate.y += speedY;
+            
+            // 衝突判定 (車のY位置は H - 120あたり)
+            let carY = H - 120;
+            if (gate.y > carY - 40 && gate.y < carY + 40) {
+                if (carLane === gate.answerLane) {
+                    playSound('correct'); score++; UI_SCORE.innerText = score;
+                    showMsg("Good!", "#ffeb3b");
+                    speedY *= 1.5; // 一瞬スピードアップ
+                } else {
+                    playSound('wrong');
+                    showMsg("Crash!", "#f44336");
+                }
+                gate.active = false;
+                setTimeout(spawnGate, 300); // 次の問題へ
+            }
+        }
+    }
+    
+    // ゲート描画
+    if (gate.active) {
+        let boxH = 60;
+        ctx.fillStyle = '#333'; ctx.fillRect(0, gate.y - 10, W, 20); // 横のバー
+        
+        for(let i=0; i<3; i++) {
+            let cx = laneW * i + laneW / 2;
+            
+            // 看板の背景
+            ctx.fillStyle = i === 0 ? '#e91e63' : i === 1 ? '#4caf50' : '#2196f3';
+            ctx.fillRect(cx - laneW*0.45, gate.y - boxH/2, laneW*0.9, boxH);
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+            ctx.strokeRect(cx - laneW*0.45, gate.y - boxH/2, laneW*0.9, boxH);
+            
+            // テキスト
+            ctx.fillStyle = '#fff';
+            let fontSize = Math.min(24, laneW * 0.25);
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(gate.words[i], cx, gate.y);
+        }
+    }
+    
+    // 車描画
+    let carSize = Math.max(50, Math.min(90, W * 0.15));
+    ctx.font = `${carSize}px sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    // アイドリング時でも車を描画
+    let drawX = carX || (laneW * carLane + laneW / 2);
+    ctx.fillText("🚗", drawX, H - 120);
+    
+    requestAnimationFrame(update);
+}
+
+function startGame() {
+    initAudio();
+    document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
+    timeLeft = timeSelected; score = 0; UI_SCORE.innerText = score;
+    carLane = 1; carX = (W / 3) * 1 + (W / 3) / 2; // 真ん中スタート
+    
+    Q_BOARD.style.display = 'block';
+    state = 'play'; lastTime = 0;
+    
+    spawnGate();
+}
+
+function endGame() {
+    state = 'end'; Q_BOARD.style.display = 'none'; gate.active = false;
+    document.getElementById('result-screen').classList.remove('hide');
+    document.getElementById('final-score').innerText = score;
+    playSound('end');
+}
+
+function showStartScreen() {
+    document.getElementById('result-screen').classList.add('hide');
+    document.getElementById('start-screen').classList.remove('hide');
+}
+
+requestAnimationFrame(update);
+</script>
+</body>
+</html>
