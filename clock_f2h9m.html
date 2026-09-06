@@ -112,15 +112,15 @@
   <div id="message-popup">しゅっぱつ！</div>
 
   <div id="start-screen" class="screen">
-    <h1>🚂 とけい<br>しゅっぱつ！れっしゃ</h1>
+    <h1>🚄 とけい<br>しゅっぱつ！新幹線</h1>
     
     <div class="settings-box">
       <div class="set-title">１．レベルをえらぶ</div>
       <div class="btn-row" id="diff-group">
-        <button class="opt-btn active" onclick="selDiff(0)">かんたん(〇時)</button>
-        <button class="opt-btn" onclick="selDiff(1)">ふつう(〇時半)</button>
-        <button class="opt-btn" onclick="selDiff(2)">むずかしい(5分)</button>
-        <button class="opt-btn" onclick="selDiff(3)">超むずかしい(分)</button>
+        <button class="opt-btn active" onclick="selDiff(0)">かんたん(〇時・半)</button>
+        <button class="opt-btn" onclick="selDiff(1)">ふつう(5分きざみ)</button>
+        <button class="opt-btn" onclick="selDiff(2)">むずかしい(分・引っかけ)</button>
+        <button class="opt-btn" onclick="selDiff(3)">超むずかしい(時間計算)</button>
       </div>
       
       <div class="set-title">２．じかんをえらぶ</div>
@@ -165,7 +165,7 @@ function playSound(type) {
         osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
         gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
         osc.start(now); osc.stop(now + 0.1);
-    } else if (type === 'correct') { // 踏切カンカン＆発車のイメージ
+    } else if (type === 'correct') { 
         osc.type = 'square'; osc.frequency.setValueAtTime(659.25, now); osc.frequency.setValueAtTime(783.99, now + 0.1);
         osc.frequency.setValueAtTime(1046.50, now + 0.2);
         gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.4); osc.start(now); osc.stop(now + 0.4);
@@ -184,26 +184,17 @@ let remainingQuestions = [];
 function selDiff(val) { diffSelected = val; document.querySelectorAll('#diff-group .opt-btn').forEach((b, i) => b.classList.toggle('active', i === val)); }
 function selTime(val) { timeSelected = val; document.querySelectorAll('#time-group .opt-btn').forEach(b => b.classList.toggle('active', parseInt(b.innerText) === val)); }
 
-// --- 時計辞書データ (h:時, m:分) ---
-// 各レベルごとに5つのグループ。1グループにつき4問 = 計20問
+// --- 難易度別 辞書データ (h:時, m:分) ---
 const dictionaries = [
-    // 0: かんたん (〇時ちょうど)
+    // 0: かんたん (〇時、〇時半)
     [
-        [{h:1, m:0}, {h:2, m:0}, {h:3, m:0}, {h:4, m:0}],
-        [{h:5, m:0}, {h:6, m:0}, {h:7, m:0}, {h:8, m:0}],
-        [{h:9, m:0}, {h:10, m:0}, {h:11, m:0}, {h:12, m:0}],
-        [{h:1, m:0}, {h:3, m:0}, {h:6, m:0}, {h:9, m:0}],
-        [{h:2, m:0}, {h:4, m:0}, {h:8, m:0}, {h:12, m:0}]
+        [{h:1, m:0}, {h:2, m:30}, {h:3, m:0}, {h:4, m:30}],
+        [{h:5, m:0}, {h:6, m:30}, {h:7, m:0}, {h:8, m:30}],
+        [{h:9, m:0}, {h:10, m:30}, {h:11, m:0}, {h:12, m:30}],
+        [{h:2, m:0}, {h:5, m:30}, {h:8, m:0}, {h:10, m:0}],
+        [{h:7, m:30}, {h:1, m:30}, {h:11, m:30}, {h:12, m:0}]
     ],
-    // 1: ふつう (〇時半 ＋ 〇時)
-    [
-        [{h:1, m:30}, {h:2, m:30}, {h:3, m:30}, {h:4, m:0}],
-        [{h:5, m:30}, {h:6, m:30}, {h:7, m:30}, {h:8, m:0}],
-        [{h:9, m:30}, {h:10, m:30}, {h:11, m:30}, {h:12, m:0}],
-        [{h:2, m:0}, {h:4, m:30}, {h:8, m:30}, {h:10, m:0}],
-        [{h:3, m:30}, {h:6, m:0}, {h:9, m:30}, {h:12, m:30}]
-    ],
-    // 2: むずかしい (5分刻み)
+    // 1: ふつう (5分刻み)
     [
         [{h:1, m:5}, {h:2, m:15}, {h:3, m:20}, {h:4, m:45}],
         [{h:5, m:10}, {h:6, m:25}, {h:7, m:35}, {h:8, m:50}],
@@ -211,13 +202,21 @@ const dictionaries = [
         [{h:1, m:25}, {h:3, m:35}, {h:6, m:50}, {h:9, m:10}],
         [{h:2, m:45}, {h:4, m:55}, {h:8, m:20}, {h:10, m:5}]
     ],
-    // 3: 超むずかしい (分刻み ＋ ひっかけ。長針が12に近い時間帯)
+    // 2: むずかしい (分刻み ＋ 引っかけ)
     [
-        [{h:1, m:58}, {h:2, m:47}, {h:3, m:12}, {h:4, m:59}],
-        [{h:5, m:56}, {h:6, m:34}, {h:7, m:49}, {h:8, m:57}],
-        [{h:9, m:59}, {h:10, m:18}, {h:11, m:58}, {h:12, m:46}],
-        [{h:1, m:49}, {h:3, m:56}, {h:6, m:59}, {h:9, m:57}],
-        [{h:2, m:58}, {h:4, m:48}, {h:8, m:59}, {h:10, m:56}]
+        [{h:4, m:59}, {h:8, m:58}, {h:2, m:57}, {h:11, m:56}],
+        [{h:6, m:59}, {h:9, m:58}, {h:1, m:48}, {h:3, m:52}],
+        [{h:5, m:46}, {h:7, m:49}, {h:10, m:47}, {h:12, m:54}],
+        [{h:1, m:2}, {h:3, m:12}, {h:6, m:34}, {h:9, m:21}],
+        [{h:2, m:8}, {h:4, m:17}, {h:8, m:29}, {h:10, m:38}]
+    ],
+    // 3: 超むずかしい (時間計算！ base=出題時計, add=足し引きする時間, h,m=正解)
+    [
+        [{baseH:1, baseM:0, addH:2, addM:0, isAfter:true, h:3, m:0}, {baseH:5, baseM:0, addH:1, addM:0, isAfter:false, h:4, m:0}, {baseH:8, baseM:30, addH:2, addM:0, isAfter:true, h:10, m:30}, {baseH:4, baseM:30, addH:3, addM:0, isAfter:false, h:1, m:30}],
+        [{baseH:10, baseM:15, addH:0, addM:30, isAfter:true, h:10, m:45}, {baseH:3, baseM:45, addH:0, addM:30, isAfter:false, h:3, m:15}, {baseH:9, baseM:50, addH:1, addM:20, isAfter:true, h:11, m:10}, {baseH:7, baseM:10, addH:1, addM:30, isAfter:false, h:5, m:40}],
+        [{baseH:11, baseM:0, addH:2, addM:0, isAfter:true, h:1, m:0}, {baseH:2, baseM:0, addH:3, addM:0, isAfter:false, h:11, m:0}, {baseH:6, baseM:40, addH:2, addM:30, isAfter:true, h:9, m:10}, {baseH:5, baseM:20, addH:2, addM:40, isAfter:false, h:2, m:40}],
+        [{baseH:12, baseM:30, addH:1, addM:45, isAfter:true, h:2, m:15}, {baseH:1, baseM:15, addH:2, addM:30, isAfter:false, h:10, m:45}, {baseH:8, baseM:55, addH:0, addM:15, isAfter:true, h:9, m:10}, {baseH:4, baseM:5, addH:0, addM:15, isAfter:false, h:3, m:50}],
+        [{baseH:3, baseM:30, addH:3, addM:30, isAfter:true, h:7, m:0}, {baseH:9, baseM:0, addH:1, addM:30, isAfter:false, h:7, m:30}, {baseH:7, baseM:45, addH:1, addM:15, isAfter:true, h:9, m:0}, {baseH:10, baseM:30, addH:2, addM:45, isAfter:false, h:7, m:45}]
     ]
 ];
 
@@ -228,8 +227,8 @@ window.addEventListener('resize', resize); resize();
 
 let state = 'title'; let score = 0; let timeLeft = 0; let lastTime = 0;
 let currentQ = null; 
-let tickets = []; // 画面下部の切符（選択肢）
-let trainX = -200; // 電車のX座標
+let tickets = []; 
+let trainX = 0; 
 let trainState = 'idle'; // idle, moving
 let shakeTickets = false;
 let shakeTimer = 0;
@@ -243,8 +242,10 @@ function showMsg(text, color) {
     MSG.classList.add('show'); setTimeout(() => MSG.classList.remove('show'), 800);
 }
 
+// 時間の表示フォーマット (バグ修正済: 12時間表記にしっかり対応)
 function formatTime(h, m) {
-    let dh = h; // 12時は12と表示
+    let dh = h % 12;
+    if (dh === 0) dh = 12;
     let dm = m < 10 ? "0" + m : m;
     return `${dh}:${dm}`;
 }
@@ -266,47 +267,48 @@ function spawnQuestion() {
         let dh = currentQ.h;
         let dm = currentQ.m;
         
-        // レベルに応じたダミーの作り方
         if (diffSelected === 0) {
-            dh = (dh + Math.floor(Math.random()*4) + 1) % 12 || 12; // 違う時間
-        } else if (diffSelected === 1) {
-            if (Math.random() > 0.5) { dm = dm === 0 ? 30 : 0; } // 30分ずらす
+            if (Math.random() > 0.5) { dm = dm === 0 ? 30 : 0; }
             else { dh = (dh + Math.floor(Math.random()*3) + 1) % 12 || 12; }
+        } else if (diffSelected === 1) {
+            if (Math.random() > 0.5) { dm = (dm + 15) % 60; }
+            else { dm = (dm + 45) % 60; } 
         } else if (diffSelected === 2) {
-            if (Math.random() > 0.5) { dm = (dm + 15) % 60; } // 15分ずらす
-            else { dm = (dm + 45) % 60; } // 45分ずらす (逆に15分)
-        } else {
-            // 引っかけ：長針が12に近い時、時間を+1したダミーを出す (例: 4:59 のダミーとして 5:59)
             if (dm > 45 && Math.random() > 0.3) {
-                dh = (dh % 12) + 1;
+                dh = (dh % 12) + 1; // 1時間引っかけ
             } else {
-                dm = (dm + (Math.floor(Math.random()*10)-5) + 60) % 60; // 微妙に分をずらす
+                dm = (dm + (Math.floor(Math.random()*10)-5) + 60) % 60; 
                 if(dm === currentQ.m) dm = (dm + 1) % 60;
             }
+        } else if (diffSelected === 3) {
+            // 超むずかしい用のダミー
+            let r = Math.random();
+            if (r > 0.6) { dh = (dh % 12) + 1; }
+            else if (r > 0.3) { dm = (dm + 30) % 60; }
+            else { dh = (dh + 10) % 12 || 12; } 
+            if (dh === currentQ.h && dm === currentQ.m) dh = (dh % 12) + 1;
         }
         
         let exists = tickets.some(t => t.h === dh && t.m === dm);
-        if (!exists) {
-            tickets.push({ h: dh, m: dm, isCorrect: false });
-        }
+        if (!exists) tickets.push({ h: dh, m: dm, isCorrect: false });
     }
     
     // シャッフル
     tickets.sort(() => Math.random() - 0.5);
     
-    // 切符の配置情報
+    // 切符の配置情報 (名前の衝突を避けるため tw, th に変更)
     let ticketW = W * 0.28;
     let ticketH = 60;
     let spacing = (W - ticketW * 3) / 4;
     
     for(let i=0; i<3; i++) {
-        tickets[i].x = spacing + (ticketW + spacing) * i;
-        tickets[i].y = H - 180;
-        tickets[i].w = ticketW;
-        tickets[i].h = ticketH;
+        tickets[i].tx = spacing + (ticketW + spacing) * i;
+        tickets[i].ty = H - 180;
+        tickets[i].tw = ticketW;
+        tickets[i].th = ticketH;
     }
     
-    trainX = -200;
+    trainX = W * 0.5; // 最初は真ん中にいる
     trainState = 'idle';
 }
 
@@ -320,13 +322,14 @@ c.addEventListener('pointerdown', (e) => {
     
     for(let i=0; i<3; i++) {
         let t = tickets[i];
-        if (tx >= t.x && tx <= t.x + t.w && ty >= t.y && ty <= t.y + t.h) {
+        if (tx >= t.tx && tx <= t.tx + t.tw && ty >= t.ty && ty <= t.ty + t.th) {
             if (t.isCorrect) {
                 playSound('correct');
                 score++; UI_SCORE.innerText = score;
                 showMsg("しゅっぱつ！", "#2ecc71");
                 trainState = 'moving';
-                setTimeout(spawnQuestion, 1000); // 電車が走り去る時間
+                trainX = W * 0.5; // 中央から
+                setTimeout(spawnQuestion, 1000); 
             } else {
                 playSound('wrong');
                 shakeTickets = true;
@@ -366,23 +369,19 @@ function drawClock(cx, cy, r, h, m) {
         ctx.fillText(i.toString(), cx + Math.cos(angle) * r * 0.7, cy + Math.sin(angle) * r * 0.7);
     }
     
-    // 針の角度計算 (分はそのまま、時は分に応じて少し進む)
     let mAngle = (m * Math.PI / 30) - Math.PI/2;
     let hAngle = ((h % 12 + m/60) * Math.PI / 6) - Math.PI/2;
     
-    // 短針 (赤)
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(hAngle) * r * 0.5, cy + Math.sin(hAngle) * r * 0.5);
     ctx.lineWidth = 10; ctx.strokeStyle = "#e53935"; ctx.lineCap = "round"; ctx.stroke();
     
-    // 長針 (青)
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(mAngle) * r * 0.8, cy + Math.sin(mAngle) * r * 0.8);
     ctx.lineWidth = 6; ctx.strokeStyle = "#1e88e5"; ctx.lineCap = "round"; ctx.stroke();
     
-    // 中心点
     ctx.beginPath(); ctx.arc(cx, cy, r*0.08, 0, Math.PI*2);
     ctx.fillStyle = "#333"; ctx.fill();
 }
@@ -393,52 +392,67 @@ function update(time) {
     
     ctx.clearRect(0, 0, W, H);
     
-    // 背景の景色（空と草）
     ctx.fillStyle = '#e0f7fa'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#aed581'; ctx.fillRect(0, H - 250, W, 250); // 地面
+    ctx.fillStyle = '#aed581'; ctx.fillRect(0, H - 250, W, 250); 
     
     if (state === 'play') {
         timeLeft -= dt;
         UI_TIME.innerText = Math.ceil(Math.max(0, timeLeft));
         if (timeLeft <= 0) endGame(false);
         
-        // 時計の描画
-        let clockR = Math.min(W * 0.35, H * 0.25);
-        let clockY = Math.max(clockR + 80, H * 0.3);
-        if (currentQ) drawClock(W/2, clockY, clockR, currentQ.h, currentQ.m);
+        let clockR = Math.min(W * 0.35, H * 0.22);
+        // 超むずかしいのお題表示のため少し下へ
+        let clockY = Math.max(clockR + 100, H * 0.35); 
         
-        // 電車の描画
-        if (trainState === 'moving') trainX += W * dt * 1.5; // ビューンと走る
+        if (currentQ) {
+            // レベル3の場合は、ベース時間（今の時間）を時計に描画する
+            let hToDraw = currentQ.baseH !== undefined ? currentQ.baseH : currentQ.h;
+            let mToDraw = currentQ.baseM !== undefined ? currentQ.baseM : currentQ.m;
+            drawClock(W/2, clockY, clockR, hToDraw, mToDraw);
+            
+            // 超むずかしい限定：お題テキストの表示
+            if (diffSelected === 3) {
+                let text = "";
+                if (currentQ.addH > 0) text += currentQ.addH + "じかん ";
+                if (currentQ.addM > 0) text += currentQ.addM + "ぷん ";
+                text += currentQ.isAfter ? "ご は？" : "まえ は？";
+                
+                ctx.fillStyle = "#ff5722";
+                ctx.font = "bold 28px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(text, W/2, clockY - clockR - 35);
+            }
+        }
+        
+        // 新幹線の描画（正解したら右から左へ移動）
+        if (trainState === 'moving') trainX -= W * dt * 2.0; 
         let ty = H - 90;
         ctx.font = "80px sans-serif";
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("🚂", trainState === 'moving' ? trainX : W*0.5, ty);
+        ctx.fillText("🚄", trainState === 'moving' ? trainX : W*0.5, ty);
         
-        // 切符（選択肢）の描画
         let shakeOffsetX = 0;
         if (shakeTickets) {
             shakeTimer += dt;
-            shakeOffsetX = Math.sin(shakeTimer * 50) * 5; // ブルブル
+            shakeOffsetX = Math.sin(shakeTimer * 50) * 5; 
             if (shakeTimer > 0.3) shakeTickets = false;
         }
         
         for(let i=0; i<3; i++) {
             let t = tickets[i];
-            let drawX = t.x + shakeOffsetX;
+            let drawX = t.tx + shakeOffsetX;
             
-            // 切符の形
             ctx.fillStyle = "#fff";
-            ctx.fillRect(drawX, t.y, t.w, t.h);
-            ctx.lineWidth = 3; ctx.strokeStyle = "#fb8c00"; ctx.strokeRect(drawX, t.y, t.w, t.h);
+            ctx.fillRect(drawX, t.ty, t.tw, t.th);
+            ctx.lineWidth = 3; ctx.strokeStyle = "#fb8c00"; ctx.strokeRect(drawX, t.ty, t.tw, t.th);
             
-            // 切符の半円の切り欠き
-            ctx.beginPath(); ctx.arc(drawX, t.y + t.h/2, 10, -Math.PI/2, Math.PI/2); ctx.fillStyle = "#aed581"; ctx.fill();
-            ctx.beginPath(); ctx.arc(drawX + t.w, t.y + t.h/2, 10, Math.PI/2, -Math.PI/2); ctx.fillStyle = "#aed581"; ctx.fill();
+            ctx.beginPath(); ctx.arc(drawX, t.ty + t.th/2, 10, -Math.PI/2, Math.PI/2); ctx.fillStyle = "#aed581"; ctx.fill();
+            ctx.beginPath(); ctx.arc(drawX + t.tw, t.ty + t.th/2, 10, Math.PI/2, -Math.PI/2); ctx.fillStyle = "#aed581"; ctx.fill();
             
-            // テキスト
             ctx.fillStyle = "#333";
-            ctx.font = `bold ${Math.min(24, t.w*0.3)}px sans-serif`;
-            ctx.fillText(formatTime(t.h, t.m), drawX + t.w/2, t.y + t.h/2);
+            ctx.font = `bold ${Math.min(24, t.tw*0.3)}px sans-serif`;
+            ctx.fillText(formatTime(t.h, t.m), drawX + t.tw/2, t.ty + t.th/2);
         }
     }
     
@@ -449,7 +463,6 @@ function startGame() {
     initAudio();
     document.querySelectorAll('.screen').forEach(el => el.classList.add('hide'));
     
-    // 全グループを平坦化して問題プールを作る
     remainingQuestions = dictionaries[diffSelected].flat();
     
     timeLeft = timeSelected; score = 0; UI_SCORE.innerText = score;
@@ -485,4 +498,3 @@ requestAnimationFrame(update);
 </script>
 </body>
 </html>
-
