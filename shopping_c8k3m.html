@@ -53,7 +53,7 @@
     background: rgba(255, 255, 255, 0.95); padding: 6px 12px; border-radius: 20px;
     font-size: clamp(13px, 4vw, 18px); font-weight: bold; color: #333;
     border: 3px solid #ffb74d; box-shadow: 0 4px 0 #f57c00; pointer-events: auto; cursor: pointer;
-    white-space: nowrap; /* 文字の改行を絶対に防ぐ */
+    white-space: nowrap;
   }
   #btn-switch {
     background: #ff9800; color: white; border-color: #f57c00;
@@ -187,7 +187,7 @@ window.addEventListener('resize', resize); resize();
 let state = 'title'; 
 let currentItems = []; 
 let currentTotalRequired = 0;
-let trayCoins = [];
+let trayCoins = []; // {val: 金額, rx: Xのランダムズレ, ry: Yのランダムズレ} を保存する配列に修正
 let currentTotal = 0;
 let stickers = []; 
 let draggingSticker = null; 
@@ -244,7 +244,13 @@ function toggleMode() {
 function addCoin(val) {
     if(trayCoins.length >= 30) { showMsg("いっぱい！", "#ffffff", "#f44336"); return; }
     playSound('coin');
-    trayCoins.push(val);
+    
+    // ★修正：トレイに入れた瞬間に「ズレる数値」を決定してオブジェクトとして保存する（震え防止）
+    trayCoins.push({ 
+        val: val, 
+        rx: Math.random() * 10 - 5, 
+        ry: Math.random() * 10 - 5 
+    });
     currentTotal += val;
 }
 
@@ -299,7 +305,6 @@ function getShopUIRects() {
     let ctrlH = Math.min(50, H * 0.08);
     let ctrlY = coinStartY - ctrlH - 10; 
     
-    // ★修正：棚の高さをしっかり確保してヘッダーと被らないようにする
     let shelfY = Math.max(150, H * 0.22); 
     let trayY = shelfY + (ctrlY - shelfY) * 0.55; 
 
@@ -427,7 +432,6 @@ function update() {
         ctx.fillStyle = '#ffe082'; ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = '#ffecb3'; ctx.fillRect(0, ui.trayY - 60, W, H); 
         
-        // ★修正：商品棚の「板」を描画（基準Y座標）
         ctx.fillStyle = '#ffcc80'; ctx.fillRect(0, ui.shelfY, W, 15);
         
         let itemW = W / currentItems.length;
@@ -436,24 +440,21 @@ function update() {
         currentItems.forEach((item, i) => {
             let cx = itemW * i + itemW / 2;
             
-            // ★修正：絵文字が棚の上にピッタリ乗り、上が切れないように
             let emojiSize = numItems === 3 ? 45 : (numItems === 2 ? 60 : 75);
             ctx.font = `${emojiSize}px sans-serif`; 
             ctx.textAlign = "center"; ctx.textBaseline = "bottom"; 
             ctx.fillText(item.emoji, cx, ui.shelfY);
             
-            // ★修正：値札が画面横にはみ出さないよう動的計算
-            let maxTagW = itemW * 0.92; // エリアの92%に収める
+            let maxTagW = itemW * 0.92; 
             let tagW = Math.min(maxTagW, numItems === 3 ? 85 : 120);
             let tagH = numItems === 3 ? 28 : 35;
-            let tagY = ui.shelfY + 15; // 棚の下にぶら下げる
+            let tagY = ui.shelfY + 15; 
             
             ctx.fillStyle = "#fff"; ctx.fillRect(cx - tagW/2, tagY, tagW, tagH);
             ctx.strokeStyle = "#e65100"; ctx.lineWidth = 3; ctx.strokeRect(cx - tagW/2, tagY, tagW, tagH);
             
             ctx.fillStyle = "#e65100"; 
             let priceText = item.price + "えん";
-            // 金額の文字数とアイテム数に合わせてフォントを縮小
             let fontSize = numItems === 3 ? 14 : 20;
             if (priceText.length > 5) fontSize = numItems === 3 ? 12 : 16;
             
@@ -462,20 +463,19 @@ function update() {
             ctx.fillText(priceText, cx, tagY + tagH/2 + 2);
         });
         
-        // トレイ
         ctx.fillStyle = "rgba(255,255,255,0.5)";
         ctx.beginPath(); ctx.ellipse(W/2, ui.trayY, W*0.4, 50, 0, 0, Math.PI*2); ctx.fill();
         ctx.lineWidth = 3; ctx.strokeStyle = "#ffcc80"; ctx.stroke();
         
-        // 置かれたお金
         let tcx = W/2;
-        trayCoins.forEach((cVal, i) => {
+        // ★修正：cObj.val で金額を取得し、cObj.rx / cObj.ry で固定のズレ幅を取得（震えない！）
+        trayCoins.forEach((cObj, i) => {
             let maxCols = diffSelected === 3 ? 5 : 8; 
             let row = Math.floor(i / maxCols); let col = i % maxCols;
-            let ox = (col - (maxCols-1)/2) * (diffSelected === 3 ? 40 : 30) + (Math.random()*10-5);
-            let oy = (row - 1) * 20 + (Math.random()*10-5);
+            let ox = (col - (maxCols-1)/2) * (diffSelected === 3 ? 40 : 30) + cObj.rx;
+            let oy = (row - 1) * 20 + cObj.ry;
             let r = diffSelected === 3 ? 18 : 22; 
-            drawMoney(tcx + ox, ui.trayY + oy - 10, r, cVal);
+            drawMoney(tcx + ox, ui.trayY + oy - 10, r, cObj.val);
         });
         
         ctx.fillStyle = "#333"; ctx.font = "bold 24px sans-serif";
@@ -493,7 +493,6 @@ function update() {
 
         ui.coinBtns.forEach(btn => drawMoney(btn.x + btn.w/2, btn.y + btn.h/2, btn.w/2, btn.val));
 
-        // 買い物かご 獲得演出
         if (state === 'gacha') {
             gachaScale += (1 - gachaScale) * 0.1; 
             ctx.fillStyle = `rgba(255, 255, 255, ${gachaScale * 0.8})`; ctx.fillRect(0, 0, W, H);
