@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>おかいもの＆シールちょう</title>
+<title>おかいもの＆マイバッグ</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ffb74d">
@@ -108,15 +108,15 @@
 
 <div id="game-wrapper">
   <div id="header">
-    <div class="status-box">✨ シール: <span id="ui-score">0</span>まい</div>
-    <div class="status-box" id="btn-switch" onclick="toggleMode()">📖 シールちょう</div>
+    <div class="status-box">✨ かったもの: <span id="ui-score">0</span>こ</div>
+    <div class="status-box" id="btn-switch" onclick="toggleMode()">🛍 マイバッグ</div>
   </div>
   
   <canvas id="c"></canvas>
   <div id="message-popup">ぴったり！</div>
 
   <div id="start-screen" class="screen">
-    <h1>🛒 おかいもの<br>＆ぷっくりシールちょう</h1>
+    <h1>🛒 おかいもの<br>＆じぶんのマイバッグ</h1>
     
     <div class="settings-box">
       <div class="set-title">あそぶレベルをえらぶ</div>
@@ -124,10 +124,10 @@
         <button class="opt-btn active" onclick="selDiff(0)">かんたん (未就学児：10円玉)</button>
         <button class="opt-btn" onclick="selDiff(1)">ふつう (小1・2年：〜100円)</button>
         <button class="opt-btn" onclick="selDiff(2)">むずかしい (小3年：〜500円)</button>
-        <button class="opt-btn" onclick="selDiff(3)">超むずかしい (大人：1円玉まで！)</button>
+        <button class="opt-btn" onclick="selDiff(3)">超むずかしい (大人：お札と暗算！)</button>
       </div>
       <p style="font-size:12px; color:#777; text-align:center; margin-top:10px;">
-        ※ぴったり出せたら、シールがもらえるよ！
+        ※ぴったり出せたら、商品がもらえるよ！
       </p>
     </div>
     <button class="start-btn" onclick="startGame()">あそぶ！</button>
@@ -163,7 +163,7 @@ function playSound(type) {
     } else if (type === 'pop') {
         osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(1500, now + 0.15);
         gain.gain.setValueAtTime(0.4, now); gain.gain.linearRampToValueAtTime(0, now + 0.15); osc.start(now); osc.stop(now + 0.15);
-    } else if (type === 'change') { // お釣りの時の特別なサウンド
+    } else if (type === 'change') { 
         osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.setValueAtTime(1046, now + 0.1); osc.frequency.setValueAtTime(1318, now + 0.2);
         gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
         osc.start(now); osc.stop(now + 0.5);
@@ -176,8 +176,7 @@ function playSound(type) {
 let diffSelected = 0;
 function selDiff(val) { diffSelected = val; document.querySelectorAll('#diff-group .opt-btn').forEach((b, i) => b.classList.toggle('active', i === val)); }
 
-const STICKERS_POOL = ["🦄","💎","🎀","🍓","🐱","🐰","🐻","🦋","🍒","🍔","🍩","🚗","🚓","🦖","🌈","🌟"];
-const ITEMS_POOL = ["🍎","🍊","🍇","🍉","🧁","🍦","🍼","🧸","📚","🎨","🚗","🪀"];
+const ITEMS_POOL = ["🍎","🍊","🍇","🍉","🧁","🍦","🍼","🧸","📚","🎨","🚗","🪀","⚽","🧩","🎹","🥪","🍱","🍩","🍓","🥝","🥕","🌽"];
 
 const c = document.getElementById('c'); const ctx = c.getContext('2d');
 let W, H;
@@ -185,7 +184,8 @@ function resize() { W = c.width = c.clientWidth; H = c.height = c.clientHeight; 
 window.addEventListener('resize', resize); resize();
 
 let state = 'title'; 
-let currentItem = { emoji: "🍎", price: 100 };
+let currentItems = []; // 複数の商品を管理
+let currentTotalRequired = 0;
 let trayCoins = [];
 let currentTotal = 0;
 let stickers = []; 
@@ -197,7 +197,6 @@ const BTN_SWITCH = document.getElementById('btn-switch');
 const MSG = document.getElementById('message-popup');
 let msgTimeout;
 
-// メッセージ表示機能（色と影も変えられるように進化！）
 function showMsg(text, color, shadow, duration = 1000) {
     if (msgTimeout) clearTimeout(msgTimeout);
     MSG.innerText = text; MSG.style.color = color;
@@ -207,13 +206,25 @@ function showMsg(text, color, shadow, duration = 1000) {
 }
 
 function spawnItem() {
-    let p = 0;
-    if (diffSelected === 0) p = (Math.floor(Math.random() * 9) + 1) * 10; // 10〜90円
-    else if (diffSelected === 1) p = (Math.floor(Math.random() * 40) + 10) * 10; // 100〜490円
-    else if (diffSelected === 2) p = (Math.floor(Math.random() * 69) + 31) * 10; // 310〜990円
-    else p = Math.floor(Math.random() * 889) + 111; // 111〜999円 (大人向け端数)
+    currentItems = [];
+    currentTotalRequired = 0;
     
-    currentItem = { emoji: ITEMS_POOL[Math.floor(Math.random() * ITEMS_POOL.length)], price: p };
+    // 超むずかしいは 2〜3個の商品が同時に並ぶ！
+    let numItems = 1;
+    if (diffSelected === 3) {
+        numItems = Math.random() > 0.6 ? 3 : 2; 
+    }
+    
+    for(let i=0; i<numItems; i++) {
+        let p = 0;
+        if (diffSelected === 0) p = (Math.floor(Math.random() * 9) + 1) * 10; 
+        else if (diffSelected === 1) p = (Math.floor(Math.random() * 40) + 10) * 10; 
+        else if (diffSelected === 2) p = (Math.floor(Math.random() * 50) + 10) * 10; 
+        else p = Math.floor(Math.random() * 4000) + 111; // 超むずかしい: 111〜4110円
+        
+        currentItems.push({ emoji: ITEMS_POOL[Math.floor(Math.random() * ITEMS_POOL.length)], price: p });
+        currentTotalRequired += p;
+    }
     trayCoins = []; currentTotal = 0;
 }
 
@@ -225,13 +236,13 @@ function toggleMode() {
         BTN_SWITCH.innerText = "🛒 おかいものへ";
     } else {
         state = 'shop';
-        BTN_SWITCH.innerText = "📖 シールちょう";
+        BTN_SWITCH.innerText = "🛍 マイバッグ";
         spawnItem(); 
     }
 }
 
 function addCoin(val) {
-    if(trayCoins.length >= 25) { showMsg("いっぱい！", "#ffffff", "#f44336"); return; }
+    if(trayCoins.length >= 30) { showMsg("いっぱい！", "#ffffff", "#f44336"); return; }
     playSound('coin');
     trayCoins.push(val);
     currentTotal += val;
@@ -239,13 +250,13 @@ function addCoin(val) {
 
 function clearCoins() {
     if(trayCoins.length === 0) return;
-    if(!window.isChangeShowing) playSound('wrong'); // 自動クリア時は音を鳴らさない
+    if(!window.isChangeShowing) playSound('wrong'); 
     trayCoins = [];
     currentTotal = 0;
 }
 
 function buyItem() {
-    if (currentTotal === currentItem.price) {
+    if (currentTotal === currentTotalRequired) {
         playSound('buy');
         showMsg("ぴったり！", "#ffeb3b", "#f57c00");
         state = 'gacha';
@@ -253,71 +264,74 @@ function buyItem() {
         
         setTimeout(() => {
             playSound('pop');
-            let newSticker = STICKERS_POOL[Math.floor(Math.random() * STICKERS_POOL.length)];
-            stickers.push({
-                e: newSticker,
-                x: W/2 + (Math.random()*40-20), y: H/2 + (Math.random()*40-20),
-                size: Math.max(35, Math.min(50, W*0.1))
+            // 買った商品をそのままマイバッグに入れる
+            currentItems.forEach(item => {
+                stickers.push({
+                    e: item.emoji,
+                    x: W/2 + (Math.random()*80-40), y: H/2 + (Math.random()*80-40),
+                    size: Math.max(35, Math.min(50, W*0.1))
+                });
             });
             UI_SCORE.innerText = stickers.length;
             
-            setTimeout(() => { state = 'book'; BTN_SWITCH.innerText = "🛒 おかいものへ"; }, 1000);
+            setTimeout(() => { state = 'book'; BTN_SWITCH.innerText = "🛒 おかいものへ"; }, 1500);
         }, 1200);
         
-    } else if (currentTotal > currentItem.price) {
-        // ★大天才アイデア：お釣りシステム！
-        let change = currentTotal - currentItem.price;
+    } else if (currentTotal > currentTotalRequired) {
+        let change = currentTotal - currentTotalRequired;
         playSound('change'); 
         showMsg(`おしい！\nおつりは ${change}えん だよ`, "#e1f5fe", "#0288d1", 2500);
         
-        // お釣り表示中は操作をロックし、2.5秒後に自動的にお皿をリセット
         window.isChangeShowing = true;
-        setTimeout(() => {
-            clearCoins();
-            window.isChangeShowing = false;
-        }, 2500);
-        
+        setTimeout(() => { clearCoins(); window.isChangeShowing = false; }, 2500);
     } else {
         playSound('wrong');
         showMsg("たりないよ！", "#ffffff", "#f44336");
     }
 }
 
-// レベルに応じたUIレイアウトの自動計算（スマホの縦幅に合わせて綺麗に配置）
+// 画面サイズに応じてUIが絶対に見切れないように動的計算
 function getShopUIRects() {
-    let coins = [];
-    if (diffSelected === 0) coins = [10];
-    else if (diffSelected === 1) coins = [100, 50, 10];
-    else if (diffSelected === 2) coins = [500, 100, 50, 10];
-    else coins = [500, 100, 50, 10, 5, 1];
-
-    let isTwoRows = coins.length > 4;
-    let btnSize = Math.min(65, W * (isTwoRows ? 0.20 : 0.18));
+    let isSuperHard = (diffSelected === 3);
+    let btnSize = isSuperHard ? Math.min(45, W * 0.14) : Math.min(65, W * 0.18);
+    let rowsCount = isSuperHard ? 3 : (diffSelected === 2 ? 2 : 1);
     
-    // 縦幅に合わせた配置 (ヘッダー分80pxを引いた領域を使用)
-    let availableH = H - 80; 
-    let shelfY = 80 + availableH * 0.1;
-    let trayY = 80 + availableH * 0.45;
-    let ctrlY = 80 + availableH * 0.75;
-    let coinBtnY = 80 + availableH * 0.88;
-    if (isTwoRows) coinBtnY = 80 + availableH * 0.83; 
+    // コインエリアの総高さ
+    let coinAreaH = rowsCount * btnSize + (rowsCount - 1) * 10;
+    // 画面下部から逆算して配置
+    let coinStartY = H - coinAreaH - Math.max(15, H * 0.02); 
+    
+    let ctrlH = Math.min(50, H * 0.08);
+    let ctrlY = coinStartY - ctrlH - 10; 
+    
+    let shelfY = Math.max(90, H * 0.12); 
+    let trayY = shelfY + (ctrlY - shelfY) * 0.55; 
 
     let btns = [];
-    if (!isTwoRows) {
-        let spacing = (W - btnSize * coins.length) / (coins.length + 1);
-        for(let i=0; i<coins.length; i++){
-            btns.push({ val: coins[i], x: spacing + i*(btnSize+spacing), y: coinBtnY, w: btnSize, h: btnSize });
-        }
-    } else { // 超むずかしい用の2段配置
-        let row1 = [500, 100, 50]; let row2 = [10, 5, 1];
+    if (diffSelected === 0) {
+        let spacing = (W - btnSize) / 2;
+        btns.push({ val: 10, x: spacing, y: coinStartY, w: btnSize, h: btnSize });
+    } else if (diffSelected === 1) {
+        let coins = [100, 50, 10];
         let spacing = (W - btnSize * 3) / 4;
-        for(let i=0; i<3; i++){
-            btns.push({ val: row1[i], x: spacing + i*(btnSize+spacing), y: coinBtnY, w: btnSize, h: btnSize });
-            btns.push({ val: row2[i], x: spacing + i*(btnSize+spacing), y: coinBtnY + btnSize + 10, w: btnSize, h: btnSize });
+        for(let i=0; i<3; i++) btns.push({ val: coins[i], x: spacing + i*(btnSize+spacing), y: coinStartY, w: btnSize, h: btnSize });
+    } else if (diffSelected === 2) {
+        let row1 = [500, 100]; let row2 = [50, 10];
+        let spacing = (W - btnSize * 2) / 3;
+        for(let i=0; i<2; i++) {
+            btns.push({ val: row1[i], x: spacing + i*(btnSize+spacing), y: coinStartY, w: btnSize, h: btnSize });
+            btns.push({ val: row2[i], x: spacing + i*(btnSize+spacing), y: coinStartY + btnSize + 10, w: btnSize, h: btnSize });
+        }
+    } else if (diffSelected === 3) {
+        let rows = [[10000, 5000, 1000], [500, 100, 50], [10, 5, 1]];
+        let spacing = (W - btnSize * 3) / 4;
+        for(let r=0; r<3; r++) {
+            for(let c=0; c<3; c++) {
+                btns.push({ val: rows[r][c], x: spacing + c*(btnSize+spacing), y: coinStartY + r*(btnSize+10), w: btnSize, h: btnSize });
+            }
         }
     }
 
-    let ctrlH = Math.min(50, availableH * 0.08);
     return {
         coinBtns: btns,
         btnClear: { x: W*0.1, y: ctrlY, w: W*0.35, h: ctrlH },
@@ -329,7 +343,7 @@ function getShopUIRects() {
 c.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     initAudio();
-    if (window.isChangeShowing) return; // お釣り表示中はタップ無効
+    if (window.isChangeShowing) return; 
     
     let rect = c.getBoundingClientRect();
     let tx = e.clientX - rect.left;
@@ -337,11 +351,9 @@ c.addEventListener('pointerdown', (e) => {
     
     if (state === 'shop') {
         let ui = getShopUIRects();
-        // お金ボタン判定
         ui.coinBtns.forEach(btn => {
             if (tx > btn.x && tx < btn.x+btn.w && ty > btn.y && ty < btn.y+btn.h) addCoin(btn.val);
         });
-        // クリア・買うボタン判定
         if (tx > ui.btnClear.x && tx < ui.btnClear.x+ui.btnClear.w && ty > ui.btnClear.y && ty < ui.btnClear.y+ui.btnClear.h) clearCoins();
         if (tx > ui.btnBuy.x && tx < ui.btnBuy.x+ui.btnBuy.w && ty > ui.btnBuy.y && ty < ui.btnBuy.y+ui.btnBuy.h) buyItem();
     } 
@@ -350,7 +362,7 @@ c.addEventListener('pointerdown', (e) => {
             let s = stickers[i];
             if (Math.hypot(tx - s.x, ty - s.y) < s.size) {
                 draggingSticker = s;
-                stickers.splice(i, 1); stickers.push(s); // 最前面へ
+                stickers.splice(i, 1); stickers.push(s); 
                 break;
             }
         }
@@ -363,7 +375,6 @@ c.addEventListener('pointermove', (e) => {
         let rect = c.getBoundingClientRect();
         let nx = e.clientX - rect.left;
         let ny = e.clientY - rect.top;
-        // 画面外にシールがいかないように制限
         draggingSticker.x = Math.max(draggingSticker.size, Math.min(W - draggingSticker.size, nx));
         draggingSticker.y = Math.max(100 + draggingSticker.size, Math.min(H - draggingSticker.size, ny));
     }
@@ -372,21 +383,37 @@ c.addEventListener('pointermove', (e) => {
 c.addEventListener('pointerup', (e) => { e.preventDefault(); draggingSticker = null; });
 c.addEventListener('pointercancel', (e) => { e.preventDefault(); draggingSticker = null; });
 
-// リアルな硬貨の描画
-function drawCoin(x, y, r, type) {
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
-    if (type === 500) { ctx.fillStyle = "#fff176"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#cddc39"; ctx.stroke(); }
-    else if (type === 100) { ctx.fillStyle = "#e0e0e0"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#bdbdbd"; ctx.stroke(); }
-    else if (type === 50) { ctx.fillStyle = "#e0e0e0"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#bdbdbd"; ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, r*0.2, 0, Math.PI*2); ctx.fillStyle="#ffe082"; ctx.fill(); ctx.stroke(); }
-    else if (type === 10) { ctx.fillStyle = "#bcaaa4"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#8d6e63"; ctx.stroke(); }
-    else if (type === 5) { ctx.fillStyle = "#fff176"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#fbc02d"; ctx.stroke(); ctx.beginPath(); ctx.arc(x, y, r*0.2, 0, Math.PI*2); ctx.fillStyle="#ffe082"; ctx.fill(); ctx.stroke(); }
-    else if (type === 1) { ctx.fillStyle = "#f5f5f5"; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle="#9e9e9e"; ctx.stroke(); }
-    
-    ctx.fillStyle = (type === 10) ? "#5d4037" : (type === 500 || type === 5 ? "#827717" : "#616161");
-    let fontSize = type === 500 || type === 100 ? r*0.55 : r*0.6;
-    ctx.font = `bold ${fontSize}px sans-serif`;
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(type, x, (type === 50 || type === 5) ? y - r*0.35 : y); 
+// リアルな硬貨とお札の描画（お札は長方形に！）
+function drawMoney(cx, cy, r, type) {
+    if (type >= 1000) {
+        let bw = r * 2.2;
+        let bh = r * 1.2;
+        ctx.fillStyle = type === 10000 ? "#e8f5e9" : (type === 5000 ? "#f3e5f5" : "#e3f2fd");
+        ctx.beginPath(); ctx.roundRect(cx - bw/2, cy - bh/2, bw, bh, 5); ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = type === 10000 ? "#81c784" : (type === 5000 ? "#ba68c8" : "#64b5f6"); ctx.stroke();
+        
+        ctx.beginPath(); ctx.arc(cx, cy, bh*0.35, 0, Math.PI*2); ctx.stroke();
+        
+        ctx.fillStyle = "#424242"; 
+        let fontSize = type >= 10000 ? r*0.35 : r*0.45;
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(type, cx, cy);
+    } else {
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+        if (type === 500) { ctx.fillStyle = "#fff176"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#cddc39"; ctx.stroke(); }
+        else if (type === 100) { ctx.fillStyle = "#e0e0e0"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#bdbdbd"; ctx.stroke(); }
+        else if (type === 50) { ctx.fillStyle = "#e0e0e0"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#bdbdbd"; ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, r*0.2, 0, Math.PI*2); ctx.fillStyle="#ffe082"; ctx.fill(); ctx.stroke(); }
+        else if (type === 10) { ctx.fillStyle = "#bcaaa4"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#8d6e63"; ctx.stroke(); }
+        else if (type === 5) { ctx.fillStyle = "#fff176"; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle="#fbc02d"; ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, r*0.2, 0, Math.PI*2); ctx.fillStyle="#ffe082"; ctx.fill(); ctx.stroke(); }
+        else if (type === 1) { ctx.fillStyle = "#f5f5f5"; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle="#9e9e9e"; ctx.stroke(); }
+        
+        ctx.fillStyle = (type === 10) ? "#5d4037" : (type === 500 || type === 5 ? "#827717" : "#616161");
+        let fontSize = type === 500 || type === 100 ? r*0.55 : r*0.6;
+        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(type, cx, (type === 50 || type === 5) ? cy - r*0.35 : cy); 
+    }
 }
 
 function drawPuffySticker(s) {
@@ -408,14 +435,22 @@ function update() {
         ctx.fillStyle = '#ffecb3'; ctx.fillRect(0, ui.trayY - 60, W, H); 
         
         // 商品棚
-        ctx.fillStyle = '#ffcc80'; ctx.fillRect(0, ui.shelfY + 30, W, 20);
-        ctx.font = "80px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline="middle"; 
-        ctx.fillText(currentItem.emoji, W/2, ui.shelfY - 10);
+        ctx.fillStyle = '#ffcc80'; ctx.fillRect(0, ui.shelfY + 40, W, 20);
         
-        ctx.fillStyle = "#fff"; ctx.fillRect(W/2 - 70, ui.shelfY + 50, 140, 40);
-        ctx.strokeStyle = "#e65100"; ctx.lineWidth = 4; ctx.strokeRect(W/2 - 70, ui.shelfY + 50, 140, 40);
-        ctx.fillStyle = "#e65100"; ctx.font = "bold 24px sans-serif";
-        ctx.fillText(currentItem.price + " えん", W/2, ui.shelfY + 70);
+        let itemW = W / currentItems.length;
+        currentItems.forEach((item, i) => {
+            let cx = itemW * i + itemW / 2;
+            ctx.font = `${currentItems.length === 3 ? 50 : 70}px sans-serif`; 
+            ctx.textAlign = "center"; ctx.textBaseline="middle"; 
+            ctx.fillText(item.emoji, cx, ui.shelfY);
+            
+            let tagW = currentItems.length === 3 ? 90 : 120;
+            ctx.fillStyle = "#fff"; ctx.fillRect(cx - tagW/2, ui.shelfY + 50, tagW, 35);
+            ctx.strokeStyle = "#e65100"; ctx.lineWidth = 3; ctx.strokeRect(cx - tagW/2, ui.shelfY + 50, tagW, 35);
+            ctx.fillStyle = "#e65100"; 
+            ctx.font = `bold ${currentItems.length === 3 ? 16 : 20}px sans-serif`;
+            ctx.fillText(item.price + "えん", cx, ui.shelfY + 68);
+        });
         
         // トレイ
         ctx.fillStyle = "rgba(255,255,255,0.5)";
@@ -423,16 +458,22 @@ function update() {
         ctx.lineWidth = 3; ctx.strokeStyle = "#ffcc80"; ctx.stroke();
         
         // 置かれたコイン（重なるように配置）
-        let cx = W/2;
+        let tcx = W/2;
         trayCoins.forEach((cVal, i) => {
-            let row = Math.floor(i / 8); let col = i % 8;
-            let ox = (col - 3.5) * 30 + (row * 10);
-            let oy = (row - 1) * 20;
-            drawCoin(cx + ox, ui.trayY + oy, 22, cVal);
+            let maxCols = diffSelected === 3 ? 5 : 8; 
+            let row = Math.floor(i / maxCols); let col = i % maxCols;
+            let ox = (col - (maxCols-1)/2) * (diffSelected === 3 ? 40 : 30) + (Math.random()*10-5);
+            let oy = (row - 1) * 20 + (Math.random()*10-5);
+            let r = diffSelected === 3 ? 18 : 22; // 超むずかしいはお札がはみ出ないよう少し小さめ
+            drawMoney(tcx + ox, ui.trayY + oy - 10, r, cVal);
         });
         
         ctx.fillStyle = "#333"; ctx.font = "bold 24px sans-serif";
-        ctx.fillText(`いま： ${currentTotal} えん`, W/2, ui.trayY + 70);
+        if (diffSelected === 3) {
+            ctx.fillText(`いま： ？？？ えん`, W/2, ui.trayY + 70);
+        } else {
+            ctx.fillText(`いま： ${currentTotal} えん`, W/2, ui.trayY + 70);
+        }
         
         ctx.fillStyle = "#9e9e9e"; ctx.beginPath(); ctx.roundRect(ui.btnClear.x, ui.btnClear.y, ui.btnClear.w, ui.btnClear.h, 10); ctx.fill();
         ctx.fillStyle = "#fff"; ctx.font = "bold 20px sans-serif"; ctx.fillText("やりなおす", ui.btnClear.x + ui.btnClear.w/2, ui.btnClear.y + ui.btnClear.h/2);
@@ -440,14 +481,24 @@ function update() {
         ctx.fillStyle = "#4caf50"; ctx.beginPath(); ctx.roundRect(ui.btnBuy.x, ui.btnBuy.y, ui.btnBuy.w, ui.btnBuy.h, 10); ctx.fill();
         ctx.fillStyle = "#fff"; ctx.font = "bold 24px sans-serif"; ctx.fillText("かう！", ui.btnBuy.x + ui.btnBuy.w/2, ui.btnBuy.y + ui.btnBuy.h/2);
 
-        ui.coinBtns.forEach(btn => drawCoin(btn.x + btn.w/2, btn.y + btn.h/2, btn.w/2, btn.val));
+        ui.coinBtns.forEach(btn => drawMoney(btn.x + btn.w/2, btn.y + btn.h/2, btn.w/2, btn.val));
 
+        // 買い物かご 獲得演出
         if (state === 'gacha') {
             gachaScale += (1 - gachaScale) * 0.1; 
             ctx.fillStyle = `rgba(255, 255, 255, ${gachaScale * 0.8})`; ctx.fillRect(0, 0, W, H);
             ctx.save(); ctx.translate(W/2, H/2); ctx.scale(gachaScale, gachaScale);
+            
             ctx.font = "120px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
-            ctx.fillText(gachaScale > 0.8 ? "✨" : "🔴", 0, 0); 
+            ctx.fillText("🧺", 0, 0); 
+            if (gachaScale > 0.8) {
+                currentItems.forEach((item, idx) => {
+                    let dx = (idx - (currentItems.length-1)/2) * 50;
+                    ctx.font = "50px sans-serif";
+                    ctx.fillText(item.emoji, dx, -50);
+                });
+                ctx.font = "60px sans-serif"; ctx.fillText("✨", 0, -90); 
+            }
             ctx.restore();
         }
     } 
@@ -457,7 +508,7 @@ function update() {
         for(let y=100; y<H; y+=40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
         
         ctx.fillStyle = "#f57f17"; ctx.font = "bold 24px sans-serif"; ctx.textAlign="center";
-        ctx.fillText("じぶんだけの シールちょう", W/2, 80);
+        ctx.fillText("じぶんだけの マイバッグ", W/2, 80);
         stickers.forEach(s => drawPuffySticker(s));
     }
     requestAnimationFrame(update);
