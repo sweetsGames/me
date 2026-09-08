@@ -46,13 +46,14 @@
   
   #header {
     position: absolute; top: max(10px, var(--sat)); left: 0; width: 100%;
-    padding: 0 15px; display: flex; justify-content: space-between; align-items: center; z-index: 10;
+    padding: 0 10px; display: flex; justify-content: space-between; align-items: center; z-index: 10;
     pointer-events: none;
   }
   .status-box {
-    background: rgba(255, 255, 255, 0.95); padding: 8px 15px; border-radius: 20px;
-    font-size: clamp(16px, 5vw, 20px); font-weight: bold; color: #333;
+    background: rgba(255, 255, 255, 0.95); padding: 6px 12px; border-radius: 20px;
+    font-size: clamp(13px, 4vw, 18px); font-weight: bold; color: #333;
     border: 3px solid #ffb74d; box-shadow: 0 4px 0 #f57c00; pointer-events: auto; cursor: pointer;
+    white-space: nowrap; /* 文字の改行を絶対に防ぐ */
   }
   #btn-switch {
     background: #ff9800; color: white; border-color: #f57c00;
@@ -184,7 +185,7 @@ function resize() { W = c.width = c.clientWidth; H = c.height = c.clientHeight; 
 window.addEventListener('resize', resize); resize();
 
 let state = 'title'; 
-let currentItems = []; // 複数の商品を管理
+let currentItems = []; 
 let currentTotalRequired = 0;
 let trayCoins = [];
 let currentTotal = 0;
@@ -209,7 +210,6 @@ function spawnItem() {
     currentItems = [];
     currentTotalRequired = 0;
     
-    // 超むずかしいは 2〜3個の商品が同時に並ぶ！
     let numItems = 1;
     if (diffSelected === 3) {
         numItems = Math.random() > 0.6 ? 3 : 2; 
@@ -220,7 +220,7 @@ function spawnItem() {
         if (diffSelected === 0) p = (Math.floor(Math.random() * 9) + 1) * 10; 
         else if (diffSelected === 1) p = (Math.floor(Math.random() * 40) + 10) * 10; 
         else if (diffSelected === 2) p = (Math.floor(Math.random() * 50) + 10) * 10; 
-        else p = Math.floor(Math.random() * 4000) + 111; // 超むずかしい: 111〜4110円
+        else p = Math.floor(Math.random() * 4000) + 111; 
         
         currentItems.push({ emoji: ITEMS_POOL[Math.floor(Math.random() * ITEMS_POOL.length)], price: p });
         currentTotalRequired += p;
@@ -264,7 +264,6 @@ function buyItem() {
         
         setTimeout(() => {
             playSound('pop');
-            // 買った商品をそのままマイバッグに入れる
             currentItems.forEach(item => {
                 stickers.push({
                     e: item.emoji,
@@ -273,7 +272,6 @@ function buyItem() {
                 });
             });
             UI_SCORE.innerText = stickers.length;
-            
             setTimeout(() => { state = 'book'; BTN_SWITCH.innerText = "🛒 おかいものへ"; }, 1500);
         }, 1200);
         
@@ -290,21 +288,19 @@ function buyItem() {
     }
 }
 
-// 画面サイズに応じてUIが絶対に見切れないように動的計算
 function getShopUIRects() {
     let isSuperHard = (diffSelected === 3);
     let btnSize = isSuperHard ? Math.min(45, W * 0.14) : Math.min(65, W * 0.18);
     let rowsCount = isSuperHard ? 3 : (diffSelected === 2 ? 2 : 1);
     
-    // コインエリアの総高さ
     let coinAreaH = rowsCount * btnSize + (rowsCount - 1) * 10;
-    // 画面下部から逆算して配置
     let coinStartY = H - coinAreaH - Math.max(15, H * 0.02); 
     
     let ctrlH = Math.min(50, H * 0.08);
     let ctrlY = coinStartY - ctrlH - 10; 
     
-    let shelfY = Math.max(90, H * 0.12); 
+    // ★修正：棚の高さをしっかり確保してヘッダーと被らないようにする
+    let shelfY = Math.max(150, H * 0.22); 
     let trayY = shelfY + (ctrlY - shelfY) * 0.55; 
 
     let btns = [];
@@ -383,7 +379,6 @@ c.addEventListener('pointermove', (e) => {
 c.addEventListener('pointerup', (e) => { e.preventDefault(); draggingSticker = null; });
 c.addEventListener('pointercancel', (e) => { e.preventDefault(); draggingSticker = null; });
 
-// リアルな硬貨とお札の描画（お札は長方形に！）
 function drawMoney(cx, cy, r, type) {
     if (type >= 1000) {
         let bw = r * 2.2;
@@ -391,9 +386,7 @@ function drawMoney(cx, cy, r, type) {
         ctx.fillStyle = type === 10000 ? "#e8f5e9" : (type === 5000 ? "#f3e5f5" : "#e3f2fd");
         ctx.beginPath(); ctx.roundRect(cx - bw/2, cy - bh/2, bw, bh, 5); ctx.fill();
         ctx.lineWidth = 2; ctx.strokeStyle = type === 10000 ? "#81c784" : (type === 5000 ? "#ba68c8" : "#64b5f6"); ctx.stroke();
-        
         ctx.beginPath(); ctx.arc(cx, cy, bh*0.35, 0, Math.PI*2); ctx.stroke();
-        
         ctx.fillStyle = "#424242"; 
         let fontSize = type >= 10000 ? r*0.35 : r*0.45;
         ctx.font = `bold ${fontSize}px sans-serif`;
@@ -434,22 +427,39 @@ function update() {
         ctx.fillStyle = '#ffe082'; ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = '#ffecb3'; ctx.fillRect(0, ui.trayY - 60, W, H); 
         
-        // 商品棚
-        ctx.fillStyle = '#ffcc80'; ctx.fillRect(0, ui.shelfY + 40, W, 20);
+        // ★修正：商品棚の「板」を描画（基準Y座標）
+        ctx.fillStyle = '#ffcc80'; ctx.fillRect(0, ui.shelfY, W, 15);
         
         let itemW = W / currentItems.length;
+        let numItems = currentItems.length;
+        
         currentItems.forEach((item, i) => {
             let cx = itemW * i + itemW / 2;
-            ctx.font = `${currentItems.length === 3 ? 50 : 70}px sans-serif`; 
-            ctx.textAlign = "center"; ctx.textBaseline="middle"; 
+            
+            // ★修正：絵文字が棚の上にピッタリ乗り、上が切れないように
+            let emojiSize = numItems === 3 ? 45 : (numItems === 2 ? 60 : 75);
+            ctx.font = `${emojiSize}px sans-serif`; 
+            ctx.textAlign = "center"; ctx.textBaseline = "bottom"; 
             ctx.fillText(item.emoji, cx, ui.shelfY);
             
-            let tagW = currentItems.length === 3 ? 90 : 120;
-            ctx.fillStyle = "#fff"; ctx.fillRect(cx - tagW/2, ui.shelfY + 50, tagW, 35);
-            ctx.strokeStyle = "#e65100"; ctx.lineWidth = 3; ctx.strokeRect(cx - tagW/2, ui.shelfY + 50, tagW, 35);
+            // ★修正：値札が画面横にはみ出さないよう動的計算
+            let maxTagW = itemW * 0.92; // エリアの92%に収める
+            let tagW = Math.min(maxTagW, numItems === 3 ? 85 : 120);
+            let tagH = numItems === 3 ? 28 : 35;
+            let tagY = ui.shelfY + 15; // 棚の下にぶら下げる
+            
+            ctx.fillStyle = "#fff"; ctx.fillRect(cx - tagW/2, tagY, tagW, tagH);
+            ctx.strokeStyle = "#e65100"; ctx.lineWidth = 3; ctx.strokeRect(cx - tagW/2, tagY, tagW, tagH);
+            
             ctx.fillStyle = "#e65100"; 
-            ctx.font = `bold ${currentItems.length === 3 ? 16 : 20}px sans-serif`;
-            ctx.fillText(item.price + "えん", cx, ui.shelfY + 68);
+            let priceText = item.price + "えん";
+            // 金額の文字数とアイテム数に合わせてフォントを縮小
+            let fontSize = numItems === 3 ? 14 : 20;
+            if (priceText.length > 5) fontSize = numItems === 3 ? 12 : 16;
+            
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            ctx.textBaseline = "middle";
+            ctx.fillText(priceText, cx, tagY + tagH/2 + 2);
         });
         
         // トレイ
@@ -457,14 +467,14 @@ function update() {
         ctx.beginPath(); ctx.ellipse(W/2, ui.trayY, W*0.4, 50, 0, 0, Math.PI*2); ctx.fill();
         ctx.lineWidth = 3; ctx.strokeStyle = "#ffcc80"; ctx.stroke();
         
-        // 置かれたコイン（重なるように配置）
+        // 置かれたお金
         let tcx = W/2;
         trayCoins.forEach((cVal, i) => {
             let maxCols = diffSelected === 3 ? 5 : 8; 
             let row = Math.floor(i / maxCols); let col = i % maxCols;
             let ox = (col - (maxCols-1)/2) * (diffSelected === 3 ? 40 : 30) + (Math.random()*10-5);
             let oy = (row - 1) * 20 + (Math.random()*10-5);
-            let r = diffSelected === 3 ? 18 : 22; // 超むずかしいはお札がはみ出ないよう少し小さめ
+            let r = diffSelected === 3 ? 18 : 22; 
             drawMoney(tcx + ox, ui.trayY + oy - 10, r, cVal);
         });
         
@@ -494,8 +504,8 @@ function update() {
             if (gachaScale > 0.8) {
                 currentItems.forEach((item, idx) => {
                     let dx = (idx - (currentItems.length-1)/2) * 50;
-                    ctx.font = "50px sans-serif";
-                    ctx.fillText(item.emoji, dx, -50);
+                    ctx.font = "40px sans-serif";
+                    ctx.fillText(item.emoji, dx, -40);
                 });
                 ctx.font = "60px sans-serif"; ctx.fillText("✨", 0, -90); 
             }
