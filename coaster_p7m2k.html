@@ -108,7 +108,6 @@ const c = document.getElementById('c'); const ctx = c.getContext('2d');
 let W, H, CS; 
 function resize() { 
     W = c.width = c.clientWidth; H = c.height = c.clientHeight; 
-    // 画面上下のUIのためのスペースを200px確保し、グリッドのマス目サイズを計算
     let availableH = H - 200; 
     CS = Math.min(W * 0.18, availableH / 5.5); 
 }
@@ -130,10 +129,11 @@ function initLevel() {
     let path, straightIndices;
     let numGates = diffSelected === 0 ? 2 : 3;
 
-    // ★修正：絶対にクリアできるように、「まっすぐ進む道」が十分に存在するルートを生成する
     while(true) {
-        path = [{x:0, y:0}];
-        let cx = 0, cy = 0;
+        // ★修正：スタート直後は必ず「右（x:1, y:0）」に進むように正解ルートを固定する
+        path = [{x:0, y:0}, {x:1, y:0}];
+        let cx = 1, cy = 0;
+        
         while(cx < GRID_W-1 || cy < GRID_H-1) {
             let moves = [];
             if(cx < GRID_W-1) moves.push({x:cx+1, y:cy});
@@ -143,23 +143,19 @@ function initLevel() {
             path.push({x:cx, y:cy});
         }
         
-        // 曲がり角ではない（まっすぐ進む）マスのインデックスを探す
         straightIndices = [];
         for(let i=1; i<path.length-1; i++) {
             let dx1 = path[i].x - path[i-1].x;
             let dy1 = path[i].y - path[i-1].y;
             let dx2 = path[i+1].x - path[i].x;
             let dy2 = path[i+1].y - path[i].y;
-            // 前のマスからの進行方向と、次のマスへの進行方向が同じなら「直線」
             if (dx1 === dx2 && dy1 === dy2) {
                 straightIndices.push(i);
             }
         }
-        // 必要な数のゲートを置ける直線のマスが確保できたら採用！
         if (straightIndices.length >= numGates) break;
     }
 
-    // 直線のマスからランダムにゲートを置く場所を選ぶ
     straightIndices.sort(() => Math.random() - 0.5);
     let gateIndices = straightIndices.slice(0, numGates).sort((a,b)=>a-b);
 
@@ -188,7 +184,6 @@ function initLevel() {
     }
     levelData.target = currentVal;
 
-    // ルート以外の場所に「おじゃま岩」を配置
     let numObs = diffSelected === 0 ? 0 : (diffSelected === 1 ? 2 : 3);
     let placedObs = 0, attempts = 0;
     while(placedObs < numObs && attempts < 100) {
@@ -209,7 +204,7 @@ function initLevel() {
 function getMetrics() {
     let gx = (W - CS * GRID_W) / 2;
     let gy = Math.max(10, H * 0.1); 
-    let trayY = gy + CS * GRID_H + 30; // テキスト用の基準Y座標
+    let trayY = gy + CS * GRID_H + 30; 
     return { gx, gy, trayY };
 }
 
@@ -232,7 +227,7 @@ c.addEventListener('pointerdown', (e) => {
     let arrowSpacing = W / 4;
     for (let i = 0; i < 4; i++) {
         let ax = arrowSpacing * (i + 0.5); 
-        let ay = m.trayY + 45; // ★矢印ボタンのY座標もテキストの下に合わせる
+        let ay = m.trayY + 45; 
         if (Math.hypot(tx - ax, ty - ay) < CS/2 + 15) {
             draggingItem = { type: 'arrow', dir: arrows[i].dir, e: arrows[i].e, x: tx, y: ty };
             return;
@@ -394,7 +389,6 @@ function update() {
         ctx.fillStyle = "#00838f"; ctx.font = "bold 16px sans-serif"; ctx.textAlign="center";
         ctx.fillText("🔄 やじるしを おいて みちをまげよう", W/2, m.trayY);
         let arrowSpacing = W / 4;
-        // ★修正：矢印ボタンをテキストから「45px」しっかり下へ離して描画
         arrows.forEach((a, i) => { drawBlock(arrowSpacing * (i + 0.5), m.trayY + 45, "#2196f3", a.e); });
     }
 
