@@ -108,9 +108,9 @@ const c = document.getElementById('c'); const ctx = c.getContext('2d');
 let W, H, CS; 
 function resize() { 
     W = c.width = c.clientWidth; H = c.height = c.clientHeight; 
-    // 縦幅が狭いスマホでも絶対にはみ出さないようにセルサイズを計算
-    let availableH = H - 180; // ヘッダーと下のボタン分の余白を引く
-    CS = Math.min(W * 0.18, availableH / 6); 
+    // 画面上下のUIのためのスペースを200px確保し、グリッドのマス目サイズを計算
+    let availableH = H - 200; 
+    CS = Math.min(W * 0.18, availableH / 5.5); 
 }
 window.addEventListener('resize', resize); resize();
 
@@ -124,32 +124,46 @@ let ball = { x: 0, y: 0, val: 0, dir: 'R', px: 0, py: 0 };
 let animProgress = 0;
 let levelData = { target: 0, startVal: 0 };
 
-// 毎回ランダムで「絶対に解ける問題」を生成する賢い関数
 function initLevel() {
     grid = Array(GRID_H).fill(null).map(() => Array(GRID_W).fill(null));
     
-    // 1. 正解のルート（道筋）を自動生成（右か下のみ進むシンプルなルート）
-    let path = [{x:0, y:0}];
-    let cx = 0, cy = 0;
-    while(cx < GRID_W-1 || cy < GRID_H-1) {
-        let moves = [];
-        if(cx < GRID_W-1) moves.push({x:cx+1, y:cy});
-        if(cy < GRID_H-1) moves.push({x:cx, y:cy+1});
-        let next = moves[Math.floor(Math.random()*moves.length)];
-        cx = next.x; cy = next.y;
-        path.push({x:cx, y:cy});
-    }
-
-    // 2. ルート上にゲートを配置し、目標の数を計算する
+    let path, straightIndices;
     let numGates = diffSelected === 0 ? 2 : 3;
-    let gateIndices = [];
-    while(gateIndices.length < numGates) {
-        let r = Math.floor(Math.random() * (path.length - 2)) + 1; // スタートとゴール以外
-        if(!gateIndices.includes(r)) gateIndices.push(r);
-    }
-    gateIndices.sort((a,b)=>a-b);
 
-    levelData.startVal = Math.floor(Math.random()*5) + 1; // スタート時の数
+    // ★修正：絶対にクリアできるように、「まっすぐ進む道」が十分に存在するルートを生成する
+    while(true) {
+        path = [{x:0, y:0}];
+        let cx = 0, cy = 0;
+        while(cx < GRID_W-1 || cy < GRID_H-1) {
+            let moves = [];
+            if(cx < GRID_W-1) moves.push({x:cx+1, y:cy});
+            if(cy < GRID_H-1) moves.push({x:cx, y:cy+1});
+            let next = moves[Math.floor(Math.random()*moves.length)];
+            cx = next.x; cy = next.y;
+            path.push({x:cx, y:cy});
+        }
+        
+        // 曲がり角ではない（まっすぐ進む）マスのインデックスを探す
+        straightIndices = [];
+        for(let i=1; i<path.length-1; i++) {
+            let dx1 = path[i].x - path[i-1].x;
+            let dy1 = path[i].y - path[i-1].y;
+            let dx2 = path[i+1].x - path[i].x;
+            let dy2 = path[i+1].y - path[i].y;
+            // 前のマスからの進行方向と、次のマスへの進行方向が同じなら「直線」
+            if (dx1 === dx2 && dy1 === dy2) {
+                straightIndices.push(i);
+            }
+        }
+        // 必要な数のゲートを置ける直線のマスが確保できたら採用！
+        if (straightIndices.length >= numGates) break;
+    }
+
+    // 直線のマスからランダムにゲートを置く場所を選ぶ
+    straightIndices.sort(() => Math.random() - 0.5);
+    let gateIndices = straightIndices.slice(0, numGates).sort((a,b)=>a-b);
+
+    levelData.startVal = Math.floor(Math.random()*5) + 1;
     let currentVal = levelData.startVal;
 
     for(let idx of gateIndices) {
@@ -165,7 +179,7 @@ function initLevel() {
         if(opType === '+') { val = Math.floor(Math.random()*4)+1; currentVal += val; }
         if(opType === '-') {
             val = Math.floor(Math.random()*3)+1;
-            if(currentVal - val < 0) { opType = '+'; currentVal += val; } // マイナスにならないように調整
+            if(currentVal - val < 0) { opType = '+'; currentVal += val; } 
             else { currentVal -= val; }
         }
         if(opType === '*') { val = Math.floor(Math.random()*2)+2; currentVal *= val; }
@@ -174,7 +188,7 @@ function initLevel() {
     }
     levelData.target = currentVal;
 
-    // 3. ルート以外の場所に「おじゃま岩」を配置 (レベル1以上)
+    // ルート以外の場所に「おじゃま岩」を配置
     let numObs = diffSelected === 0 ? 0 : (diffSelected === 1 ? 2 : 3);
     let placedObs = 0, attempts = 0;
     while(placedObs < numObs && attempts < 100) {
@@ -195,7 +209,7 @@ function initLevel() {
 function getMetrics() {
     let gx = (W - CS * GRID_W) / 2;
     let gy = Math.max(10, H * 0.1); 
-    let trayY = gy + CS * GRID_H + 20; // グリッドのすぐ下に配置
+    let trayY = gy + CS * GRID_H + 30; // テキスト用の基準Y座標
     return { gx, gy, trayY };
 }
 
@@ -207,7 +221,6 @@ c.addEventListener('pointerdown', (e) => {
     let rect = c.getBoundingClientRect(); let tx = e.clientX - rect.left; let ty = e.clientY - rect.top;
     let m = getMetrics();
 
-    // グリッド上の「矢印」を拾う（ゲートや岩は拾えない）
     if (tx >= m.gx && tx <= m.gx + CS*GRID_W && ty >= m.gy && ty <= m.gy + CS*GRID_H) {
         let cx = Math.floor((tx - m.gx) / CS); let cy = Math.floor((ty - m.gy) / CS);
         if (grid[cy][cx] && grid[cy][cx].type === 'arrow') {
@@ -216,10 +229,10 @@ c.addEventListener('pointerdown', (e) => {
         }
     }
 
-    // トレイから矢印を拾う
     let arrowSpacing = W / 4;
     for (let i = 0; i < 4; i++) {
-        let ax = arrowSpacing * (i + 0.5); let ay = m.trayY + 30;
+        let ax = arrowSpacing * (i + 0.5); 
+        let ay = m.trayY + 45; // ★矢印ボタンのY座標もテキストの下に合わせる
         if (Math.hypot(tx - ax, ty - ay) < CS/2 + 15) {
             draggingItem = { type: 'arrow', dir: arrows[i].dir, e: arrows[i].e, x: tx, y: ty };
             return;
@@ -242,7 +255,6 @@ c.addEventListener('pointerup', (e) => {
     
     if (tx >= m.gx && tx <= m.gx + CS*GRID_W && ty >= m.gy && ty <= m.gy + CS*GRID_H) {
         let cx = Math.floor((tx - m.gx) / CS); let cy = Math.floor((ty - m.gy) / CS);
-        // スタート、ゴール、ゲート、岩が「無い」場所だけ置ける
         if ((cx!==0 || cy!==0) && (cx!==GRID_W-1 || cy!==GRID_H-1) && !grid[cy][cx]) {
             grid[cy][cx] = draggingItem;
             playSound('snap');
@@ -316,7 +328,7 @@ function processCellEnter() {
     if (ball.x === GRID_W - 1 && ball.y === GRID_H - 1) {
         if (ball.val === levelData.target) {
             playSound('clear'); showMsg("ピッタリ！🎉\nだいせいこう！", "#4caf50");
-            setTimeout(() => { startGame(); }, 3000); // 成功したら自動で次の問題へ
+            setTimeout(() => { startGame(); }, 3000); 
         } else {
             playSound('crash'); showMsg(`おしい！💦\nあと ${Math.abs(levelData.target - ball.val)}たりない`, "#f44336");
             setTimeout(stopRoll, 2000);
@@ -341,7 +353,6 @@ function update() {
     ctx.clearRect(0, 0, W, H);
     let m = getMetrics();
 
-    // 背景グリッド
     ctx.fillStyle = "#ffffff"; ctx.fillRect(m.gx, m.gy, CS*GRID_W, CS*GRID_H);
     ctx.lineWidth = 2; ctx.strokeStyle = "#e0f7fa";
     for(let i=0; i<=GRID_W; i++) {
@@ -349,13 +360,11 @@ function update() {
         ctx.beginPath(); ctx.moveTo(m.gx, m.gy + i*CS); ctx.lineTo(m.gx + CS*GRID_W, m.gy + i*CS); ctx.stroke();
     }
 
-    // 🟢 スタートの明確化
     ctx.fillStyle = "#81c784"; ctx.fillRect(m.gx, m.gy, CS, CS);
     ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.font = `bold ${CS*0.25}px sans-serif`; ctx.fillText("スタート", m.gx+CS/2, m.gy+CS*0.25);
     ctx.font = `${CS*0.4}px sans-serif`; ctx.fillText("➡️", m.gx+CS/2, m.gy+CS*0.65);
 
-    // 👑 ゴールの明確化
     ctx.fillStyle = "#ffb74d"; ctx.fillRect(m.gx + CS*(GRID_W-1), m.gy + CS*(GRID_H-1), CS, CS);
     ctx.fillStyle = "#fff"; ctx.font = `bold ${CS*0.25}px sans-serif`; ctx.fillText("ゴール", m.gx + CS*(GRID_W-1) + CS/2, m.gy + CS*(GRID_H-1) + CS*0.25);
     ctx.font = `${CS*0.45}px sans-serif`; ctx.fillText("👑", m.gx + CS*(GRID_W-1) + CS/2, m.gy + CS*(GRID_H-1) + CS*0.65);
@@ -367,7 +376,7 @@ function update() {
                 let cx = m.gx + x*CS + CS/2; let cy = m.gy + y*CS + CS/2;
                 if (item.type === 'arrow') drawBlock(cx, cy, "#2196f3", item.e);
                 else if (item.type === 'gate') drawBlock(cx, cy, "#ff9800", item.op + item.val, "ゲート");
-                else if (item.type === 'obstacle') drawBlock(cx, cy, "#757575", "🪨"); // 岩を描画
+                else if (item.type === 'obstacle') drawBlock(cx, cy, "#757575", "🪨"); 
             }
         }
     }
@@ -382,11 +391,11 @@ function update() {
     }
 
     if (!isPlaying) {
-        // トレイ（矢印だけになったのでスッキリ！）
         ctx.fillStyle = "#00838f"; ctx.font = "bold 16px sans-serif"; ctx.textAlign="center";
         ctx.fillText("🔄 やじるしを おいて みちをまげよう", W/2, m.trayY);
         let arrowSpacing = W / 4;
-        arrows.forEach((a, i) => { drawBlock(arrowSpacing * (i + 0.5), m.trayY + 30, "#2196f3", a.e); });
+        // ★修正：矢印ボタンをテキストから「45px」しっかり下へ離して描画
+        arrows.forEach((a, i) => { drawBlock(arrowSpacing * (i + 0.5), m.trayY + 45, "#2196f3", a.e); });
     }
 
     if (draggingItem) {
