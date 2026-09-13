@@ -12,8 +12,8 @@
   #game-wrapper { position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto; background: #b2ebf2; display: flex; flex-direction: column; }
   
   #header { padding: max(10px, var(--sat)) 10px 10px; display: flex; justify-content: space-between; align-items: center; background: #00bcd4; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10; }
-  .status-box { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 15px; font-weight: bold; font-size: 18px; display: flex; align-items: center; gap: 5px; }
-  .highlight-num { background: #ffeb3b; color: #e65100; padding: 2px 10px; border-radius: 10px; font-size: 22px; }
+  .status-box { background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 15px; font-weight: bold; font-size: 16px; display: flex; align-items: center; gap: 5px; }
+  .highlight-num { background: #ffeb3b; color: #e65100; padding: 2px 10px; border-radius: 10px; font-size: 20px; }
 
   canvas { display: block; flex: 1; width: 100%; height: 100%; }
 
@@ -31,11 +31,11 @@
   .start-btn:active { transform: translateY(6px); box-shadow: none; }
 
   #ui-overlay { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 10; pointer-events: none; }
-  .action-btn { pointer-events: auto; padding: 15px 30px; font-size: 22px; font-weight: bold; border-radius: 30px; border: none; color: white; box-shadow: 0 6px 0 rgba(0,0,0,0.2); }
+  .action-btn { pointer-events: auto; padding: 12px 30px; font-size: 20px; font-weight: bold; border-radius: 30px; border: none; color: white; box-shadow: 0 6px 0 rgba(0,0,0,0.2); }
   #btn-play { background: #4caf50; } #btn-stop { background: #f44336; display: none; }
   .action-btn:active { transform: translateY(6px); box-shadow: none; }
 
-  #message { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 40px; font-weight: bold; text-align: center; width: 90%; text-shadow: 3px 3px 0 #fff; z-index: 50; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); white-space: pre-wrap; line-height: 1.2; pointer-events: none;}
+  #message { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: clamp(24px, 6vw, 36px); font-weight: bold; text-align: center; width: 90%; text-shadow: 3px 3px 0 #fff; z-index: 50; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); white-space: pre-wrap; line-height: 1.3; pointer-events: none;}
   #message.show { transform: translate(-50%, -50%) scale(1); }
   .hide { display: none !important; }
 </style>
@@ -62,15 +62,15 @@
     
     <div class="settings-box">
       <div class="rule-box">
-        <div class="rule-step"><span>1️⃣</span> <span>「➡️やじるし」で道をまげる！</span></div>
-        <div class="rule-step"><span>2️⃣</span> <span>「➕ゲート」を通って数をかえる！</span></div>
-        <div class="rule-step"><span>3️⃣</span> <span>ピッタリの数で「👑ゴール」しよう！</span></div>
+        <div class="rule-step"><span>1️⃣</span> <span>「➡️やじるし」を置いて道を作ろう！</span></div>
+        <div class="rule-step"><span>2️⃣</span> <span>「➕ゲート」を通って数を変えよう！</span></div>
+        <div class="rule-step"><span>3️⃣</span> <span>🪨岩をよけて、ピッタリでゴール！</span></div>
       </div>
 
       <div style="font-weight:bold; color:#555; margin-bottom:10px; text-align:center;">あそぶレベルをえらぶ</div>
       <button class="opt-btn active" onclick="selDiff(0)">かんたん (たし算のみ)</button>
-      <button class="opt-btn" onclick="selDiff(1)">ふつう (たし算・ひき算)</button>
-      <button class="opt-btn" onclick="selDiff(2)">むずかしい (＋・－・× 混合)</button>
+      <button class="opt-btn" onclick="selDiff(1)">ふつう (たし算・ひき算 ＋ 🪨岩)</button>
+      <button class="opt-btn" onclick="selDiff(2)">むずかしい (＋・－・× ＋ 🪨岩)</button>
     </div>
     <button class="start-btn" onclick="startGame()">あそぶ！</button>
   </div>
@@ -106,39 +106,96 @@ function selDiff(val) { diffSelected = val; document.querySelectorAll('.opt-btn'
 
 const c = document.getElementById('c'); const ctx = c.getContext('2d');
 let W, H, CS; 
-function resize() { W = c.width = c.clientWidth; H = c.height = c.clientHeight; CS = Math.min(W * 0.16, 60); }
+function resize() { 
+    W = c.width = c.clientWidth; H = c.height = c.clientHeight; 
+    // 縦幅が狭いスマホでも絶対にはみ出さないようにセルサイズを計算
+    let availableH = H - 180; // ヘッダーと下のボタン分の余白を引く
+    CS = Math.min(W * 0.18, availableH / 6); 
+}
 window.addEventListener('resize', resize); resize();
 
 const GRID_W = 5, GRID_H = 5;
 let grid = Array(GRID_H).fill(null).map(() => Array(GRID_W).fill(null)); 
-let trayGates = []; 
 let arrows = [ {dir:'R', e:'➡️'}, {dir:'D', e:'⬇️'}, {dir:'L', e:'⬅️'}, {dir:'U', e:'⬆️'} ];
 let draggingItem = null;
 
 let isPlaying = false;
 let ball = { x: 0, y: 0, val: 0, dir: 'R', px: 0, py: 0 }; 
 let animProgress = 0;
-let levelData = {};
+let levelData = { target: 0, startVal: 0 };
 
+// 毎回ランダムで「絶対に解ける問題」を生成する賢い関数
 function initLevel() {
     grid = Array(GRID_H).fill(null).map(() => Array(GRID_W).fill(null));
-    if (diffSelected === 0) {
-        levelData = { target: 5, startVal: 0, gates: [{op:'+', val:2}, {op:'+', val:3}] };
-    } else if (diffSelected === 1) {
-        levelData = { target: 10, startVal: 0, gates: [{op:'+', val:7}, {op:'+', val:5}, {op:'-', val:2}] };
-    } else {
-        levelData = { target: 24, startVal: 2, gates: [{op:'*', val:3}, {op:'+', val:10}, {op:'+', val:8}] };
-    }
     
-    trayGates = levelData.gates.map((g, i) => ({ ...g, type: 'gate', trayIdx: i, used: false }));
+    // 1. 正解のルート（道筋）を自動生成（右か下のみ進むシンプルなルート）
+    let path = [{x:0, y:0}];
+    let cx = 0, cy = 0;
+    while(cx < GRID_W-1 || cy < GRID_H-1) {
+        let moves = [];
+        if(cx < GRID_W-1) moves.push({x:cx+1, y:cy});
+        if(cy < GRID_H-1) moves.push({x:cx, y:cy+1});
+        let next = moves[Math.floor(Math.random()*moves.length)];
+        cx = next.x; cy = next.y;
+        path.push({x:cx, y:cy});
+    }
+
+    // 2. ルート上にゲートを配置し、目標の数を計算する
+    let numGates = diffSelected === 0 ? 2 : 3;
+    let gateIndices = [];
+    while(gateIndices.length < numGates) {
+        let r = Math.floor(Math.random() * (path.length - 2)) + 1; // スタートとゴール以外
+        if(!gateIndices.includes(r)) gateIndices.push(r);
+    }
+    gateIndices.sort((a,b)=>a-b);
+
+    levelData.startVal = Math.floor(Math.random()*5) + 1; // スタート時の数
+    let currentVal = levelData.startVal;
+
+    for(let idx of gateIndices) {
+        let pos = path[idx];
+        let opType = '+';
+        if(diffSelected === 1) opType = Math.random()>0.3 ? '+' : '-';
+        if(diffSelected === 2) {
+            let r = Math.random();
+            if(r < 0.4) opType = '+'; else if(r < 0.7) opType = '-'; else opType = '*';
+        }
+
+        let val = 0;
+        if(opType === '+') { val = Math.floor(Math.random()*4)+1; currentVal += val; }
+        if(opType === '-') {
+            val = Math.floor(Math.random()*3)+1;
+            if(currentVal - val < 0) { opType = '+'; currentVal += val; } // マイナスにならないように調整
+            else { currentVal -= val; }
+        }
+        if(opType === '*') { val = Math.floor(Math.random()*2)+2; currentVal *= val; }
+
+        grid[pos.y][pos.x] = { type: 'gate', op: opType, val: val };
+    }
+    levelData.target = currentVal;
+
+    // 3. ルート以外の場所に「おじゃま岩」を配置 (レベル1以上)
+    let numObs = diffSelected === 0 ? 0 : (diffSelected === 1 ? 2 : 3);
+    let placedObs = 0, attempts = 0;
+    while(placedObs < numObs && attempts < 100) {
+        attempts++;
+        let rx = Math.floor(Math.random()*GRID_W);
+        let ry = Math.floor(Math.random()*GRID_H);
+        let inPath = path.some(p => p.x === rx && p.y === ry);
+        if(!inPath && !grid[ry][rx]) {
+            grid[ry][rx] = { type: 'obstacle' };
+            placedObs++;
+        }
+    }
+
     document.getElementById('ui-target').innerText = levelData.target;
     stopRoll();
 }
 
 function getMetrics() {
     let gx = (W - CS * GRID_W) / 2;
-    let gy = H * 0.08; 
-    let trayY = gy + CS * GRID_H + 40;
+    let gy = Math.max(10, H * 0.1); 
+    let trayY = gy + CS * GRID_H + 20; // グリッドのすぐ下に配置
     return { gx, gy, trayY };
 }
 
@@ -150,33 +207,22 @@ c.addEventListener('pointerdown', (e) => {
     let rect = c.getBoundingClientRect(); let tx = e.clientX - rect.left; let ty = e.clientY - rect.top;
     let m = getMetrics();
 
+    // グリッド上の「矢印」を拾う（ゲートや岩は拾えない）
     if (tx >= m.gx && tx <= m.gx + CS*GRID_W && ty >= m.gy && ty <= m.gy + CS*GRID_H) {
         let cx = Math.floor((tx - m.gx) / CS); let cy = Math.floor((ty - m.gy) / CS);
-        if ((cx===0 && cy===0) || (cx===GRID_W-1 && cy===GRID_H-1)) return; 
-        if (grid[cy][cx]) {
-            let item = grid[cy][cx]; grid[cy][cx] = null;
-            if (item.type === 'gate') item.used = false; 
+        if (grid[cy][cx] && grid[cy][cx].type === 'arrow') {
+            grid[cy][cx] = null; 
             playSound('snap'); return;
         }
     }
 
-    let arrowSpacing = W / 5;
+    // トレイから矢印を拾う
+    let arrowSpacing = W / 4;
     for (let i = 0; i < 4; i++) {
-        let ax = arrowSpacing * (i + 0.5); let ay = m.trayY + CS/2;
-        if (Math.hypot(tx - ax, ty - ay) < CS/2 + 10) {
+        let ax = arrowSpacing * (i + 0.5); let ay = m.trayY + 30;
+        if (Math.hypot(tx - ax, ty - ay) < CS/2 + 15) {
             draggingItem = { type: 'arrow', dir: arrows[i].dir, e: arrows[i].e, x: tx, y: ty };
             return;
-        }
-    }
-
-    let gateSpacing = W / (trayGates.length + 1);
-    for (let i = 0; i < trayGates.length; i++) {
-        let g = trayGates[i];
-        if (!g.used) {
-            let gx = gateSpacing * (i + 1); let gy = m.trayY + CS*2;
-            if (Math.hypot(tx - gx, ty - gy) < CS/2 + 10) {
-                draggingItem = { ...g, x: tx, y: ty, originTrayIdx: i }; return;
-            }
         }
     }
 });
@@ -196,9 +242,9 @@ c.addEventListener('pointerup', (e) => {
     
     if (tx >= m.gx && tx <= m.gx + CS*GRID_W && ty >= m.gy && ty <= m.gy + CS*GRID_H) {
         let cx = Math.floor((tx - m.gx) / CS); let cy = Math.floor((ty - m.gy) / CS);
+        // スタート、ゴール、ゲート、岩が「無い」場所だけ置ける
         if ((cx!==0 || cy!==0) && (cx!==GRID_W-1 || cy!==GRID_H-1) && !grid[cy][cx]) {
             grid[cy][cx] = draggingItem;
-            if (draggingItem.type === 'gate') trayGates[draggingItem.originTrayIdx].used = true;
             playSound('snap');
         }
     }
@@ -262,10 +308,15 @@ function processCellEnter() {
         if (item.op === '*') ball.val *= item.val;
         playSound('pass'); document.getElementById('ui-current').innerText = ball.val;
     }
+    else if (item && item.type === 'obstacle') {
+        playSound('crash'); showMsg("ガシャン！🪨\n岩にぶつかった！", "#616161");
+        setTimeout(stopRoll, 1500); return;
+    }
 
     if (ball.x === GRID_W - 1 && ball.y === GRID_H - 1) {
         if (ball.val === levelData.target) {
             playSound('clear'); showMsg("ピッタリ！🎉\nだいせいこう！", "#4caf50");
+            setTimeout(() => { startGame(); }, 3000); // 成功したら自動で次の問題へ
         } else {
             playSound('crash'); showMsg(`おしい！💦\nあと ${Math.abs(levelData.target - ball.val)}たりない`, "#f44336");
             setTimeout(stopRoll, 2000);
@@ -302,7 +353,7 @@ function update() {
     ctx.fillStyle = "#81c784"; ctx.fillRect(m.gx, m.gy, CS, CS);
     ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.font = `bold ${CS*0.25}px sans-serif`; ctx.fillText("スタート", m.gx+CS/2, m.gy+CS*0.25);
-    ctx.font = `${CS*0.4}px sans-serif`; ctx.fillText("➡️", m.gx+CS/2, m.gy+CS*0.65); // 最初の進行方向
+    ctx.font = `${CS*0.4}px sans-serif`; ctx.fillText("➡️", m.gx+CS/2, m.gy+CS*0.65);
 
     // 👑 ゴールの明確化
     ctx.fillStyle = "#ffb74d"; ctx.fillRect(m.gx + CS*(GRID_W-1), m.gy + CS*(GRID_H-1), CS, CS);
@@ -315,7 +366,8 @@ function update() {
             if (item) {
                 let cx = m.gx + x*CS + CS/2; let cy = m.gy + y*CS + CS/2;
                 if (item.type === 'arrow') drawBlock(cx, cy, "#2196f3", item.e);
-                else drawBlock(cx, cy, "#ff9800", item.op + item.val, "ゲート");
+                else if (item.type === 'gate') drawBlock(cx, cy, "#ff9800", item.op + item.val, "ゲート");
+                else if (item.type === 'obstacle') drawBlock(cx, cy, "#757575", "🪨"); // 岩を描画
             }
         }
     }
@@ -330,24 +382,15 @@ function update() {
     }
 
     if (!isPlaying) {
-        ctx.fillStyle = "rgba(255,255,255,0.8)"; ctx.fillRect(0, m.trayY - 30, W, H);
-        
-        // トレイの役割を文字で説明
-        ctx.fillStyle = "#00838f"; ctx.font = "bold 16px sans-serif"; ctx.textAlign="left";
-        ctx.fillText("🔄 みちを まげる", 15, m.trayY - 5);
-        let arrowSpacing = W / 5;
-        arrows.forEach((a, i) => { drawBlock(arrowSpacing * (i + 0.5), m.trayY + CS/2, "#2196f3", a.e); });
-        
-        ctx.fillStyle = "#e65100"; ctx.fillText("➕ かずを かえる", 15, m.trayY + CS*1.2);
-        let gateSpacing = W / (trayGates.length + 1);
-        trayGates.forEach((g, i) => {
-            if (!g.used) drawBlock(gateSpacing * (i + 1), m.trayY + CS*1.9, "#ff9800", g.op + g.val, "ゲート");
-        });
+        // トレイ（矢印だけになったのでスッキリ！）
+        ctx.fillStyle = "#00838f"; ctx.font = "bold 16px sans-serif"; ctx.textAlign="center";
+        ctx.fillText("🔄 やじるしを おいて みちをまげよう", W/2, m.trayY);
+        let arrowSpacing = W / 4;
+        arrows.forEach((a, i) => { drawBlock(arrowSpacing * (i + 0.5), m.trayY + 30, "#2196f3", a.e); });
     }
 
     if (draggingItem) {
         if (draggingItem.type === 'arrow') drawBlock(draggingItem.x, draggingItem.y, "#2196f3", draggingItem.e);
-        else drawBlock(draggingItem.x, draggingItem.y, "#ff9800", draggingItem.op + draggingItem.val, "ゲート");
     }
 
     requestAnimationFrame(update);
