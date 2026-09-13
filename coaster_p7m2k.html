@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>算数コースター</title>
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; touch-action: none; font-family: 'Hiragino Maru Gothic ProN', sans-serif; }
+  body { position: fixed; inset: 0; width: 100%; height: 100%; background-color: #e0f7fa; display: flex; flex-direction: column; overflow: hidden; }
+  
+  #game-wrapper { position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto; background: #b2ebf2; display: flex; flex-direction: column; }
+  
+  #header {
+    padding: max(10px, var(--sat)) 10px 10px; display: flex; justify-content: space-between; align-items: center; background: #00bcd4; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10;
+  }
+  .status-box { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 15px; font-weight: bold; font-size: 18px; }
+  
+  canvas { display: block; flex: 1; width: 100%; height: 100%; }
+
+  .screen { position: absolute; inset: 0; background: rgba(224, 247, 250, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+  h1 { font-size: clamp(28px, 7vw, 40px); color: #00838f; margin-bottom: 15px; text-shadow: 2px 2px 0 #80deea; text-align: center; }
+  
+  .settings-box { background: #fff; border-radius: 15px; padding: 15px; width: 90%; max-width: 380px; margin-bottom: 20px; border: 3px solid #26c6da; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+  .opt-btn { width: 100%; padding: 12px; font-size: 16px; font-weight: bold; border: 2px solid #aaa; border-radius: 8px; background: #fff; color: #555; cursor: pointer; text-align: center; margin-bottom: 8px; }
+  .opt-btn.active { background: #00bcd4; color: white; border-color: #00838f; }
+
+  .start-btn { padding: 15px 40px; font-size: 24px; font-weight: bold; color: white; background: #ff9800; border: none; border-radius: 30px; box-shadow: 0 6px 0 #f57c00; }
+  .start-btn:active { transform: translateY(6px); box-shadow: none; }
+
+  #ui-overlay { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 10; pointer-events: none; }
+  .action-btn { pointer-events: auto; padding: 12px 30px; font-size: 20px; font-weight: bold; border-radius: 25px; border: none; color: white; box-shadow: 0 5px 0 rgba(0,0,0,0.2); }
+  #btn-play { background: #4caf50; } #btn-stop { background: #f44336; display: none; }
+  .action-btn:active { transform: translateY(5px); box-shadow: none; }
+
+  #message { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: 40px; font-weight: bold; text-align: center; width: 90%; text-shadow: 3px 3px 0 #fff; z-index: 50; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  #message.show { transform: translate(-50%, -50%) scale(1); }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="header">
+    <div class="status-box">🏁 もくひょう: <span id="ui-target">0</span></div>
+    <div class="status-box">いま: <span id="ui-current">0</span></div>
+  </div>
+  
+  <canvas id="c"></canvas>
+  
+  <div id="ui-overlay">
+    <button id="btn-play" class="action-btn" onclick="startRoll()">▶️ ころがす！</button>
+    <button id="btn-stop" class="action-btn" onclick="stopRoll()">⏹ やりなおす</button>
+  </div>
+
+  <div id="message"></div>
+
+  <div id="start-screen" class="screen">
+    <h1>🎢 算数コースター<br>＆ プログラミング</h1>
+    <div class="settings-box">
+      <div style="font-weight:bold; color:#555; margin-bottom:10px; text-align:center;">あそぶレベルをえらぶ</div>
+      <button class="opt-btn active" onclick="selDiff(0)">かんたん (たし算)</button>
+      <button class="opt-btn" onclick="selDiff(1)">ふつう (たし算・ひき算)</button>
+      <button class="opt-btn" onclick="selDiff(2)">むずかしい (＋・－・×)</button>
+      <p style="font-size:12px; color:#777; text-align:center; margin-top:10px;">
+        ※矢印と数字ゲートを並べて、目標の数を目指そう！
+      </p>
+    </div>
+    <button class="start-btn" onclick="startGame()">あそぶ！</button>
+  </div>
+</div>
+
+<script>
+document.addEventListener('dblclick', function(e) { e.preventDefault(); }, { passive: false });
+window.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+// --- Audio ---
+let actx;
+function initAudio() { if (!actx) { actx = new AudioContext(); if (actx.state === 'suspended') actx.resume(); } }
+function playSound(type) {
+    if (!actx) return;
+    const now = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
+    osc.connect(gain); gain.connect(actx.destination);
+    if (type === 'snap') {
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.1); osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'pass') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(1046, now); osc.frequency.setValueAtTime(1318, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.2); osc.start(now); osc.stop(now + 0.2);
+    } else if (type === 'clear') {
+        osc.type = 'sine'; [1046, 1318, 1567, 2093].forEach((f, i) => osc.frequency.setValueAtTime(f, now + i*0.1));
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.6); osc.start(now); osc.stop(now + 0.6);
+    } else if (type === 'crash') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(50, now + 0.3);
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(now); osc.stop(now + 0.3);
+    }
+}
+
+// --- Game Logic ---
+let diffSelected = 0;
+function selDiff(val) { diffSelected = val; document.querySelectorAll('.opt-btn').forEach((b, i) => b.classList.toggle('active', i === val)); }
+
+const c = document.getElementById('c'); const ctx = c.getContext('2d');
+let W, H, CS; // CS = Cell Size
+function resize() { W = c.width = c.clientWidth; H = c.height = c.clientHeight; CS = Math.min(W * 0.16, 60); }
+window.addEventListener('resize', resize); resize();
+
+const GRID_W = 5, GRID_H = 5;
+let grid = Array(GRID_H).fill(null).map(() => Array(GRID_W).fill(null)); 
+let trayGates = []; 
+let arrows = [ {dir:'R', e:'➡️'}, {dir:'D', e:'⬇️'}, {dir:'L', e:'⬅️'}, {dir:'U', e:'⬆️'} ];
+let draggingItem = null;
+
+let isPlaying = false;
+let ball = { x: 0, y: 0, val: 0, dir: 'R', px: 0, py: 0 }; 
+let animProgress = 0;
+let levelData = {};
+
+function initLevel() {
+    grid = Array(GRID_H).fill(null).map(() => Array(GRID_W).fill(null));
+    if (diffSelected === 0) {
+        levelData = { target: 5, startVal: 0, gates: [{op:'+', val:2}, {op:'+', val:3}] };
+    } else if (diffSelected === 1) {
+        levelData = { target: 10, startVal: 0, gates: [{op:'+', val:7}, {op:'+', val:5}, {op:'-', val:2}] };
+    } else {
+        levelData = { target: 24, startVal: 2, gates: [{op:'*', val:3}, {op:'+', val:10}, {op:'+', val:8}] };
+    }
+    
+    trayGates = levelData.gates.map((g, i) => ({ ...g, type: 'gate', trayIdx: i, used: false }));
+    document.getElementById('ui-target').innerText = levelData.target;
+    stopRoll();
+}
+
+// Layout metrics
+function getMetrics() {
+    let gx = (W - CS * GRID_W) / 2;
+    let gy = H * 0.05; 
+    let trayY = gy + CS * GRID_H + H * 0.05;
+    return { gx, gy, trayY };
+}
+
+// --- Drag & Drop ---
+let dragOffsetX = 0, dragOffsetY = 0;
+
+c.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); initAudio();
+    if (isPlaying) return;
+    let rect = c.getBoundingClientRect(); let tx = e.clientX - rect.left; let ty = e.clientY - rect.top;
+    let m = getMetrics();
+
+    // 1. Check Grid (remove existing)
+    if (tx >= m.gx && tx <= m.gx + CS*GRID_W && ty >= m.gy && ty <= m.gy + CS*GRID_H) {
+        let cx = Math.floor((tx - m.gx) / CS); let cy = Math.floor((ty - m.gy) / CS);
+        if ((cx===0 && cy===0) || (cx===GRID_W-1 && cy===GRID_H-1)) return; // Start/Goal protect
+        
+        if (grid[cy][cx]) {
+            let item = grid[cy][cx];
+            grid[cy][cx] = null;
+            if (item.type === 'gate') { item.used = false; } // Return to tray
+            playSound('snap');
+            return;
+        }
+    }
+
+    // 2. Check Tray (Arrows)
+    let arrowSpacing = W / 5;
+    for (let i = 0; i < 4; i++) {
+        let ax = arrowSpacing * (i + 0.5); let ay = m.trayY + CS/2;
+        if (Math.hypot(tx - ax, ty - ay) < CS/2 + 10) {
+            draggingItem = { type: 'arrow', dir: arrows[i].dir, e: arrows[i].e, x: tx, y: ty };
+            dragOffsetX = 0; dragOffsetY = 0;
+            return;
+        }
+    }
+
+    // 3. Check Tray (Gates)
+    let gateSpacing = W / (trayGates.length + 1);
+    for (let i = 0; i < trayGates.length; i++) {
+        let g = trayGates[i];
+        if (!g.used) {
+            let gx = gateSpacing * (i + 1); let gy = m.trayY + CS*1.5 + 10;
+            if (Math.hypot(tx - gx, ty - gy) < CS/2 + 10) {
+                draggingItem = { ...g, x: tx, y: ty, originTrayIdx: i };
+                dragOffsetX = 0; dragOffsetY = 0;
+                return;
+            }
+        }
+    }
+});
+
+c.addEventListener('pointermove', (e) => {
+    e.preventDefault();
+    if (draggingItem) {
+        let rect = c.getBoundingClientRect();
+        draggingItem.x = e.clientX - rect.left - dragOffsetX;
+        draggingItem.y = e.clientY - rect.top - dragOffsetY;
+    }
+});
+
+c.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    if (!draggingItem) return;
+    
+    let m = getMetrics();
+    let tx = draggingItem.x; let ty = draggingItem.y;
+    
+    // Drop on grid
+    if (tx >= m.gx && tx <= m.gx + CS*GRID_W && ty >= m.gy && ty <= m.gy + CS*GRID_H) {
+        let cx = Math.floor((tx - m.gx) / CS); let cy = Math.floor((ty - m.gy) / CS);
+        if ((cx!==0 || cy!==0) && (cx!==GRID_W-1 || cy!==GRID_H-1) && !grid[cy][cx]) {
+            grid[cy][cx] = draggingItem;
+            if (draggingItem.type === 'gate') trayGates[draggingItem.originTrayIdx].used = true;
+            playSound('snap');
+        }
+    }
+    draggingItem = null;
+});
+c.addEventListener('pointercancel', () => draggingItem = null);
+
+// --- Game Engine ---
+function startRoll() {
+    initAudio(); isPlaying = true;
+    document.getElementById('btn-play').style.display = 'none';
+    document.getElementById('btn-stop').style.display = 'block';
+    
+    ball = { x: 0, y: 0, val: levelData.startVal, dir: 'R', px: 0, py: 0 };
+    document.getElementById('ui-current').innerText = ball.val;
+    animProgress = 0;
+    stepBall();
+}
+
+function stopRoll() {
+    isPlaying = false;
+    document.getElementById('btn-play').style.display = 'block';
+    document.getElementById('btn-stop').style.display = 'none';
+    ball = { x: 0, y: 0, val: levelData.startVal, dir: 'R', px: 0, py: 0 };
+    document.getElementById('ui-current').innerText = ball.val;
+}
+
+function showMsg(txt, color) {
+    let m = document.getElementById('message');
+    m.innerText = txt; m.style.color = color;
+    m.classList.add('show'); setTimeout(() => m.classList.remove('show'), 1500);
+}
+
+function stepBall() {
+    if (!isPlaying) return;
+    let nextX = ball.x; let nextY = ball.y;
+    if (ball.dir === 'R') nextX++; else if (ball.dir === 'L') nextX--;
+    else if (ball.dir === 'D') nextY++; else if (ball.dir === 'U') nextY--;
+
+    // Collision or Out of bounds
+    if (nextX < 0 || nextX >= GRID_W || nextY < 0 || nextY >= GRID_H) {
+        playSound('crash'); showMsg("コースアウト！", "#f44336");
+        setTimeout(stopRoll, 1000); return;
+    }
+
+    ball.px = ball.x; ball.py = ball.y;
+    ball.x = nextX; ball.y = nextY;
+    animProgress = 0;
+
+    // Animation frame loop for smooth movement
+    function animate() {
+        if (!isPlaying) return;
+        animProgress += 0.05; // speed
+        if (animProgress >= 1) {
+            animProgress = 1;
+            processCellEnter();
+        } else { requestAnimationFrame(animate); }
+    }
+    requestAnimationFrame(animate);
+}
+
+function processCellEnter() {
+    let item = grid[ball.y][ball.x];
+    
+    if (item && item.type === 'arrow') {
+        ball.dir = item.dir; playSound('snap');
+    } else if (item && item.type === 'gate') {
+        if (item.op === '+') ball.val += item.val;
+        if (item.op === '-') ball.val -= item.val;
+        if (item.op === '*') ball.val *= item.val;
+        playSound('pass');
+        document.getElementById('ui-current').innerText = ball.val;
+    }
+
+    // Goal Check
+    if (ball.x === GRID_W - 1 && ball.y === GRID_H - 1) {
+        if (ball.val === levelData.target) {
+            playSound('clear'); showMsg("だいせいこう！🎉", "#4caf50");
+        } else {
+            playSound('crash'); showMsg(`おしい！\nあと ${Math.abs(levelData.target - ball.val)}`, "#f44336");
+            setTimeout(stopRoll, 1500);
+        }
+        return;
+    }
+    
+    // Continue moving after short delay
+    setTimeout(stepBall, 100);
+}
+
+
+// --- Rendering ---
+function drawBlock(cx, cy, color, text, subtext) {
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.roundRect(cx - CS/2 + 2, cy - CS/2 + 2, CS - 4, CS - 4, 10); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.stroke();
+    
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `bold ${CS*0.4}px sans-serif`;
+    ctx.fillText(text, cx, subtext ? cy - CS*0.1 : cy);
+    
+    if (subtext) {
+        ctx.font = `${CS*0.25}px sans-serif`; ctx.fillText(subtext, cx, cy + CS*0.25);
+    }
+}
+
+function update() {
+    ctx.clearRect(0, 0, W, H);
+    let m = getMetrics();
+
+    // 1. Draw Grid
+    ctx.fillStyle = "#fff"; ctx.fillRect(m.gx, m.gy, CS*GRID_W, CS*GRID_H);
+    ctx.lineWidth = 2; ctx.strokeStyle = "#b2dfdb";
+    for(let i=0; i<=GRID_W; i++) {
+        ctx.beginPath(); ctx.moveTo(m.gx + i*CS, m.gy); ctx.lineTo(m.gx + i*CS, m.gy + CS*GRID_H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(m.gx, m.gy + i*CS); ctx.lineTo(m.gx + CS*GRID_W, m.gy + i*CS); ctx.stroke();
+    }
+
+    // Start & Goal highlights
+    ctx.fillStyle = "rgba(76, 175, 80, 0.3)"; ctx.fillRect(m.gx, m.gy, CS, CS); // Start
+    ctx.font = `${CS*0.5}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("🏁", m.gx+CS/2, m.gy+CS/2);
+    
+    ctx.fillStyle = "rgba(244, 67, 54, 0.3)"; ctx.fillRect(m.gx + CS*(GRID_W-1), m.gy + CS*(GRID_H-1), CS, CS); // Goal
+    ctx.fillText("👑", m.gx + CS*(GRID_W-1) + CS/2, m.gy + CS*(GRID_H-1) + CS/2);
+
+    // Grid Items
+    for(let y=0; y<GRID_H; y++) {
+        for(let x=0; x<GRID_W; x++) {
+            let item = grid[y][x];
+            if (item) {
+                let cx = m.gx + x*CS + CS/2; let cy = m.gy + y*CS + CS/2;
+                if (item.type === 'arrow') drawBlock(cx, cy, "#2196f3", item.e);
+                else drawBlock(cx, cy, "#ff9800", item.op + item.val, "ゲート");
+            }
+        }
+    }
+
+    // 2. Draw Ball (if playing)
+    if (isPlaying) {
+        let curX = ball.px + (ball.x - ball.px) * animProgress;
+        let curY = ball.py + (ball.y - ball.py) * animProgress;
+        let bx = m.gx + curX*CS + CS/2; let by = m.gy + curY*CS + CS/2;
+        
+        ctx.fillStyle = "#e91e63"; ctx.beginPath(); ctx.arc(bx, by, CS*0.3, 0, Math.PI*2); ctx.fill();
+        ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke();
+        ctx.fillStyle = "#fff"; ctx.font = `bold ${CS*0.3}px sans-serif`; ctx.fillText(ball.val, bx, by);
+    }
+
+    // 3. Draw Tray UI (only if not playing)
+    if (!isPlaying) {
+        ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.fillRect(0, m.trayY - 20, W, H);
+        
+        // Arrows (Infinite)
+        let arrowSpacing = W / 5;
+        arrows.forEach((a, i) => { drawBlock(arrowSpacing * (i + 0.5), m.trayY + CS/2, "#2196f3", a.e); });
+        
+        // Gates (Limited)
+        let gateSpacing = W / (trayGates.length + 1);
+        trayGates.forEach((g, i) => {
+            if (!g.used) drawBlock(gateSpacing * (i + 1), m.trayY + CS*1.5 + 10, "#ff9800", g.op + g.val, "ゲート");
+        });
+    }
+
+    // 4. Dragging Item
+    if (draggingItem) {
+        if (draggingItem.type === 'arrow') drawBlock(draggingItem.x, draggingItem.y, "#2196f3", draggingItem.e);
+        else drawBlock(draggingItem.x, draggingItem.y, "#ff9800", draggingItem.op + draggingItem.val, "ゲート");
+    }
+
+    requestAnimationFrame(update);
+}
+
+function startGame() {
+    initAudio(); document.getElementById('start-screen').classList.add('hide');
+    initLevel(); requestAnimationFrame(update);
+}
+</script>
+</body>
+</html>
