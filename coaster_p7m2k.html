@@ -18,17 +18,17 @@
   canvas { display: block; flex: 1; width: 100%; height: 100%; }
 
   .screen { position: absolute; inset: 0; background: rgba(224, 247, 250, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
-  h1 { font-size: clamp(26px, 6vw, 36px); color: #00838f; margin-bottom: 10px; text-shadow: 2px 2px 0 #80deea; text-align: center; line-height: 1.3;}
+  h1 { font-size: clamp(24px, 6vw, 34px); color: #00838f; margin-bottom: 10px; text-shadow: 2px 2px 0 #80deea; text-align: center; line-height: 1.3;}
   
   .settings-box { background: #fff; border-radius: 15px; padding: 15px; width: 95%; max-width: 400px; margin-bottom: 20px; border: 3px solid #26c6da; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-  .rule-box { background: #fffde7; padding: 10px; border-radius: 10px; margin-bottom: 15px; font-size: 14px; color: #555; border: 2px dashed #ffb74d; }
-  .rule-step { margin-bottom: 5px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+  .rule-box { background: #fffde7; padding: 8px; border-radius: 10px; margin-bottom: 12px; font-size: 13px; color: #555; border: 2px dashed #ffb74d; }
+  .rule-step { margin-bottom: 4px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
   
-  .opt-btn { width: 100%; padding: 12px; font-size: 16px; font-weight: bold; border: 2px solid #aaa; border-radius: 8px; background: #fff; color: #555; cursor: pointer; text-align: center; margin-bottom: 8px; }
+  .opt-btn { width: 100%; padding: 10px; font-size: 14px; font-weight: bold; border: 2px solid #aaa; border-radius: 8px; background: #fff; color: #555; cursor: pointer; text-align: center; margin-bottom: 6px; }
   .opt-btn.active { background: #00bcd4; color: white; border-color: #00838f; }
 
-  .start-btn { padding: 15px 40px; font-size: 24px; font-weight: bold; color: white; background: #ff9800; border: none; border-radius: 30px; box-shadow: 0 6px 0 #f57c00; }
-  .start-btn:active { transform: translateY(6px); box-shadow: none; }
+  .start-btn { padding: 12px 40px; font-size: 22px; font-weight: bold; color: white; background: #ff9800; border: none; border-radius: 30px; box-shadow: 0 5px 0 #f57c00; }
+  .start-btn:active { transform: translateY(5px); box-shadow: none; }
 
   #ui-overlay { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 10; pointer-events: none; }
   .action-btn { pointer-events: auto; padding: 12px 30px; font-size: 20px; font-weight: bold; border-radius: 30px; border: none; color: white; box-shadow: 0 6px 0 rgba(0,0,0,0.2); }
@@ -63,14 +63,15 @@
     <div class="settings-box">
       <div class="rule-box">
         <div class="rule-step"><span>1️⃣</span> <span>「➡️やじるし」を置いて道を作ろう！</span></div>
-        <div class="rule-step"><span>2️⃣</span> <span>「➕ゲート」を通って数を変えよう！</span></div>
-        <div class="rule-step"><span>3️⃣</span> <span>🪨岩をよけて、ピッタリでゴール！</span></div>
+        <div class="rule-step"><span>2️⃣</span> <span>「ゲート」を通って数を変えよう！</span></div>
+        <div class="rule-step"><span>3️⃣</span> <span>ダミーや🪨岩をよけて、ピッタリでゴール！</span></div>
       </div>
 
       <div style="font-weight:bold; color:#555; margin-bottom:10px; text-align:center;">あそぶレベルをえらぶ</div>
       <button class="opt-btn active" onclick="selDiff(0)">かんたん (たし算のみ)</button>
-      <button class="opt-btn" onclick="selDiff(1)">ふつう (たし算・ひき算 ＋ 🪨岩)</button>
-      <button class="opt-btn" onclick="selDiff(2)">むずかしい (＋・－・× ＋ 🪨岩)</button>
+      <button class="opt-btn" onclick="selDiff(1)">ふつう (＋・－ ＆ 🪨おじゃま岩)</button>
+      <button class="opt-btn" onclick="selDiff(2)">むずかしい (＋・－・× ＆ ダミーゲート)</button>
+      <button class="opt-btn" onclick="selDiff(3)">超むずかしい (÷も登場！小数に注意！)</button>
     </div>
     <button class="start-btn" onclick="startGame()">あそぶ！</button>
   </div>
@@ -127,11 +128,11 @@ function initLevel() {
     grid = Array(GRID_H).fill(null).map(() => Array(GRID_W).fill(null));
     
     let path, straightIndices;
-    let numGates = diffSelected === 0 ? 2 : 3;
+    // レベルが上がるにつれて通るゲートの数を増やす
+    let numGates = diffSelected === 0 ? 2 : (diffSelected === 1 ? 3 : 4);
 
     while(true) {
-        // ★修正：スタート直後は必ず「右（x:1, y:0）」に進むように正解ルートを固定する
-        path = [{x:0, y:0}, {x:1, y:0}];
+        path = [{x:0, y:0}, {x:1, y:0}]; // 常に初手は右へ
         let cx = 1, cy = 0;
         
         while(cx < GRID_W-1 || cy < GRID_H-1) {
@@ -159,7 +160,8 @@ function initLevel() {
     straightIndices.sort(() => Math.random() - 0.5);
     let gateIndices = straightIndices.slice(0, numGates).sort((a,b)=>a-b);
 
-    levelData.startVal = Math.floor(Math.random()*5) + 1;
+    // ★修正：スタートは常に「0」から！
+    levelData.startVal = 0;
     let currentVal = levelData.startVal;
 
     for(let idx of gateIndices) {
@@ -168,22 +170,49 @@ function initLevel() {
         if(diffSelected === 1) opType = Math.random()>0.3 ? '+' : '-';
         if(diffSelected === 2) {
             let r = Math.random();
-            if(r < 0.4) opType = '+'; else if(r < 0.7) opType = '-'; else opType = '*';
+            if(r < 0.35) opType = '+'; else if(r < 0.65) opType = '-'; else opType = '×';
+        }
+        if(diffSelected === 3) {
+            let r = Math.random();
+            if(r < 0.25) opType = '+'; else if(r < 0.5) opType = '-'; else if(r < 0.75) opType = '×'; else opType = '÷';
         }
 
         let val = 0;
-        if(opType === '+') { val = Math.floor(Math.random()*4)+1; currentVal += val; }
+        if(opType === '+') { val = Math.floor(Math.random()*5)+1; currentVal += val; }
         if(opType === '-') {
-            val = Math.floor(Math.random()*3)+1;
+            val = Math.floor(Math.random()*4)+1;
             if(currentVal - val < 0) { opType = '+'; currentVal += val; } 
             else { currentVal -= val; }
         }
-        if(opType === '*') { val = Math.floor(Math.random()*2)+2; currentVal *= val; }
+        if(opType === '×') { val = Math.floor(Math.random()*3)+2; currentVal *= val; }
+        if(opType === '÷') { val = Math.floor(Math.random()*3)+2; currentVal /= val; }
 
+        // ★修正：小数点は第1位までに丸める
+        currentVal = Math.round(currentVal * 10) / 10;
         grid[pos.y][pos.x] = { type: 'gate', op: opType, val: val };
     }
     levelData.target = currentVal;
 
+    // ★修正：むずかしい以上では「ダミーゲート（不正解の罠）」を配置する
+    if(diffSelected >= 2) {
+        let numDummies = diffSelected === 2 ? 1 : 2; // 超むずかしいは罠が2つ
+        let placedDummies = 0, attempts = 0;
+        while(placedDummies < numDummies && attempts < 100) {
+            attempts++;
+            let rx = Math.floor(Math.random()*GRID_W);
+            let ry = Math.floor(Math.random()*GRID_H);
+            let inPath = path.some(p => p.x === rx && p.y === ry);
+            // 正解ルート外の空き地に置く
+            if(!inPath && !grid[ry][rx] && (rx!==0 || ry!==0) && (rx!==GRID_W-1 || ry!==GRID_H-1)) {
+                let op = diffSelected === 2 ? ['+', '-', '×'][Math.floor(Math.random()*3)] : ['+', '-', '×', '÷'][Math.floor(Math.random()*4)];
+                let val = Math.floor(Math.random()*4)+1;
+                grid[ry][rx] = { type: 'gate', op: op, val: val };
+                placedDummies++;
+            }
+        }
+    }
+
+    // 障害物（岩）の配置
     let numObs = diffSelected === 0 ? 0 : (diffSelected === 1 ? 2 : 3);
     let placedObs = 0, attempts = 0;
     while(placedObs < numObs && attempts < 100) {
@@ -191,7 +220,7 @@ function initLevel() {
         let rx = Math.floor(Math.random()*GRID_W);
         let ry = Math.floor(Math.random()*GRID_H);
         let inPath = path.some(p => p.x === rx && p.y === ry);
-        if(!inPath && !grid[ry][rx]) {
+        if(!inPath && !grid[ry][rx] && (rx!==0 || ry!==0) && (rx!==GRID_W-1 || ry!==GRID_H-1)) {
             grid[ry][rx] = { type: 'obstacle' };
             placedObs++;
         }
@@ -312,7 +341,12 @@ function processCellEnter() {
     else if (item && item.type === 'gate') {
         if (item.op === '+') ball.val += item.val;
         if (item.op === '-') ball.val -= item.val;
-        if (item.op === '*') ball.val *= item.val;
+        if (item.op === '×') ball.val *= item.val;
+        if (item.op === '÷') ball.val /= item.val;
+        
+        // ★修正：通るたびに小数は第1位までに丸める
+        ball.val = Math.round(ball.val * 10) / 10; 
+        
         playSound('pass'); document.getElementById('ui-current').innerText = ball.val;
     }
     else if (item && item.type === 'obstacle') {
@@ -325,7 +359,10 @@ function processCellEnter() {
             playSound('clear'); showMsg("ピッタリ！🎉\nだいせいこう！", "#4caf50");
             setTimeout(() => { startGame(); }, 3000); 
         } else {
-            playSound('crash'); showMsg(`おしい！💦\nあと ${Math.abs(levelData.target - ball.val)}たりない`, "#f44336");
+            playSound('crash'); 
+            // 差分も小数第1位で丸めて表示
+            let diff = Math.round(Math.abs(levelData.target - ball.val) * 10) / 10;
+            showMsg(`おしい！💦\nあと ${diff}たりない`, "#f44336");
             setTimeout(stopRoll, 2000);
         }
         return;
@@ -382,7 +419,16 @@ function update() {
         let bx = m.gx + curX*CS + CS/2; let by = m.gy + curY*CS + CS/2;
         ctx.fillStyle = "#e91e63"; ctx.beginPath(); ctx.arc(bx, by, CS*0.35, 0, Math.PI*2); ctx.fill();
         ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.stroke();
-        ctx.fillStyle = "#fff"; ctx.font = `bold ${CS*0.35}px sans-serif`; ctx.fillText(ball.val, bx, by);
+        
+        // ★修正：小数が表示されてもはみ出ないようにフォントサイズを自動調整
+        let valStr = ball.val.toString();
+        let fontSize = CS * 0.35;
+        if (valStr.length > 3) fontSize = CS * 0.22;
+        else if (valStr.length > 2) fontSize = CS * 0.28;
+        
+        ctx.fillStyle = "#fff"; ctx.font = `bold ${fontSize}px sans-serif`; 
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(valStr, bx, by);
     }
 
     if (!isPlaying) {
