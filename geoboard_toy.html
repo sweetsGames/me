@@ -15,25 +15,25 @@
   /* 机のような落ち着いた背景色を設定 */
   body { position: fixed; inset: 0; width: 100%; height: 100%; background: #e8dcc4; display: flex; flex-direction: column; overflow: hidden; }
   
-  /* 💡【重要】ゲーム全体を「カード型」にして左右と上下に物理的な余白（セーフゾーン）を作る */
+  /* 💡【超・安全設計】左右に「32pxずつ」の巨大なセーフゾーン（余白）を確保 */
   #game-wrapper { 
     position: relative; 
     flex: 1; 
-    width: calc(100% - 32px); /* 左右に必ず16pxずつの余白を確保 */
-    max-width: 500px; /* 横長になりすぎないよう制限 */
-    margin: max(16px, var(--sat)) auto max(16px, var(--sab)); /* 上下にも余白 */
+    width: calc(100% - 64px); /* 左右32pxの余白でOSのスワイプ判定を完全回避 */
+    max-width: 500px; 
+    margin: max(24px, var(--sat)) auto max(24px, var(--sab)); /* 上下の余白も拡大 */
     background: #faecd3; 
     display: flex; 
     flex-direction: column; 
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
+    box-shadow: 0 15px 40px rgba(0,0,0,0.2); /* 浮遊感を強調 */
     overflow: hidden; 
-    border-radius: 24px; /* アプリらしい丸み */
+    border-radius: 30px; /* 角丸も少し強めに */
   }
   
   #header { flex-shrink: 0; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; background: #d35400; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10; }
   .header-btn { background: rgba(255,255,255,0.25); border: 2px solid white; color: white; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
   .header-btn:active { background: rgba(255,255,255,0.4); }
-  .title-text { font-size: 18px; font-weight: bold; text-shadow: 1px 1px 0 rgba(0,0,0,0.15); }
+  .title-text { font-size: 16px; font-weight: bold; text-shadow: 1px 1px 0 rgba(0,0,0,0.15); }
 
   #info-bar-wrapper { flex-shrink: 0; background: #fff8eb; border-bottom: 2px solid #ecd8ba; display: flex; flex-direction: column;}
   #info-bar { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; }
@@ -47,22 +47,22 @@
 
   canvas#c { display: block; flex: 1; width: 100%; min-height: 0; }
 
-  #bottom-bar { flex-shrink: 0; padding: 12px 15px; background: #fff8eb; display: flex; justify-content: space-around; gap: 10px; border-top: 2px solid #ecd8ba; z-index: 10; }
-  .tool-btn { flex: 1; padding: 14px 0; font-size: 15px; font-weight: bold; border-radius: 25px; border: none; color: white; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,0.15); text-align: center; }
+  #bottom-bar { flex-shrink: 0; padding: 12px 10px; background: #fff8eb; display: flex; justify-content: space-around; gap: 8px; border-top: 2px solid #ecd8ba; z-index: 10; }
+  .tool-btn { flex: 1; padding: 12px 0; font-size: 14px; font-weight: bold; border-radius: 25px; border: none; color: white; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,0.15); text-align: center; }
   .tool-btn:active { transform: translateY(4px); box-shadow: 0 0px 0 rgba(0,0,0,0.15); }
   #btn-undo { background: #95a5a6; } #btn-reset { background: #e74c3c; } #btn-next { background: #27ae60; display: none; }
 
   .screen { position: absolute; inset: 0; background: rgba(253, 246, 226, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 20px; backdrop-filter: blur(5px); }
-  h1 { font-size: clamp(22px, 6vw, 28px); color: #8d5b28; margin-bottom: 5px; text-align: center; line-height: 1.4;}
-  .subtitle { font-size: 13px; color: #a04000; margin-bottom: 15px; font-weight: bold;}
+  h1 { font-size: clamp(22px, 5.5vw, 28px); color: #8d5b28; margin-bottom: 5px; text-align: center; line-height: 1.4;}
+  .subtitle { font-size: 12px; color: #a04000; margin-bottom: 15px; font-weight: bold;}
   
-  .rule-box { background: #fff; padding: 10px; border-radius: 12px; margin-bottom: 15px; width: 100%; max-width: 380px; border: 2px dashed #d35400; font-size: 12px; color: #555; font-weight: bold; text-align: center; line-height: 1.4; }
+  .rule-box { background: #fff; padding: 10px; border-radius: 12px; margin-bottom: 15px; width: 100%; max-width: 380px; border: 2px dashed #d35400; font-size: 11px; color: #555; font-weight: bold; text-align: center; line-height: 1.4; }
   
-  .menu-box { background: #fff; border-radius: 16px; padding: 15px 20px; width: 100%; max-width: 380px; border: 3px solid #e09f53; box-shadow: 0 8px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
-  .level-btn { width: 100%; padding: 12px 15px; margin-bottom: 10px; font-size: 15px; font-weight: bold; border-radius: 12px; border: 2px solid #ecd8ba; background: #fffdf9; color: #6d4c20; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: 0.1s; }
+  .menu-box { background: #fff; border-radius: 16px; padding: 15px; width: 100%; max-width: 380px; border: 3px solid #e09f53; box-shadow: 0 8px 16px rgba(0,0,0,0.08); margin-bottom: 20px; }
+  .level-btn { width: 100%; padding: 10px 12px; margin-bottom: 8px; font-size: 14px; font-weight: bold; border-radius: 10px; border: 2px solid #ecd8ba; background: #fffdf9; color: #6d4c20; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: 0.1s; }
   .level-btn.active { background: #d35400; color: white; border-color: #a04000; box-shadow: 0 3px 0 #a04000; }
   .level-btn:active { transform: translateY(2px); }
-  .start-btn { padding: 16px 50px; font-size: 22px; font-weight: bold; color: white; background: #f39c12; border: none; border-radius: 40px; box-shadow: 0 6px 0 #c87f0a; cursor: pointer; }
+  .start-btn { padding: 15px 45px; font-size: 20px; font-weight: bold; color: white; background: #f39c12; border: none; border-radius: 40px; box-shadow: 0 6px 0 #c87f0a; cursor: pointer; }
   .start-btn:active { transform: translateY(6px); box-shadow: none; }
 
   #toast { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: clamp(28px, 8vw, 40px); font-weight: bold; color: #27ae60; text-shadow: 3px 3px 0 #fff; z-index: 60; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center; pointer-events: none; width: 100%; }
@@ -111,16 +111,16 @@
 
     <div class="menu-box">
       <button class="level-btn active" onclick="selectLevel(0)">
-        <span>① かんたん</span><span style="font-size:11px; font-weight:normal;">点線をなぞる (15問)</span>
+        <span>① かんたん</span><span style="font-size:10px; font-weight:normal;">点線をなぞる (15問)</span>
       </button>
       <button class="level-btn" onclick="selectLevel(1)">
-        <span>② ふつう</span><span style="font-size:11px; font-weight:normal;">上のお手本と光るピン (15問)</span>
+        <span>② ふつう</span><span style="font-size:10px; font-weight:normal;">上のお手本と光るピン (15問)</span>
       </button>
       <button class="level-btn" onclick="selectLevel(2)">
-        <span>③ むずかしい</span><span style="font-size:11px; font-weight:normal;">🪞 線対称 (15問)</span>
+        <span>③ むずかしい</span><span style="font-size:10px; font-weight:normal;">🪞 線対称 (15問)</span>
       </button>
       <button class="level-btn" onclick="selectLevel(3)">
-        <span>④ 超むずかしい</span><span style="font-size:11px; font-weight:normal;">🌀 点対称 (15問)</span>
+        <span>④ 超むずかしい</span><span style="font-size:10px; font-weight:normal;">🌀 点対称 (15問)</span>
       </button>
     </div>
     <button class="start-btn" onclick="startGame()">あそぶ！</button>
@@ -128,11 +128,9 @@
 </div>
 
 <script>
-// ダミー履歴による戻る防止（念のため残しています）
 window.history.pushState(null, null, window.location.href);
 window.addEventListener('popstate', (e) => { window.history.pushState(null, null, window.location.href); });
 
-// ダブルタップズーム等の防止
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('touchstart', (e) => {
@@ -382,7 +380,6 @@ function resize() {
   ctx.resetTransform(); ctx.scale(dpr, dpr);
   pinPositions = [];
   
-  // 盤面のサイズ計算
   boardSide = Math.min(W * 0.92, H * 0.92);
   boardX = (W - boardSide) / 2;
   boardY = (H - boardSide) / 2;
