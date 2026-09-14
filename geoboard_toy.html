@@ -6,23 +6,36 @@
 <title>ピンと輪ゴムの ジオボード</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); }
+  
+  /* スマホのスワイプバック（戻る）やバウンスを完全に防止 */
+  html, body { overscroll-behavior-x: none; overscroll-behavior-y: none; touch-action: none; }
+  
   * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; touch-action: none; font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif; }
   body { position: fixed; inset: 0; width: 100%; height: 100%; background: #fdf6e2; display: flex; flex-direction: column; overflow: hidden; }
   
-  #game-wrapper { position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto; background: #faecd3; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+  #game-wrapper { position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto; background: #faecd3; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.1); overflow: hidden; }
   
-  #header { padding: max(10px, var(--sat)) 12px 10px; display: flex; justify-content: space-between; align-items: center; background: #d35400; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10; }
+  /* flex-shrink: 0; を指定して、画面が狭くてもUIが潰れないようにする */
+  #header { flex-shrink: 0; padding: max(10px, var(--sat)) 12px 10px; display: flex; justify-content: space-between; align-items: center; background: #d35400; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10; }
   .header-btn { background: rgba(255,255,255,0.25); border: 2px solid white; color: white; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
   .header-btn:active { background: rgba(255,255,255,0.4); }
   .title-text { font-size: 18px; font-weight: bold; text-shadow: 1px 1px 0 rgba(0,0,0,0.15); }
 
-  #info-bar { padding: 10px 12px; background: #fff8eb; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecd8ba; }
+  #info-bar-wrapper { flex-shrink: 0; background: #fff8eb; border-bottom: 2px solid #ecd8ba; display: flex; flex-direction: column;}
+  #info-bar { padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; }
+  
   .target-badge { font-size: 15px; font-weight: bold; color: #8d5b28; display: flex; align-items: center; gap: 6px; }
   .hint-badge { font-size: 12px; color: #c0392b; font-weight: bold; background: #fadbd8; padding: 4px 8px; border-radius: 8px;}
 
-  canvas { display: block; flex: 1; width: 100%; height: 100%; }
+  /* プレビューエリア */
+  #preview-container { display: none; flex-direction: column; align-items: center; padding-bottom: 12px; }
+  .preview-label { font-size: 13px; font-weight: bold; color: #8d5b28; margin-bottom: 4px; }
+  #preview-canvas { background: rgba(255, 255, 255, 0.9); border: 2px solid #c08c4e; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: block; }
 
-  #bottom-bar { padding: 12px 15px calc(12px + env(safe-area-inset-bottom, 0px)); background: #fff8eb; display: flex; justify-content: space-around; gap: 12px; border-top: 2px solid #ecd8ba; z-index: 10; }
+  /* canvas は flex: 1 と min-height: 0 で残りの空間にピッタリ収まる */
+  canvas#c { display: block; flex: 1; width: 100%; min-height: 0; }
+
+  #bottom-bar { flex-shrink: 0; padding: 12px 15px calc(12px + env(safe-area-inset-bottom, 0px)); background: #fff8eb; display: flex; justify-content: space-around; gap: 12px; border-top: 2px solid #ecd8ba; z-index: 10; }
   .tool-btn { flex: 1; padding: 14px 0; font-size: 16px; font-weight: bold; border-radius: 25px; border: none; color: white; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,0.15); text-align: center; }
   .tool-btn:active { transform: translateY(4px); box-shadow: 0 0px 0 rgba(0,0,0,0.15); }
   #btn-undo { background: #95a5a6; } #btn-reset { background: #e74c3c; } #btn-next { background: #27ae60; display: none; }
@@ -54,9 +67,17 @@
     <div style="width: 70px;"></div>
   </div>
 
-  <div id="info-bar">
-    <div id="target-title" class="target-badge">お題: ---</div>
-    <div id="mode-hint" class="hint-badge">ピンをなぞってゴムをかけよう！</div>
+  <div id="info-bar-wrapper">
+    <div id="info-bar">
+      <div id="target-title" class="target-badge">お題: ---</div>
+      <div id="mode-hint" class="hint-badge">ピンをなぞってゴムをかけよう！</div>
+    </div>
+    
+    <!-- プレビューを盤面の上に独立して配置 -->
+    <div id="preview-container">
+      <div class="preview-label">✨ おてほん</div>
+      <canvas id="preview-canvas" width="100" height="100"></canvas>
+    </div>
   </div>
 
   <canvas id="c"></canvas>
@@ -82,7 +103,7 @@
         <span>① かんたん</span><span style="font-size:12px; font-weight:normal;">点線をなぞる (15問)</span>
       </button>
       <button class="level-btn" onclick="selectLevel(1)">
-        <span>② ふつう</span><span style="font-size:12px; font-weight:normal;">光るヒントのみ (15問)</span>
+        <span>② ふつう</span><span style="font-size:12px; font-weight:normal;">上のお手本と光るピン (15問)</span>
       </button>
       <button class="level-btn" onclick="selectLevel(2)">
         <span>③ むずかしい</span><span style="font-size:12px; font-weight:normal;">🪞 線対称 (15問)</span>
@@ -96,8 +117,12 @@
 </div>
 
 <script>
+// 端スワイプ（戻る操作）やダブルタップの防止
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 window.addEventListener('contextmenu', (e) => e.preventDefault());
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length > 1) e.preventDefault();
+}, { passive: false });
 
 let actx;
 function initAudio() {
@@ -125,7 +150,6 @@ function playFanfare() {
   [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => setTimeout(() => playPluck(f * 1.2), i * 120));
 }
 
-// === データ圧縮フォーマット [x1, y1, x2, y2] ===
 const L0_DATA = [
   { n: "さんかく", e: [[1,3,3,3], [3,3,2,1], [2,1,1,3]] },
   { n: "しかく", e: [[1,1,3,1], [3,1,3,3], [3,3,1,3], [1,3,1,1]] },
@@ -160,7 +184,7 @@ const L1_DATA = [
   { n: "でんわ", e: [[1,2,3,2], [3,2,3,4], [3,4,1,4], [1,4,1,2], [1,2,0,1], [3,2,4,1], [0,1,4,1]] },
   { n: "き", e: [[2,0,1,2], [1,2,3,2], [3,2,2,0], [2,2,2,4]] }
 ];
-const L2_DATA = [ // 線対称 (x=2) 左半分だけ定義
+const L2_DATA = [
   { n: "はんぶんの キノコ", e: [[2,1,1,1], [1,1,1,2], [1,2,2,2], [2,2,2,4], [1,4,2,4]] },
   { n: "はんぶんの ハート", e: [[2,3,1,2], [1,2,1,1], [1,1,2,1]] },
   { n: "ロボットの かお", e: [[2,1,1,1], [1,1,1,3], [1,3,2,3], [1,2,2,2]] },
@@ -177,7 +201,7 @@ const L2_DATA = [ // 線対称 (x=2) 左半分だけ定義
   { n: "コウモリ", e: [[2,3,1,3], [1,3,0,2], [0,2,1,1], [1,1,1,2], [1,2,2,2]] },
   { n: "はんぶんの おうち", e: [[2,0,1,1], [1,1,2,1], [1,1,1,4], [1,4,2,4]] }
 ];
-const L3_DATA = [ // 点対称 (x=2, y=2) 
+const L3_DATA = [
   { n: "かざぐるま の はね", e: [[2,2,1,1], [1,1,2,1], [2,1,2,2]] },
   { n: "イナズマ", e: [[3,0,1,2], [1,2,2,2]] },
   { n: "おおきな リボン", e: [[2,2,0,0], [0,0,0,2], [0,2,2,2]] },
@@ -195,7 +219,6 @@ const L3_DATA = [ // 点対称 (x=2, y=2)
   { n: "なぞの 記号２", e: [[2,2,1,0], [1,0,1,1], [1,1,0,1], [0,1,0,2], [0,2,2,2]] }
 ];
 
-// データ展開関数
 function expandEdges(arr) { return arr.map(e => [[e[0], e[1]], [e[2], e[3]]]); }
 
 let PROBLEMS = [[], [], [], []];
@@ -225,7 +248,6 @@ function selectLevel(lvl) {
   currentLevel = lvl;
   document.querySelectorAll('.level-btn').forEach((b, i) => b.classList.toggle('active', i === lvl));
 }
-
 function openMenu() { document.getElementById('menu-screen').classList.remove('hide'); }
 function startGame() {
   initAudio(); document.getElementById('menu-screen').classList.add('hide');
@@ -234,6 +256,36 @@ function startGame() {
 
 function getCurrentProb() { return PROBLEMS[currentLevel][qIndex % PROBLEMS[currentLevel].length]; }
 
+function drawPreview() {
+  const pc = document.getElementById('preview-canvas');
+  const pdpr = window.devicePixelRatio || 1;
+  pc.width = 100 * pdpr; pc.height = 100 * pdpr;
+  pc.style.width = '100px'; pc.style.height = '100px';
+  const pctx = pc.getContext('2d');
+  pctx.scale(pdpr, pdpr);
+  pctx.clearRect(0, 0, 100, 100);
+
+  const p = getCurrentProb();
+  if (!p.edges) return;
+  
+  const padding = 12;
+  const pStep = (100 - padding * 2) / (GRID - 1);
+
+  pctx.fillStyle = "#bdc3c7";
+  for(let y=0; y<GRID; y++){
+    for(let x=0; x<GRID; x++){
+      pctx.beginPath(); pctx.arc(padding + x*pStep, padding + y*pStep, 2.5, 0, Math.PI*2); pctx.fill();
+    }
+  }
+
+  pctx.strokeStyle = "#8e44ad"; pctx.lineWidth = 4; pctx.lineCap = "round"; pctx.lineJoin = "round";
+  for (let e of p.edges) {
+    const p1x = padding + e[0][0] * pStep; const p1y = padding + e[0][1] * pStep;
+    const p2x = padding + e[1][0] * pStep; const p2y = padding + e[1][1] * pStep;
+    pctx.beginPath(); pctx.moveTo(p1x, p1y); pctx.lineTo(p2x, p2y); pctx.stroke();
+  }
+}
+
 function loadQuestion() {
   userEdges = []; isCleared = false;
   document.getElementById('btn-next').style.display = 'none';
@@ -241,15 +293,27 @@ function loadQuestion() {
   document.getElementById('target-title').innerText = `お題: (${(qIndex % 15) + 1}/15) ${p.name}`;
 
   const hintEl = document.getElementById('mode-hint');
-  if (currentLevel === 0) hintEl.innerText = "点線のとおりにゴムをかけよう！";
-  else if (currentLevel === 1) hintEl.innerText = "光るピンを結んで形を作ろう！";
-  else if (currentLevel === 2) hintEl.innerText = "🪞赤線の反対側におなじ形を作ろう！";
-  else if (currentLevel === 3) hintEl.innerText = "🌀真ん中を中心にぐるっと回した形は？";
+  const preview = document.getElementById('preview-container');
+  
+  if (currentLevel === 0) {
+    hintEl.innerText = "点線のとおりにゴムをかけよう！";
+    preview.style.display = 'none';
+  } else if (currentLevel === 1) {
+    hintEl.innerText = "上のお手本とおなじ形を作ろう！";
+    preview.style.display = 'flex';
+    drawPreview();
+  } else if (currentLevel === 2) {
+    hintEl.innerText = "🪞赤線の反対側におなじ形を作ろう！";
+    preview.style.display = 'none';
+  } else if (currentLevel === 3) {
+    hintEl.innerText = "🌀真ん中を中心にぐるっと回した形は？";
+    preview.style.display = 'none';
+  }
+  
+  setTimeout(resize, 10);
 }
 
-// === GCDによる「形の一致」判定システム ===
 function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
-
 function getAtomicSegments(edges) {
   let segs = new Set();
   for (let e of edges) {
@@ -273,7 +337,6 @@ function checkClear() {
   const p = getCurrentProb();
   const target = (currentLevel >= 2) ? p.targetEdges : p.edges;
 
-  // 長いゴムも短いゴムも、すべて「1マス単位の線分」に分解して比較する
   const targetSegs = getAtomicSegments(target);
   const userSegs = getAtomicSegments(userEdges);
 
@@ -287,7 +350,6 @@ function checkClear() {
   document.getElementById('btn-next').style.display = 'block';
   setTimeout(() => toast.classList.remove('show'), 2000);
 }
-// ==========================================
 
 function nextQuestion() { qIndex++; loadQuestion(); }
 function resetBoard() { if(userEdges.length > 0) { userEdges = []; isCleared = false; document.getElementById('btn-next').style.display = 'none'; playSnap(); } }
@@ -295,6 +357,7 @@ function undoEdge() { if (userEdges.length > 0) { userEdges.pop(); isCleared = f
 
 const c = document.getElementById('c'); const ctx = c.getContext('2d');
 let W, H, dpr; const GRID = 5; let pinPositions = [];
+let boardSide, boardX, boardY;
 
 function resize() {
   dpr = window.devicePixelRatio || 1;
@@ -302,10 +365,17 @@ function resize() {
   W = rect.width; H = rect.height; c.width = W * dpr; c.height = H * dpr;
   ctx.resetTransform(); ctx.scale(dpr, dpr);
   pinPositions = [];
-  const side = Math.min(W, H) * 0.85;
-  const startX = (W - side) / 2, startY = (H - side) / 2;
-  const step = side / (GRID - 1);
-  for (let y = 0; y < GRID; y++) { for (let x = 0; x < GRID; x++) { pinPositions.push({ x: startX + x * step, y: startY + y * step, gx: x, gy: y }); } }
+  
+  boardSide = Math.min(W, H) * 0.92;
+  boardX = (W - boardSide) / 2;
+  boardY = (H - boardSide) / 2;
+  const step = boardSide / (GRID - 1);
+  
+  for (let y = 0; y < GRID; y++) { 
+    for (let x = 0; x < GRID; x++) { 
+      pinPositions.push({ x: boardX + x * step, y: boardY + y * step, gx: x, gy: y }); 
+    } 
+  }
 }
 window.addEventListener('resize', resize);
 
@@ -352,22 +422,19 @@ c.addEventListener('pointerup', (e) => {
 });
 c.addEventListener('pointercancel', () => { isDragging = false; activePin = null; });
 
-function getPinCoord(gx, gy) { return pinPositions[gy * GRID + gx]; }
-
 function drawBoard() {
   ctx.clearRect(0, 0, W, H); animPhase += 0.05;
-  const side = Math.min(W, H) * 0.92; const bx = (W - side) / 2; const by = (H - side) / 2;
 
-  ctx.fillStyle = "#e5b77c"; ctx.beginPath(); ctx.roundRect(bx, by, side, side, 24); ctx.fill();
+  ctx.fillStyle = "#e5b77c"; ctx.beginPath(); ctx.roundRect(boardX, boardY, boardSide, boardSide, 24); ctx.fill();
   ctx.lineWidth = 4; ctx.strokeStyle = "#c08c4e"; ctx.stroke();
-  ctx.fillStyle = "#edd2a4"; ctx.beginPath(); ctx.roundRect(bx + 12, by + 12, side - 24, side - 24, 16); ctx.fill();
+  ctx.fillStyle = "#edd2a4"; ctx.beginPath(); ctx.roundRect(boardX + 12, boardY + 12, boardSide - 24, boardSide - 24, 16); ctx.fill();
 
   const p = getCurrentProb();
 
   if (currentLevel === 0 && p.edges) {
     ctx.strokeStyle = "rgba(142, 68, 173, 0.4)"; ctx.lineWidth = 10; ctx.setLineDash([8, 10]);
     for (let e of p.edges) {
-      const p1 = getPinCoord(e[0][0], e[0][1]); const p2 = getPinCoord(e[1][0], e[1][1]);
+      const p1 = pinPositions[e[0][1] * GRID + e[0][0]]; const p2 = pinPositions[e[1][1] * GRID + e[1][0]];
       ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
     }
     ctx.setLineDash([]);
@@ -377,20 +444,20 @@ function drawBoard() {
     const vertices = new Set();
     p.edges.forEach(e => { vertices.add(`${e[0][0]},${e[0][1]}`); vertices.add(`${e[1][0]},${e[1][1]}`); });
     for (let v of vertices) {
-      const [gx, gy] = v.split(',').map(Number); const coord = getPinCoord(gx, gy);
+      const [gx, gy] = v.split(',').map(Number); const coord = pinPositions[gy * GRID + gx];
       ctx.fillStyle = `rgba(241, 196, 15, ${0.4 + Math.sin(animPhase)*0.1})`;
       ctx.beginPath(); ctx.arc(coord.x, coord.y, 25, 0, Math.PI * 2); ctx.fill();
     }
   }
 
   if (currentLevel === 2) {
-    const centerPinX = getPinCoord(2, 0).x;
+    const centerPinX = pinPositions[2].x;
     ctx.strokeStyle = "rgba(231, 76, 60, 0.7)"; ctx.lineWidth = 3; ctx.setLineDash([6, 6]);
-    ctx.beginPath(); ctx.moveTo(centerPinX, by + 15); ctx.lineTo(centerPinX, by + side - 15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(centerPinX, boardY + 15); ctx.lineTo(centerPinX, boardY + boardSide - 15); ctx.stroke();
     ctx.setLineDash([]);
   }
   if (currentLevel === 3) {
-    const centerPin = getPinCoord(2, 2);
+    const centerPin = pinPositions[2 * GRID + 2];
     ctx.fillStyle = `rgba(231, 76, 60, ${0.4 + Math.sin(animPhase)*0.2})`;
     ctx.beginPath(); ctx.arc(centerPin.x, centerPin.y, 35, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#e74c3c"; ctx.beginPath(); ctx.arc(centerPin.x, centerPin.y, 12, 0, Math.PI * 2); ctx.fill();
@@ -399,12 +466,12 @@ function drawBoard() {
   if (currentLevel >= 2 && p.leftEdges) {
     ctx.strokeStyle = "#8e44ad"; ctx.lineWidth = 8; ctx.lineCap = "round";
     for (let e of p.leftEdges) {
-      const p1 = getPinCoord(e[0][0], e[0][1]); const p2 = getPinCoord(e[1][0], e[1][1]);
+      const p1 = pinPositions[e[0][1] * GRID + e[0][0]]; const p2 = pinPositions[e[1][1] * GRID + e[1][0]];
       ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
     }
     ctx.strokeStyle = "#9b59b6"; ctx.lineWidth = 4;
     for (let e of p.leftEdges) {
-      const p1 = getPinCoord(e[0][0], e[0][1]); const p2 = getPinCoord(e[1][0], e[1][1]);
+      const p1 = pinPositions[e[0][1] * GRID + e[0][0]]; const p2 = pinPositions[e[1][1] * GRID + e[1][0]];
       ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
     }
   }
@@ -413,14 +480,14 @@ function drawBoard() {
   ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
   ctx.strokeStyle = "#d35400"; ctx.lineWidth = 9 + pulse; ctx.lineCap = "round";
   for (let e of userEdges) {
-    const p1 = getPinCoord(e[0][0], e[0][1]); const p2 = getPinCoord(e[1][0], e[1][1]);
+    const p1 = pinPositions[e[0][1] * GRID + e[0][0]]; const p2 = pinPositions[e[1][1] * GRID + e[1][0]];
     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
   }
   ctx.shadowColor = "transparent"; 
 
   ctx.strokeStyle = isCleared ? "#f1c40f" : "#f39c12"; ctx.lineWidth = 4 + pulse;
   for (let e of userEdges) {
-    const p1 = getPinCoord(e[0][0], e[0][1]); const p2 = getPinCoord(e[1][0], e[1][1]);
+    const p1 = pinPositions[e[0][1] * GRID + e[0][0]]; const p2 = pinPositions[e[1][1] * GRID + e[1][0]];
     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
   }
 
