@@ -8,14 +8,13 @@
   :root { --sat: env(safe-area-inset-top, 0px); }
   
   /* スマホのスワイプバック（戻る）やバウンスを完全に防止 */
-  html, body { overscroll-behavior-x: none; overscroll-behavior-y: none; touch-action: none; }
+  html, body { overscroll-behavior: none; touch-action: none; }
   
   * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; touch-action: none; font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif; }
   body { position: fixed; inset: 0; width: 100%; height: 100%; background: #fdf6e2; display: flex; flex-direction: column; overflow: hidden; }
   
   #game-wrapper { position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto; background: #faecd3; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.1); overflow: hidden; }
   
-  /* flex-shrink: 0; を指定して、画面が狭くてもUIが潰れないようにする */
   #header { flex-shrink: 0; padding: max(10px, var(--sat)) 12px 10px; display: flex; justify-content: space-between; align-items: center; background: #d35400; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10; }
   .header-btn { background: rgba(255,255,255,0.25); border: 2px solid white; color: white; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
   .header-btn:active { background: rgba(255,255,255,0.4); }
@@ -27,12 +26,10 @@
   .target-badge { font-size: 15px; font-weight: bold; color: #8d5b28; display: flex; align-items: center; gap: 6px; }
   .hint-badge { font-size: 12px; color: #c0392b; font-weight: bold; background: #fadbd8; padding: 4px 8px; border-radius: 8px;}
 
-  /* プレビューエリア */
   #preview-container { display: none; flex-direction: column; align-items: center; padding-bottom: 12px; }
   .preview-label { font-size: 13px; font-weight: bold; color: #8d5b28; margin-bottom: 4px; }
   #preview-canvas { background: rgba(255, 255, 255, 0.9); border: 2px solid #c08c4e; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: block; }
 
-  /* canvas は flex: 1 と min-height: 0 で残りの空間にピッタリ収まる */
   canvas#c { display: block; flex: 1; width: 100%; min-height: 0; }
 
   #bottom-bar { flex-shrink: 0; padding: 12px 15px calc(12px + env(safe-area-inset-bottom, 0px)); background: #fff8eb; display: flex; justify-content: space-around; gap: 12px; border-top: 2px solid #ecd8ba; z-index: 10; }
@@ -73,7 +70,6 @@
       <div id="mode-hint" class="hint-badge">ピンをなぞってゴムをかけよう！</div>
     </div>
     
-    <!-- プレビューを盤面の上に独立して配置 -->
     <div id="preview-container">
       <div class="preview-label">✨ おてほん</div>
       <canvas id="preview-canvas" width="100" height="100"></canvas>
@@ -117,7 +113,20 @@
 </div>
 
 <script>
-// 端スワイプ（戻る操作）やダブルタップの防止
+// === スワイプバック（戻る誤爆）の完全防止 ===
+
+// 1. 画面全体のスワイプスクロールを強制ブロック（ゲームの操作に影響しません）
+document.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+}, { passive: false });
+
+// 2. ブラウザの「戻る」を無効化（ダミーの履歴を追加し続ける）
+window.history.pushState(null, null, window.location.href);
+window.addEventListener('popstate', (e) => {
+  window.history.pushState(null, null, window.location.href);
+});
+
+// ダブルタップズーム等の防止
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 window.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('touchstart', (e) => {
