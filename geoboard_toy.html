@@ -11,35 +11,30 @@
   
   #game-wrapper { position: relative; flex: 1; width: 100%; max-width: 600px; margin: 0 auto; background: #faecd3; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
   
-  #header {
-    padding: max(10px, var(--sat)) 12px 10px; display: flex; justify-content: space-between; align-items: center; background: #d35400; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10;
-  }
+  #header { padding: max(10px, var(--sat)) 12px 10px; display: flex; justify-content: space-between; align-items: center; background: #d35400; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10; }
   .header-btn { background: rgba(255,255,255,0.25); border: 2px solid white; color: white; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
   .header-btn:active { background: rgba(255,255,255,0.4); }
   .title-text { font-size: 18px; font-weight: bold; text-shadow: 1px 1px 0 rgba(0,0,0,0.15); }
 
   #info-bar { padding: 10px 12px; background: #fff8eb; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecd8ba; }
-  .target-badge { font-size: 16px; font-weight: bold; color: #8d5b28; display: flex; align-items: center; gap: 6px; }
-  .hint-badge { font-size: 13px; color: #c0392b; font-weight: bold; background: #fadbd8; padding: 4px 8px; border-radius: 8px;}
+  .target-badge { font-size: 15px; font-weight: bold; color: #8d5b28; display: flex; align-items: center; gap: 6px; }
+  .hint-badge { font-size: 12px; color: #c0392b; font-weight: bold; background: #fadbd8; padding: 4px 8px; border-radius: 8px;}
 
   canvas { display: block; flex: 1; width: 100%; height: 100%; }
 
-  #bottom-bar {
-    padding: 12px 15px calc(12px + env(safe-area-inset-bottom, 0px));
-    background: #fff8eb; display: flex; justify-content: space-around; gap: 12px; border-top: 2px solid #ecd8ba; z-index: 10;
-  }
+  #bottom-bar { padding: 12px 15px calc(12px + env(safe-area-inset-bottom, 0px)); background: #fff8eb; display: flex; justify-content: space-around; gap: 12px; border-top: 2px solid #ecd8ba; z-index: 10; }
   .tool-btn { flex: 1; padding: 14px 0; font-size: 16px; font-weight: bold; border-radius: 25px; border: none; color: white; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,0.15); text-align: center; }
   .tool-btn:active { transform: translateY(4px); box-shadow: 0 0px 0 rgba(0,0,0,0.15); }
-  #btn-undo { background: #95a5a6; }
-  #btn-reset { background: #e74c3c; }
-  #btn-next { background: #27ae60; display: none; }
+  #btn-undo { background: #95a5a6; } #btn-reset { background: #e74c3c; } #btn-next { background: #27ae60; display: none; }
 
   .screen { position: absolute; inset: 0; background: rgba(253, 246, 226, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 20px; backdrop-filter: blur(5px); }
   h1 { font-size: clamp(24px, 6vw, 32px); color: #8d5b28; margin-bottom: 5px; text-align: center; line-height: 1.4;}
-  .subtitle { font-size: 14px; color: #a04000; margin-bottom: 20px; font-weight: bold;}
+  .subtitle { font-size: 14px; color: #a04000; margin-bottom: 15px; font-weight: bold;}
   
-  .menu-box { background: #fff; border-radius: 16px; padding: 20px; width: 100%; max-width: 380px; border: 3px solid #e09f53; box-shadow: 0 8px 16px rgba(0,0,0,0.08); margin-bottom: 25px; }
-  .level-btn { width: 100%; padding: 14px 15px; margin-bottom: 10px; font-size: 17px; font-weight: bold; border-radius: 12px; border: 2px solid #ecd8ba; background: #fffdf9; color: #6d4c20; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: 0.1s; }
+  .rule-box { background: #fff; padding: 10px; border-radius: 12px; margin-bottom: 15px; width: 100%; max-width: 380px; border: 2px dashed #d35400; font-size: 13px; color: #555; font-weight: bold; text-align: center; line-height: 1.4; }
+  
+  .menu-box { background: #fff; border-radius: 16px; padding: 15px 20px; width: 100%; max-width: 380px; border: 3px solid #e09f53; box-shadow: 0 8px 16px rgba(0,0,0,0.08); margin-bottom: 25px; }
+  .level-btn { width: 100%; padding: 12px 15px; margin-bottom: 10px; font-size: 16px; font-weight: bold; border-radius: 12px; border: 2px solid #ecd8ba; background: #fffdf9; color: #6d4c20; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; transition: 0.1s; }
   .level-btn.active { background: #d35400; color: white; border-color: #a04000; box-shadow: 0 3px 0 #a04000; }
   .level-btn:active { transform: translateY(2px); }
   .start-btn { padding: 16px 50px; font-size: 24px; font-weight: bold; color: white; background: #f39c12; border: none; border-radius: 40px; box-shadow: 0 6px 0 #c87f0a; cursor: pointer; }
@@ -55,7 +50,7 @@
 <div id="game-wrapper">
   <div id="header">
     <button class="header-btn" onclick="openMenu()">☰ レベル</button>
-    <div class="title-text">📐 輪ゴムのジオボード</div>
+    <div class="title-text">📐 ジオボード</div>
     <div style="width: 70px;"></div>
   </div>
 
@@ -67,8 +62,8 @@
   <canvas id="c"></canvas>
 
   <div id="bottom-bar">
-    <button id="btn-undo" class="tool-btn" onclick="undoEdge()">↩️ 1本もどす</button>
-    <button id="btn-reset" class="tool-btn" onclick="resetBoard()">🗑️ 全部はずす</button>
+    <button id="btn-undo" class="tool-btn" onclick="undoEdge()">↩️ もどす</button>
+    <button id="btn-reset" class="tool-btn" onclick="resetBoard()">🗑️ はずす</button>
     <button id="btn-next" class="tool-btn" onclick="nextQuestion()">✨ つぎへ！</button>
   </div>
 
@@ -76,21 +71,24 @@
 
   <div id="menu-screen" class="screen">
     <h1>🪵 輪ゴムのジオボード<br>＆ 図形パズル</h1>
-    <div class="subtitle">空間認識と図形センスを育てよう！</div>
+    <div class="subtitle">たっぷり全60ステージ収録！</div>
     
+    <div class="rule-box">
+      💡 ゴムは「一気に長く結んで」も「1マスずつ結んで」も、<br>最終的におなじ形になれば正解になるよ！
+    </div>
+
     <div class="menu-box">
-      <div style="font-weight:bold; color:#8d5b28; margin-bottom:12px; font-size:15px; text-align:center;">あそぶレベルをえらぶ</div>
       <button class="level-btn active" onclick="selectLevel(0)">
-        <span>① かんたん</span><span style="font-size:12px; font-weight:normal;">点線ガイドあり</span>
+        <span>① かんたん</span><span style="font-size:12px; font-weight:normal;">点線をなぞる (15問)</span>
       </button>
       <button class="level-btn" onclick="selectLevel(1)">
-        <span>② ふつう</span><span style="font-size:12px; font-weight:normal;">光るヒントのみ</span>
+        <span>② ふつう</span><span style="font-size:12px; font-weight:normal;">光るヒントのみ (15問)</span>
       </button>
       <button class="level-btn" onclick="selectLevel(2)">
-        <span>③ むずかしい</span><span style="font-size:12px; font-weight:normal;">🪞 線対称パズル</span>
+        <span>③ むずかしい</span><span style="font-size:12px; font-weight:normal;">🪞 線対称 (15問)</span>
       </button>
       <button class="level-btn" onclick="selectLevel(3)">
-        <span>④ 超むずかしい</span><span style="font-size:12px; font-weight:normal;">🌀 点対称パズル</span>
+        <span>④ 超むずかしい</span><span style="font-size:12px; font-weight:normal;">🌀 点対称 (15問)</span>
       </button>
     </div>
     <button class="start-btn" onclick="startGame()">あそぶ！</button>
@@ -106,112 +104,113 @@ function initAudio() {
   if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); }
   if (actx.state === 'suspended') actx.resume();
 }
-
 function playPluck(freq) {
   if (!actx) return;
-  const now = actx.currentTime;
-  const osc = actx.createOscillator();
-  const gain = actx.createGain();
-  osc.type = 'triangle';
-  osc.frequency.setValueAtTime(freq || 330, now);
-  gain.gain.setValueAtTime(0.5, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  const now = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
+  osc.type = 'triangle'; osc.frequency.setValueAtTime(freq || 330, now);
+  gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
   osc.connect(gain); gain.connect(actx.destination);
   osc.start(now); osc.stop(now + 0.4);
 }
-
 function playSnap() {
   if (!actx) return;
-  const now = actx.currentTime;
-  const osc = actx.createOscillator();
-  const gain = actx.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(880, now);
-  osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
-  gain.gain.setValueAtTime(0.3, now);
-  gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+  const now = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
+  osc.type = 'sine'; osc.frequency.setValueAtTime(880, now); osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+  gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
   osc.connect(gain); gain.connect(actx.destination);
   osc.start(now); osc.stop(now + 0.08);
 }
-
 function playFanfare() {
   if (!actx) return;
-  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
-    setTimeout(() => playPluck(f * 1.2), i * 120);
-  });
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => setTimeout(() => playPluck(f * 1.2), i * 120));
 }
 
-const c = document.getElementById('c');
-const ctx = c.getContext('2d');
-let W, H, dpr;
-const GRID = 5;
-let pinPositions = [];
-
-function resize() {
-  dpr = window.devicePixelRatio || 1;
-  const rect = c.getBoundingClientRect();
-  W = rect.width; H = rect.height;
-  c.width = W * dpr; c.height = H * dpr;
-  ctx.resetTransform(); ctx.scale(dpr, dpr);
-
-  pinPositions = [];
-  const side = Math.min(W, H) * 0.85; // 盤面を少し大きく
-  const startX = (W - side) / 2;
-  const startY = (H - side) / 2;
-  const step = side / (GRID - 1);
-
-  for (let y = 0; y < GRID; y++) {
-    for (let x = 0; x < GRID; x++) {
-      pinPositions.push({ x: startX + x * step, y: startY + y * step, gx: x, gy: y });
-    }
-  }
-}
-window.addEventListener('resize', resize);
-
-// 問題データ
-const PROBLEMS = [
-  // レベル0：かんたん（点線ガイドあり）
-  [
-    { name: "さんかく", edges: [[[1,3],[3,3]], [[3,3],[2,1]], [[2,1],[1,3]]] },
-    { name: "しかく", edges: [[[1,1],[3,1]], [[3,1],[3,3]], [[3,3],[1,3]], [[1,3],[1,1]]] },
-    { name: "ほし", edges: [[[2,1],[3,2]], [[3,2],[2,3]], [[2,3],[1,2]], [[1,2],[2,1]]] },
-    { name: "ロケット", edges: [[[2,0],[3,2]], [[3,2],[1,2]], [[1,2],[2,0]], [[1,2],[1,4]], [[3,2],[3,4]], [[1,4],[3,4]]] }
-  ],
-  // レベル1：ふつう（頂点ヒントのみ）
-  [
-    { name: "おうち", edges: [[[1,2],[3,2]], [[3,2],[3,4]], [[3,4],[1,4]], [[1,4],[1,2]], [[1,2],[2,0]], [[2,0],[3,2]]] },
-    { name: "ヨット", edges: [[[2,1],[2,4]], [[2,1],[4,3]], [[4,3],[2,3]], [[1,4],[3,4]], [[3,4],[3,3]], [[3,3],[1,3]], [[1,3],[1,4]]] },
-    { name: "ちょうちょ", edges: [[[2,2],[1,1]], [[1,1],[1,3]], [[1,3],[2,2]], [[2,2],[3,1]], [[3,1],[3,3]], [[3,3],[2,2]]] },
-    { name: "さかな", edges: [[[3,2],[2,1]], [[2,1],[1,2]], [[1,2],[2,3]], [[2,3],[3,2]], [[3,2],[4,1]], [[4,1],[4,3]], [[4,3],[3,2]]] }
-  ],
-  // レベル2：むずかしい（線対称：x=2を軸に鏡うつし）
-  [
-    { name: "はんぶんの キノコ", 
-      leftEdges: [[[2,1],[1,1]], [[1,1],[1,2]], [[1,2],[2,2]], [[2,2],[2,4]], [[1,4],[2,4]]],
-      targetEdges: [[[2,1],[3,1]], [[3,1],[3,2]], [[3,2],[2,2]], [[2,2],[2,4]], [[3,4],[2,4]]] },
-    { name: "はんぶんの ハート", 
-      leftEdges: [[[2,3],[1,2]], [[1,2],[1,1]], [[1,1],[2,1]]],
-      targetEdges: [[[2,3],[3,2]], [[3,2],[3,1]], [[3,1],[2,1]]] },
-    { name: "ロボットの かお", 
-      leftEdges: [[[2,1],[1,1]], [[1,1],[1,3]], [[1,3],[2,3]], [[1,2],[2,2]]],
-      targetEdges: [[[2,1],[3,1]], [[3,1],[3,3]], [[3,3],[2,3]], [[3,2],[2,2]]] }
-  ],
-  // レベル3：超むずかしい（点対称：(2,2)を中心に180度かいてん）
-  [
-    { name: "かざぐるま の はね", 
-      leftEdges: [[[2,2],[1,1]], [[1,1],[2,1]], [[2,1],[2,2]]],
-      targetEdges: [[[2,2],[3,3]], [[3,3],[2,3]], [[2,3],[2,2]]] },
-    { name: "イナズマ", 
-      leftEdges: [[[3,0],[1,2]], [[1,2],[2,2]]],
-      targetEdges: [[[1,4],[3,2]], [[3,2],[2,2]]] },
-    { name: "おおきな リボン", 
-      leftEdges: [[[2,2],[0,0]], [[0,0],[0,2]], [[0,2],[2,2]]],
-      targetEdges: [[[2,2],[4,4]], [[4,4],[4,2]], [[4,2],[2,2]]] },
-    { name: "なぞの 記号", 
-      leftEdges: [[[0,1],[1,1]], [[1,1],[2,2]], [[2,2],[1,3]], [[1,3],[0,3]]],
-      targetEdges: [[[4,3],[3,3]], [[3,3],[2,2]], [[2,2],[3,1]], [[3,1],[4,1]]] }
-  ]
+// === データ圧縮フォーマット [x1, y1, x2, y2] ===
+const L0_DATA = [
+  { n: "さんかく", e: [[1,3,3,3], [3,3,2,1], [2,1,1,3]] },
+  { n: "しかく", e: [[1,1,3,1], [3,1,3,3], [3,3,1,3], [1,3,1,1]] },
+  { n: "ダイヤ", e: [[2,0,4,2], [4,2,2,4], [2,4,0,2], [0,2,2,0]] },
+  { n: "ロケット", e: [[2,0,3,2], [3,2,1,2], [1,2,2,0], [1,2,1,4], [3,2,3,4], [1,4,3,4]] },
+  { n: "リボン", e: [[1,1,1,3], [1,3,2,2], [2,2,3,3], [3,3,3,1], [3,1,2,2], [2,2,1,1]] },
+  { n: "すなどけい", e: [[1,1,3,1], [3,1,1,3], [1,3,3,3], [3,3,1,1]] },
+  { n: "バツ", e: [[1,1,3,3], [1,3,3,1]] },
+  { n: "プラス", e: [[2,1,2,3], [1,2,3,2]] },
+  { n: "おうち", e: [[1,2,3,2], [3,2,3,4], [3,4,1,4], [1,4,1,2], [1,2,2,0], [2,0,3,2]] },
+  { n: "くるま", e: [[0,3,4,3], [4,3,4,2], [4,2,3,2], [3,2,2,1], [2,1,1,1], [1,1,0,2], [0,2,0,3]] },
+  { n: "さかな", e: [[3,2,2,1], [2,1,1,2], [1,2,2,3], [2,3,3,2], [3,2,4,1], [4,1,4,3], [4,3,3,2]] },
+  { n: "ヨット", e: [[2,1,2,4], [2,1,4,3], [4,3,2,3], [1,4,3,4], [3,4,3,3], [3,3,1,3], [1,3,1,4]] },
+  { n: "ちょうちょ", e: [[2,2,1,1], [1,1,1,3], [1,3,2,2], [2,2,3,1], [3,1,3,3], [3,3,2,2]] },
+  { n: "テント", e: [[1,4,3,4], [3,4,2,2], [2,2,1,4], [2,2,2,4]] },
+  { n: "ほし", e: [[2,0,3,4], [3,4,0,1], [0,1,4,1], [4,1,1,4], [1,4,2,0]] }
 ];
+const L1_DATA = [
+  { n: "チューリップ", e: [[1,1,2,3], [2,3,3,1], [3,1,2,1], [2,1,1,1], [2,3,2,4]] },
+  { n: "アイスクリーム", e: [[1,2,3,2], [3,2,2,4], [2,4,1,2], [1,2,2,0], [2,0,3,2]] },
+  { n: "コップ", e: [[1,1,1,3], [1,3,3,3], [3,3,3,1], [1,1,3,1], [3,1,4,2], [4,2,3,3]] },
+  { n: "ぼうし", e: [[1,2,3,2], [3,2,3,1], [3,1,1,1], [1,1,1,2], [0,2,4,2], [4,2,4,3], [0,3,4,3], [0,2,0,3]] },
+  { n: "メガネ", e: [[0,2,1,2], [1,2,1,3], [1,3,2,3], [2,3,2,2], [2,2,0,2], [2,2,3,2], [3,2,3,3], [3,3,4,3], [4,3,4,2], [4,2,2,2]] },
+  { n: "かばん", e: [[1,2,3,2], [3,2,3,4], [3,4,1,4], [1,4,1,2], [1,2,1,1], [1,1,3,1], [3,1,3,2]] },
+  { n: "テレビ", e: [[1,2,3,2], [3,2,3,4], [3,4,1,4], [1,4,1,2], [1,2,2,1], [3,2,2,1]] },
+  { n: "ひこうき", e: [[2,0,2,4], [2,2,1,3], [2,2,3,3], [2,1,0,2], [2,1,4,2]] },
+  { n: "かさ", e: [[2,1,2,4], [2,4,3,3], [2,1,0,3], [0,3,4,3], [4,3,2,1]] },
+  { n: "いす", e: [[1,1,1,4], [1,3,3,3], [3,3,3,4]] },
+  { n: "つくえ", e: [[1,2,3,2], [1,2,1,4], [3,2,3,4]] },
+  { n: "ベッド", e: [[1,2,3,2], [1,2,1,1], [1,3,1,4], [3,3,3,4], [1,3,3,3]] },
+  { n: "はしご", e: [[1,1,1,4], [3,1,3,4], [1,2,3,2], [1,3,3,3]] },
+  { n: "でんわ", e: [[1,2,3,2], [3,2,3,4], [3,4,1,4], [1,4,1,2], [1,2,0,1], [3,2,4,1], [0,1,4,1]] },
+  { n: "き", e: [[2,0,1,2], [1,2,3,2], [3,2,2,0], [2,2,2,4]] }
+];
+const L2_DATA = [ // 線対称 (x=2) 左半分だけ定義
+  { n: "はんぶんの キノコ", e: [[2,1,1,1], [1,1,1,2], [1,2,2,2], [2,2,2,4], [1,4,2,4]] },
+  { n: "はんぶんの ハート", e: [[2,3,1,2], [1,2,1,1], [1,1,2,1]] },
+  { n: "ロボットの かお", e: [[2,1,1,1], [1,1,1,3], [1,3,2,3], [1,2,2,2]] },
+  { n: "Ｔシャツ", e: [[2,1,1,1], [1,1,0,2], [0,2,1,3], [1,3,1,4], [1,4,2,4]] },
+  { n: "ズボン", e: [[2,1,1,1], [1,1,1,4], [1,4,2,4], [2,4,2,2]] },
+  { n: "イカ", e: [[2,0,1,2], [1,2,2,2], [2,2,2,4], [1,4,2,4]] },
+  { n: "タコ", e: [[2,1,1,1], [1,1,1,2], [1,2,0,3], [0,3,1,4], [1,4,2,2]] },
+  { n: "カエル", e: [[2,1,1,1], [1,1,0,2], [0,2,1,3], [1,3,2,4], [1,3,0,4]] },
+  { n: "ネコ", e: [[2,1,1,1], [1,1,0,0], [0,0,0,2], [0,2,2,3]] },
+  { n: "クマ", e: [[2,1,1,0], [1,0,0,1], [0,1,1,2], [1,2,2,3]] },
+  { n: "はんぶんの ほし", e: [[2,0,1,2], [1,2,0,2], [0,2,1,3], [1,3,0,4], [0,4,2,3]] },
+  { n: "スペースシャトル", e: [[2,0,1,2], [1,2,0,3], [0,3,1,3], [1,3,1,4], [1,4,2,4]] },
+  { n: "りんご", e: [[2,1,1,1], [1,1,0,2], [0,2,1,3], [1,3,2,3], [2,1,2,0]] },
+  { n: "コウモリ", e: [[2,3,1,3], [1,3,0,2], [0,2,1,1], [1,1,1,2], [1,2,2,2]] },
+  { n: "はんぶんの おうち", e: [[2,0,1,1], [1,1,2,1], [1,1,1,4], [1,4,2,4]] }
+];
+const L3_DATA = [ // 点対称 (x=2, y=2) 
+  { n: "かざぐるま の はね", e: [[2,2,1,1], [1,1,2,1], [2,1,2,2]] },
+  { n: "イナズマ", e: [[3,0,1,2], [1,2,2,2]] },
+  { n: "おおきな リボン", e: [[2,2,0,0], [0,0,0,2], [0,2,2,2]] },
+  { n: "なぞの 記号", e: [[0,1,1,1], [1,1,2,2], [2,2,1,3], [1,3,0,3]] },
+  { n: "しゅりけん", e: [[2,2,2,0], [2,0,1,1], [1,1,2,2]] },
+  { n: "Ｓじ", e: [[4,0,2,0], [2,0,2,2], [2,2,4,2]] },
+  { n: "Ｚじ", e: [[0,0,4,0], [4,0,2,2]] },
+  { n: "プロペラ", e: [[2,2,0,1], [0,1,1,0], [1,0,2,2]] },
+  { n: "ギャラクシー", e: [[2,2,2,0], [2,0,0,0], [0,0,0,1]] },
+  { n: "まんじ", e: [[2,2,2,0], [2,0,0,0]] },
+  { n: "はぐるま", e: [[2,2,1,1], [1,1,1,0], [1,0,2,0], [2,0,2,1], [2,1,2,2]] },
+  { n: "すなどけい(半)", e: [[2,2,0,0], [0,0,4,0], [4,0,2,2]] },
+  { n: "インフィニティ", e: [[2,2,0,0], [0,0,0,2], [0,2,2,2]] },
+  { n: "まほうじん", e: [[2,2,1,0], [1,0,0,2], [0,2,2,2]] },
+  { n: "なぞの 記号２", e: [[2,2,1,0], [1,0,1,1], [1,1,0,1], [0,1,0,2], [0,2,2,2]] }
+];
+
+// データ展開関数
+function expandEdges(arr) { return arr.map(e => [[e[0], e[1]], [e[2], e[3]]]); }
+
+let PROBLEMS = [[], [], [], []];
+L0_DATA.forEach(d => PROBLEMS[0].push({ name: d.n, edges: expandEdges(d.e) }));
+L1_DATA.forEach(d => PROBLEMS[1].push({ name: d.n, edges: expandEdges(d.e) }));
+L2_DATA.forEach(d => {
+  let left = expandEdges(d.e);
+  let right = left.map(edge => [[4 - edge[0][0], edge[0][1]], [4 - edge[1][0], edge[1][1]]]);
+  PROBLEMS[2].push({ name: d.n, leftEdges: left, targetEdges: right });
+});
+L3_DATA.forEach(d => {
+  let left = expandEdges(d.e);
+  let right = left.map(edge => [[4 - edge[0][0], 4 - edge[0][1]], [4 - edge[1][0], 4 - edge[1][1]]]);
+  PROBLEMS[3].push({ name: d.n, leftEdges: left, targetEdges: right });
+});
 
 let currentLevel = 0;
 let qIndex = 0;
@@ -224,30 +223,22 @@ let animPhase = 0;
 
 function selectLevel(lvl) {
   currentLevel = lvl;
-  document.querySelectorAll('.level-btn').forEach((b, i) => {
-    b.classList.toggle('active', i === lvl);
-  });
+  document.querySelectorAll('.level-btn').forEach((b, i) => b.classList.toggle('active', i === lvl));
 }
 
 function openMenu() { document.getElementById('menu-screen').classList.remove('hide'); }
-
 function startGame() {
-  initAudio();
-  document.getElementById('menu-screen').classList.add('hide');
-  qIndex = 0;
-  loadQuestion();
+  initAudio(); document.getElementById('menu-screen').classList.add('hide');
+  qIndex = 0; loadQuestion();
 }
 
-function getCurrentProb() {
-  return PROBLEMS[currentLevel][qIndex % PROBLEMS[currentLevel].length];
-}
+function getCurrentProb() { return PROBLEMS[currentLevel][qIndex % PROBLEMS[currentLevel].length]; }
 
 function loadQuestion() {
-  userEdges = [];
-  isCleared = false;
+  userEdges = []; isCleared = false;
   document.getElementById('btn-next').style.display = 'none';
   const p = getCurrentProb();
-  document.getElementById('target-title').innerText = `お題: ${p.name}`;
+  document.getElementById('target-title').innerText = `お題: (${(qIndex % 15) + 1}/15) ${p.name}`;
 
   const hintEl = document.getElementById('mode-hint');
   if (currentLevel === 0) hintEl.innerText = "点線のとおりにゴムをかけよう！";
@@ -256,10 +247,25 @@ function loadQuestion() {
   else if (currentLevel === 3) hintEl.innerText = "🌀真ん中を中心にぐるっと回した形は？";
 }
 
-function edgeKey(p1, p2) {
-  const k1 = `${p1[0]},${p1[1]}`;
-  const k2 = `${p2[0]},${p2[1]}`;
-  return k1 < k2 ? `${k1}-${k2}` : `${k2}-${k1}`;
+// === GCDによる「形の一致」判定システム ===
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+function getAtomicSegments(edges) {
+  let segs = new Set();
+  for (let e of edges) {
+    let x1 = e[0][0], y1 = e[0][1], x2 = e[1][0], y2 = e[1][1];
+    let dx = x2 - x1, dy = y2 - y1;
+    let steps = gcd(Math.abs(dx), Math.abs(dy));
+    let sx = dx / steps, sy = dy / steps;
+    
+    for (let i = 0; i < steps; i++) {
+      let cx1 = x1 + i * sx, cy1 = y1 + i * sy;
+      let cx2 = x1 + (i + 1) * sx, cy2 = y1 + (i + 1) * sy;
+      let k1 = `${cx1},${cy1}`, k2 = `${cx2},${cy2}`;
+      segs.add(k1 < k2 ? `${k1}-${k2}` : `${k2}-${k1}`);
+    }
+  }
+  return segs;
 }
 
 function checkClear() {
@@ -267,41 +273,41 @@ function checkClear() {
   const p = getCurrentProb();
   const target = (currentLevel >= 2) ? p.targetEdges : p.edges;
 
-  const targetKeys = new Set(target.map(e => edgeKey(e[0], e[1])));
-  const userKeys = new Set(userEdges.map(e => edgeKey(e[0], e[1])));
+  // 長いゴムも短いゴムも、すべて「1マス単位の線分」に分解して比較する
+  const targetSegs = getAtomicSegments(target);
+  const userSegs = getAtomicSegments(userEdges);
 
-  if (targetKeys.size !== userKeys.size) return;
-  for (let k of targetKeys) {
-    if (!userKeys.has(k)) return;
-  }
+  if (targetSegs.size !== userSegs.size) return;
+  for (let s of targetSegs) { if (!userSegs.has(s)) return; }
 
   isCleared = true;
   playFanfare();
   const toast = document.getElementById('toast');
-  toast.innerText = "だいせいこう！✨";
-  toast.classList.add('show');
+  toast.innerText = "だいせいこう！✨"; toast.classList.add('show');
   document.getElementById('btn-next').style.display = 'block';
-
-  setTimeout(() => { toast.classList.remove('show'); }, 2000);
+  setTimeout(() => toast.classList.remove('show'), 2000);
 }
+// ==========================================
 
 function nextQuestion() { qIndex++; loadQuestion(); }
+function resetBoard() { if(userEdges.length > 0) { userEdges = []; isCleared = false; document.getElementById('btn-next').style.display = 'none'; playSnap(); } }
+function undoEdge() { if (userEdges.length > 0) { userEdges.pop(); isCleared = false; document.getElementById('btn-next').style.display = 'none'; playPluck(240); } }
 
-function resetBoard() {
-  if(userEdges.length > 0) {
-    userEdges = []; isCleared = false;
-    document.getElementById('btn-next').style.display = 'none';
-    playSnap();
-  }
-}
+const c = document.getElementById('c'); const ctx = c.getContext('2d');
+let W, H, dpr; const GRID = 5; let pinPositions = [];
 
-function undoEdge() {
-  if (userEdges.length > 0) {
-    userEdges.pop(); isCleared = false;
-    document.getElementById('btn-next').style.display = 'none';
-    playPluck(240);
-  }
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  const rect = c.getBoundingClientRect();
+  W = rect.width; H = rect.height; c.width = W * dpr; c.height = H * dpr;
+  ctx.resetTransform(); ctx.scale(dpr, dpr);
+  pinPositions = [];
+  const side = Math.min(W, H) * 0.85;
+  const startX = (W - side) / 2, startY = (H - side) / 2;
+  const step = side / (GRID - 1);
+  for (let y = 0; y < GRID; y++) { for (let x = 0; x < GRID; x++) { pinPositions.push({ x: startX + x * step, y: startY + y * step, gx: x, gy: y }); } }
 }
+window.addEventListener('resize', resize);
 
 function findNearestPin(x, y, maxDist = 45) {
   let nearest = null; let minDist = maxDist;
@@ -313,50 +319,35 @@ function findNearestPin(x, y, maxDist = 45) {
 }
 
 c.addEventListener('pointerdown', (e) => {
-  e.preventDefault(); initAudio();
-  if (isCleared) return;
-  const rect = c.getBoundingClientRect();
-  const x = e.clientX - rect.left; const y = e.clientY - rect.top;
-
+  e.preventDefault(); initAudio(); if (isCleared) return;
+  const rect = c.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
   const pin = findNearestPin(x, y);
-  if (pin) {
-    activePin = pin; isDragging = true; currentPointer = { x, y }; playSnap();
-  }
+  if (pin) { activePin = pin; isDragging = true; currentPointer = { x, y }; playSnap(); }
 });
 
 c.addEventListener('pointermove', (e) => {
-  e.preventDefault();
-  if (!isDragging) return;
-  const rect = c.getBoundingClientRect();
-  currentPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  e.preventDefault(); if (!isDragging) return;
+  const rect = c.getBoundingClientRect(); currentPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 });
 
-c.addEventListener('pointerup', (e) => {
-  e.preventDefault();
-  if (!isDragging || !activePin) return;
-  const rect = c.getBoundingClientRect();
-  const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+function edgeKey(p1, p2) { const k1 = `${p1[0]},${p1[1]}`, k2 = `${p2[0]},${p2[1]}`; return k1 < k2 ? `${k1}-${k2}` : `${k2}-${k1}`; }
 
+c.addEventListener('pointerup', (e) => {
+  e.preventDefault(); if (!isDragging || !activePin) return;
+  const rect = c.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
   const targetPin = findNearestPin(x, y);
   if (targetPin && (targetPin.gx !== activePin.gx || targetPin.gy !== activePin.gy)) {
-    const p1 = [activePin.gx, activePin.gy];
-    const p2 = [targetPin.gx, targetPin.gy];
+    const p1 = [activePin.gx, activePin.gy], p2 = [targetPin.gx, targetPin.gy];
     const key = edgeKey(p1, p2);
-
     const existsIndex = userEdges.findIndex(e => edgeKey(e[0], e[1]) === key);
-    if (existsIndex >= 0) {
-      userEdges.splice(existsIndex, 1); playPluck(220); // 取り外す音
-    } else {
+    if (existsIndex >= 0) { userEdges.splice(existsIndex, 1); playPluck(220); } 
+    else {
       userEdges.push([p1, p2]);
-      const dx = targetPin.gx - activePin.gx; const dy = targetPin.gy - activePin.gy;
-      const len = Math.hypot(dx, dy);
-      playPluck(350 + (5 - len) * 70); // 長さに応じて音程を変える
+      const len = Math.hypot(targetPin.gx - activePin.gx, targetPin.gy - activePin.gy);
+      playPluck(350 + (5 - len) * 70); 
     }
     checkClear();
-  } else {
-    playPluck(180); // ミス（同じピンなど）
-  }
-
+  } else { playPluck(180); }
   isDragging = false; activePin = null;
 });
 c.addEventListener('pointercancel', () => { isDragging = false; activePin = null; });
@@ -364,24 +355,15 @@ c.addEventListener('pointercancel', () => { isDragging = false; activePin = null
 function getPinCoord(gx, gy) { return pinPositions[gy * GRID + gx]; }
 
 function drawBoard() {
-  ctx.clearRect(0, 0, W, H);
-  animPhase += 0.05;
+  ctx.clearRect(0, 0, W, H); animPhase += 0.05;
+  const side = Math.min(W, H) * 0.92; const bx = (W - side) / 2; const by = (H - side) / 2;
 
-  const side = Math.min(W, H) * 0.92;
-  const bx = (W - side) / 2; const by = (H - side) / 2;
-
-  // 1. 木目ボード
-  ctx.fillStyle = "#e5b77c";
-  ctx.beginPath(); ctx.roundRect(bx, by, side, side, 24); ctx.fill();
+  ctx.fillStyle = "#e5b77c"; ctx.beginPath(); ctx.roundRect(bx, by, side, side, 24); ctx.fill();
   ctx.lineWidth = 4; ctx.strokeStyle = "#c08c4e"; ctx.stroke();
-
-  // 2. ボード内側
-  ctx.fillStyle = "#edd2a4";
-  ctx.beginPath(); ctx.roundRect(bx + 12, by + 12, side - 24, side - 24, 16); ctx.fill();
+  ctx.fillStyle = "#edd2a4"; ctx.beginPath(); ctx.roundRect(bx + 12, by + 12, side - 24, side - 24, 16); ctx.fill();
 
   const p = getCurrentProb();
 
-  // 3. 難易度別のヒントガイド描画
   if (currentLevel === 0 && p.edges) {
     ctx.strokeStyle = "rgba(142, 68, 173, 0.4)"; ctx.lineWidth = 10; ctx.setLineDash([8, 10]);
     for (let e of p.edges) {
@@ -401,7 +383,6 @@ function drawBoard() {
     }
   }
 
-  // 4. 線対称（レベル2）と点対称（レベル3）の軸・中心点
   if (currentLevel === 2) {
     const centerPinX = getPinCoord(2, 0).x;
     ctx.strokeStyle = "rgba(231, 76, 60, 0.7)"; ctx.lineWidth = 3; ctx.setLineDash([6, 6]);
@@ -412,18 +393,15 @@ function drawBoard() {
     const centerPin = getPinCoord(2, 2);
     ctx.fillStyle = `rgba(231, 76, 60, ${0.4 + Math.sin(animPhase)*0.2})`;
     ctx.beginPath(); ctx.arc(centerPin.x, centerPin.y, 35, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#e74c3c";
-    ctx.beginPath(); ctx.arc(centerPin.x, centerPin.y, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#e74c3c"; ctx.beginPath(); ctx.arc(centerPin.x, centerPin.y, 12, 0, Math.PI * 2); ctx.fill();
   }
 
-  // 5. お手本のゴム（レベル2, 3用）
   if (currentLevel >= 2 && p.leftEdges) {
     ctx.strokeStyle = "#8e44ad"; ctx.lineWidth = 8; ctx.lineCap = "round";
     for (let e of p.leftEdges) {
       const p1 = getPinCoord(e[0][0], e[0][1]); const p2 = getPinCoord(e[1][0], e[1][1]);
       ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
     }
-    // お手本の内側の光沢
     ctx.strokeStyle = "#9b59b6"; ctx.lineWidth = 4;
     for (let e of p.leftEdges) {
       const p1 = getPinCoord(e[0][0], e[0][1]); const p2 = getPinCoord(e[1][0], e[1][1]);
@@ -431,50 +409,38 @@ function drawBoard() {
     }
   }
 
-  // 6. ユーザーが張った輪ゴム
   const pulse = isCleared ? Math.sin(animPhase * 3) * 3 : 0;
   ctx.shadowColor = "rgba(0,0,0,0.3)"; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3;
   ctx.strokeStyle = "#d35400"; ctx.lineWidth = 9 + pulse; ctx.lineCap = "round";
-  
   for (let e of userEdges) {
     const p1 = getPinCoord(e[0][0], e[0][1]); const p2 = getPinCoord(e[1][0], e[1][1]);
     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
   }
-  ctx.shadowColor = "transparent"; // 影リセット
+  ctx.shadowColor = "transparent"; 
 
-  // ユーザーゴムのハイライト
   ctx.strokeStyle = isCleared ? "#f1c40f" : "#f39c12"; ctx.lineWidth = 4 + pulse;
   for (let e of userEdges) {
     const p1 = getPinCoord(e[0][0], e[0][1]); const p2 = getPinCoord(e[1][0], e[1][1]);
     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
   }
 
-  // 7. ドラッグ中（引っ張っている）のゴム
   if (isDragging && activePin) {
     ctx.strokeStyle = "rgba(230, 126, 34, 0.8)"; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(activePin.x, activePin.y); ctx.lineTo(currentPointer.x, currentPointer.y); ctx.stroke();
   }
 
-  // 8. ピン（釘）の描画
   for (let pin of pinPositions) {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.2)"; // 影
+    ctx.fillStyle = "rgba(0, 0, 0, 0.2)"; 
     ctx.beginPath(); ctx.arc(pin.x + 2, pin.y + 3, 9, 0, Math.PI * 2); ctx.fill();
-
     const isAct = activePin && activePin.gx === pin.gx && activePin.gy === pin.gy;
-    ctx.fillStyle = isAct ? "#f1c40f" : "#95a5a6"; // 色
+    ctx.fillStyle = isAct ? "#f1c40f" : "#95a5a6"; 
     ctx.beginPath(); ctx.arc(pin.x, pin.y, 8, 0, Math.PI * 2); ctx.fill();
-
-    ctx.fillStyle = "#ffffff"; // ハイライト
+    ctx.fillStyle = "#ffffff"; 
     ctx.beginPath(); ctx.arc(pin.x - 2, pin.y - 2, 3, 0, Math.PI * 2); ctx.fill();
   }
-
   requestAnimationFrame(drawBoard);
 }
-
-resize();
-loadQuestion();
-requestAnimationFrame(drawBoard);
+resize(); loadQuestion(); requestAnimationFrame(drawBoard);
 </script>
 </body>
 </html>
-
