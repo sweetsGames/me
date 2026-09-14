@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ピンと輪ゴムの ジオボード</title>
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); }
+  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; touch-action: none; font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif; }
+  body { position: fixed; inset: 0; width: 100%; height: 100%; background: #fdf6e2; display: flex; flex-direction: column; overflow: hidden; }
+  
+  #game-wrapper { position: relative; flex: 1; width: 100%; max-width: 550px; margin: 0 auto; background: #faecd3; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+  
+  #header {
+    padding: max(10px, var(--sat)) 12px 10px; display: flex; justify-content: space-between; align-items: center; background: #e09f53; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10;
+  }
+  .header-btn { background: rgba(255,255,255,0.25); border: 2px solid white; color: white; padding: 5px 12px; border-radius: 15px; font-weight: bold; font-size: 14px; cursor: pointer; }
+  .title-text { font-size: 18px; font-weight: bold; text-shadow: 1px 1px 0 rgba(0,0,0,0.15); }
+
+  #info-bar { padding: 8px 12px; background: #fff8eb; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecd8ba; }
+  .target-badge { font-size: 15px; font-weight: bold; color: #8d5b28; display: flex; align-items: center; gap: 6px; }
+  .hint-badge { font-size: 13px; color: #d35400; font-weight: bold; }
+
+  canvas { display: block; flex: 1; width: 100%; height: 100%; }
+
+  #bottom-bar {
+    padding: 10px 15px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: #fff8eb; display: flex; justify-content: space-around; gap: 10px; border-top: 2px solid #ecd8ba; z-index: 10;
+  }
+  .tool-btn { flex: 1; padding: 12px 0; font-size: 15px; font-weight: bold; border-radius: 20px; border: none; color: white; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,0.15); text-align: center; }
+  .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.15); }
+  #btn-undo { background: #95a5a6; }
+  #btn-reset { background: #e74c3c; }
+  #btn-next { background: #27ae60; display: none; }
+
+  .screen { position: absolute; inset: 0; background: rgba(253, 246, 226, 0.96); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; padding: 20px; }
+  h1 { font-size: clamp(24px, 6vw, 32px); color: #8d5b28; margin-bottom: 12px; text-align: center; }
+  .menu-box { background: #fff; border-radius: 16px; padding: 16px; width: 100%; max-width: 360px; border: 3px solid #e09f53; box-shadow: 0 6px 12px rgba(0,0,0,0.06); margin-bottom: 20px; }
+  .level-btn { width: 100%; padding: 12px; margin-bottom: 8px; font-size: 16px; font-weight: bold; border-radius: 10px; border: 2px solid #ecd8ba; background: #fffdf9; color: #6d4c20; cursor: pointer; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+  .level-btn.active { background: #e09f53; color: white; border-color: #b87328; }
+  .start-btn { padding: 14px 45px; font-size: 22px; font-weight: bold; color: white; background: #f39c12; border: none; border-radius: 30px; box-shadow: 0 6px 0 #c87f0a; cursor: pointer; }
+  .start-btn:active { transform: translateY(5px); box-shadow: 0 1px 0 #c87f0a; }
+
+  #toast { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0); font-size: clamp(26px, 6vw, 36px); font-weight: bold; color: #27ae60; text-shadow: 2px 2px 0 #fff; z-index: 60; transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center; pointer-events: none; width: 90%; }
+  #toast.show { transform: translate(-50%, -50%) scale(1); }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="header">
+    <button class="header-btn" onclick="openMenu()">☰ レベル</button>
+    <div class="title-text">📐 輪ゴムのジオボード</div>
+    <div style="width: 60px;"></div>
+  </div>
+
+  <div id="info-bar">
+    <div id="target-title" class="target-badge">お題: ---</div>
+    <div id="mode-hint" class="hint-badge">ピンをなぞってゴムをかけよう！</div>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <div id="bottom-bar">
+    <button id="btn-undo" class="tool-btn" onclick="undoEdge()">↩️ 1本もどす</button>
+    <button id="btn-reset" class="tool-btn" onclick="resetBoard()">🗑️ 全部はずす</button>
+    <button id="btn-next" class="tool-btn" onclick="nextQuestion()">✨ つぎへ！</button>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="menu-screen" class="screen">
+    <h1>🪵 輪ゴムのジオボード</h1>
+    <div class="menu-box">
+      <div style="font-weight:bold; color:#8d5b28; margin-bottom:10px; font-size:14px;">難易度を選択</div>
+      <button class="level-btn active" onclick="selectLevel(0)">
+        <span>① かんたん</span><span style="font-size:12px;">点線ガイドあり</span>
+      </button>
+      <button class="level-btn" onclick="selectLevel(1)">
+        <span>② ふつう</span><span style="font-size:12px;">ヒントの点のみ</span>
+      </button>
+      <button class="level-btn" onclick="selectLevel(2)">
+        <span>③ むずかしい</span><span style="font-size:12px;">🪞 線対称パズル</span>
+      </button>
+    </div>
+    <button class="start-btn" onclick="startGame()">あそぶ！</button>
+  </div>
+</div>
+
+<script>
+document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+let actx;
+function initAudio() {
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (actx.state === 'suspended') actx.resume();
+}
+
+function playPluck(freq) {
+  if (!actx) return;
+  const now = actx.currentTime;
+  const osc = actx.createOscillator();
+  const gain = actx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(freq || 330, now);
+  gain.gain.setValueAtTime(0.4, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+  osc.connect(gain);
+  gain.connect(actx.destination);
+  osc.start(now);
+  osc.stop(now + 0.35);
+}
+
+function playSnap() {
+  if (!actx) return;
+  const now = actx.currentTime;
+  const osc = actx.createOscillator();
+  const gain = actx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(880, now);
+  osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+  osc.connect(gain);
+  gain.connect(actx.destination);
+  osc.start(now);
+  osc.stop(now + 0.08);
+}
+
+function playFanfare() {
+  if (!actx) return;
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+    setTimeout(() => playPluck(f * 1.2), i * 110);
+  });
+}
+
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+let W, H, dpr;
+const GRID = 5;
+let pinPositions = [];
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  const rect = c.getBoundingClientRect();
+  W = rect.width;
+  H = rect.height;
+  c.width = W * dpr;
+  c.height = H * dpr;
+  ctx.resetTransform();
+  ctx.scale(dpr, dpr);
+
+  pinPositions = [];
+  const side = Math.min(W, H) * 0.82;
+  const startX = (W - side) / 2;
+  const startY = (H - side) / 2;
+  const step = side / (GRID - 1);
+
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      pinPositions.push({ x: startX + x * step, y: startY + y * step, gx: x, gy: y });
+    }
+  }
+}
+window.addEventListener('resize', resize);
+
+const PROBLEMS = [
+  // レベル0：かんたん（点線ガイド）
+  [
+    { name: "さんかく", edges: [[[1,3],[3,3]], [[3,3],[2,1]], [[2,1],[1,3]]] },
+    { name: "しかく", edges: [[[1,1],[3,1]], [[3,1],[3,3]], [[3,3],[1,3]], [[1,3],[1,1]]] },
+    { name: "ダイヤ", edges: [[[2,0],[4,2]], [[4,2],[2,4]], [[2,4],[0,2]], [[0,2],[2,0]]] }
+  ],
+  // レベル1：ふつう（頂点ヒントのみ）
+  [
+    { name: "ヨット", edges: [[[2,1],[2,3]], [[2,1],[4,3]], [[2,3],[4,3]], [[1,3],[3,3]], [[1,3],[1,4]], [[3,3],[3,4]], [[1,4],[3,4]]] },
+    { name: "おうち", edges: [[[1,2],[3,2]], [[3,2],[3,4]], [[3,4],[1,4]], [[1,4],[1,2]], [[1,2],[2,0]], [[2,0],[3,2]]] },
+    { name: "おおきな星", edges: [[[2,0],[3,4]], [[3,4],[0,1]], [[0,1],[4,1]], [[4,1],[1,4]], [[1,4],[2,0]]] }
+  ],
+  // レベル2：むずかしい（線対称：左半分に手本、右半分に対称図形を張る）
+  [
+    { name: "線対称：やじるし", leftEdges: [[[0,2],[1,1]], [[1,1],[1,2]], [[1,2],[2,2]], [[0,2],[1,3]], [[1,3],[1,2]]],
+      targetEdges: [[[4,2],[3,1]], [[3,1],[3,2]], [[3,2],[2,2]], [[4,2],[3,3]], [[3,3],[3,2]]] },
+    { name: "線対称：ちょうちょ", leftEdges: [[[2,1],[0,0]], [[0,0],[1,2]], [[1,2],[2,2]], [[2,2],[0,4]], [[0,4],[2,3]], [[2,1],[2,3]]],
+      targetEdges: [[[2,1],[4,0]], [[4,0],[3,2]], [[3,2],[2,2]], [[2,2],[4,4]], [[4,4],[2,3]], [[2,1],[2,3]]] }
+  ]
+];
+
+let currentLevel = 0;
+let qIndex = 0;
+let userEdges = [];
+let activePin = null;
+let currentPointer = { x: 0, y: 0 };
+let isDragging = false;
+let isCleared = false;
+
+function selectLevel(lvl) {
+  currentLevel = lvl;
+  document.querySelectorAll('.level-btn').forEach((b, i) => b.classList.toggle('active', i === lvl));
+}
+
+function openMenu() {
+  document.getElementById('menu-screen').classList.remove('hide');
+}
+
+function startGame() {
+  initAudio();
+  document.getElementById('menu-screen').classList.add('hide');
+  qIndex = 0;
+  loadQuestion();
+}
+
+function getCurrentProb() {
+  return PROBLEMS[currentLevel][qIndex % PROBLEMS[currentLevel].length];
+}
+
+function loadQuestion() {
+  userEdges = [];
+  isCleared = false;
+  document.getElementById('btn-next').style.display = 'none';
+  const p = getCurrentProb();
+  document.getElementById('target-title').innerText = `お題: ${p.name}`;
+
+  if (currentLevel === 0) {
+    document.getElementById('mode-hint').innerText = "点線のとおりにゴムをかけよう！";
+  } else if (currentLevel === 1) {
+    document.getElementById('mode-hint').innerText = "光るピンを結んで形を作ろう！";
+  } else {
+    document.getElementById('mode-hint').innerText = "赤線の反対側におなじ形を作ろう！";
+  }
+}
+
+function edgeKey(p1, p2) {
+  const k1 = `${p1[0]},${p1[1]}`;
+  const k2 = `${p2[0]},${p2[1]}`;
+  return k1 < k2 ? `${k1}-${k2}` : `${k2}-${k1}`;
+}
+
+function checkClear() {
+  if (isCleared) return;
+  const p = getCurrentProb();
+  const target = currentLevel === 2 ? p.targetEdges : p.edges;
+
+  const targetKeys = new Set(target.map(e => edgeKey(e[0], e[1])));
+  const userKeys = new Set(userEdges.map(e => edgeKey(e[0], e[1])));
+
+  if (targetKeys.size !== userKeys.size) return;
+  for (let k of targetKeys) {
+    if (!userKeys.has(k)) return;
+  }
+
+  isCleared = true;
+  playFanfare();
+  const toast = document.getElementById('toast');
+  toast.innerText = "できた！✨\nせいかい！";
+  toast.classList.add('show');
+  document.getElementById('btn-next').style.display = 'block';
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 1800);
+}
+
+function nextQuestion() {
+  qIndex++;
+  loadQuestion();
+}
+
+function resetBoard() {
+  userEdges = [];
+  isCleared = false;
+  document.getElementById('btn-next').style.display = 'none';
+  playSnap();
+}
+
+function undoEdge() {
+  if (userEdges.length > 0) {
+    userEdges.pop();
+    isCleared = false;
+    document.getElementById('btn-next').style.display = 'none';
+    playPluck(240);
+  }
+}
+
+function findNearestPin(x, y, maxDist = 38) {
+  let nearest = null;
+  let minDist = maxDist;
+  for (let p of pinPositions) {
+    const d = Math.hypot(p.x - x, p.y - y);
+    if (d < minDist) {
+      minDist = d;
+      nearest = p;
+    }
+  }
+  return nearest;
+}
+
+c.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  initAudio();
+  if (isCleared) return;
+  const rect = c.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const pin = findNearestPin(x, y);
+  if (pin) {
+    activePin = pin;
+    isDragging = true;
+    currentPointer = { x, y };
+    playSnap();
+  }
+});
+
+c.addEventListener('pointermove', (e) => {
+  e.preventDefault();
+  if (!isDragging) return;
+  const rect = c.getBoundingClientRect();
+  currentPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+});
+
+c.addEventListener('pointerup', (e) => {
+  e.preventDefault();
+  if (!isDragging || !activePin) return;
+  const rect = c.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const targetPin = findNearestPin(x, y);
+  if (targetPin && (targetPin.gx !== activePin.gx || targetPin.gy !== activePin.gy)) {
+    const p1 = [activePin.gx, activePin.gy];
+    const p2 = [targetPin.gx, targetPin.gy];
+    const key = edgeKey(p1, p2);
+
+    const existsIndex = userEdges.findIndex(e => edgeKey(e[0], e[1]) === key);
+    if (existsIndex >= 0) {
+      userEdges.splice(existsIndex, 1);
+      playPluck(220);
+    } else {
+      userEdges.push([p1, p2]);
+      const dx = targetPin.gx - activePin.gx;
+      const dy = targetPin.gy - activePin.gy;
+      const len = Math.hypot(dx, dy);
+      playPluck(350 + (5 - len) * 70);
+    }
+    checkClear();
+  } else {
+    playPluck(180);
+  }
+
+  isDragging = false;
+  activePin = null;
+});
+
+c.addEventListener('pointercancel', () => {
+  isDragging = false;
+  activePin = null;
+});
+
+function getPinCoord(gx, gy) {
+  return pinPositions[gy * GRID + gx];
+}
+
+function drawBoard() {
+  ctx.clearRect(0, 0, W, H);
+  const side = Math.min(W, H) * 0.9;
+  const bx = (W - side) / 2;
+  const by = (H - side) / 2;
+
+  // 木目ボード下地
+  ctx.fillStyle = "#e5b77c";
+  ctx.beginPath();
+  ctx.roundRect(bx, by, side, side, 24);
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "#c08c4e";
+  ctx.stroke();
+
+  // ボード内側ベベル
+  ctx.fillStyle = "#edd2a4";
+  ctx.beginPath();
+  ctx.roundRect(bx + 10, by + 10, side - 20, side - 20, 16);
+  ctx.fill();
+
+  // レベル2の対称軸ライン
+  if (currentLevel === 2) {
+    const centerPinX = getPinCoord(2, 0).x;
+    ctx.strokeStyle = "rgba(231, 76, 60, 0.6)";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(centerPinX, by + 15);
+    ctx.lineTo(centerPinX, by + side - 15);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  const p = getCurrentProb();
+
+  // レベル0：点線ガイド
+  if (currentLevel === 0 && p.edges) {
+    ctx.strokeStyle = "rgba(142, 68, 173, 0.35)";
+    ctx.lineWidth = 8;
+    ctx.setLineDash([8, 8]);
+    for (let e of p.edges) {
+      const p1 = getPinCoord(e[0][0], e[0][1]);
+      const p2 = getPinCoord(e[1][0], e[1][1]);
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  // レベル1：頂点ピンのハイライト
+  if (currentLevel === 1 && p.edges) {
+    const vertices = new Set();
+    p.edges.forEach(e => {
+      vertices.add(`${e[0][0]},${e[0][1]}`);
+      vertices.add(`${e[1][0]},${e[1][1]}`);
+    });
+    for (let v of vertices) {
+      const [gx, gy] = v.split(',').map(Number);
+      const coord = getPinCoord(gx, gy);
+      ctx.fillStyle = "rgba(241, 196, 15, 0.4)";
+      ctx.beginPath();
+      ctx.arc(coord.x, coord.y, 22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // レベル2：左側の手本ゴム
+  if (currentLevel === 2 && p.leftEdges) {
+    ctx.strokeStyle = "#9b59b6";
+    ctx.lineWidth = 7;
+    ctx.lineCap = "round";
+    for (let e of p.leftEdges) {
+      const p1 = getPinCoord(e[0][0], e[0][1]);
+      const p2 = getPinCoord(e[1][0], e[1][1]);
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
+  }
+
+  // ユーザーが張った輪ゴム
+  ctx.strokeStyle = "#e67e22";
+  ctx.lineWidth = 8;
+  ctx.lineCap = "round";
+  for (let e of userEdges) {
+    const p1 = getPinCoord(e[0][0], e[0][1]);
+    const p2 = getPinCoord(e[1][0], e[1][1]);
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+
+    // 輪ゴムの内側の光沢
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#f39c12";
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = "#e67e22";
+  }
+
+  // ドラッグ中のゴム
+  if (isDragging && activePin) {
+    ctx.strokeStyle = "rgba(230, 126, 34, 0.75)";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(activePin.x, activePin.y);
+    ctx.lineTo(currentPointer.x, currentPointer.y);
+    ctx.stroke();
+  }
+
+  // ピンの描画
+  for (let pin of pinPositions) {
+    // 影
+    ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+    ctx.beginPath();
+    ctx.arc(pin.x + 2, pin.y + 3, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ピンの頭（メタリック・ウッド調）
+    const isAct = activePin && activePin.gx === pin.gx && activePin.gy === pin.gy;
+    ctx.fillStyle = isAct ? "#f1c40f" : "#7f8c8d";
+    ctx.beginPath();
+    ctx.arc(pin.x, pin.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ハイライト
+    ctx.fillStyle = "#ecf0f1";
+    ctx.beginPath();
+    ctx.arc(pin.x - 2, pin.y - 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  requestAnimationFrame(drawBoard);
+}
+
+resize();
+loadQuestion();
+requestAnimationFrame(drawBoard);
+</script>
+</body>
+</html>
