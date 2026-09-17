@@ -5,232 +5,223 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>本格・知育スイカパズル</title>
 <!-- 💡 本格物理エンジン「Matter.js」を読み込む -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-
-<style>
-  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
-  
-  html, body { overscroll-behavior: none; touch-action: none; background: #e8dcc4; margin: 0; padding: 0; }
-  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif; }
-  
-  body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  
-  #game-wrapper {
-    position: relative; width: calc(100% - 32px); max-width: 450px; height: calc(100% - 32px); max-height: 800px;
-    background: #ecf0f1; display: flex; flex-direction: column;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; border-radius: 20px;
-    margin: max(16px, var(--sat)) auto max(16px, var(--sab));
-  }
-
-  #header {
-    flex-shrink: 0; padding: 12px 15px; background: #d35400; color: white;
-    display: flex; justify-content: space-between; align-items: center; z-index: 20;
-  }
-  .header-btn { background: rgba(255,255,255,0.25); border: 2px solid white; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 13px; cursor: pointer; }
-  .score-box { font-size: 18px; font-weight: bold; }
-
-  /* 💡 進化の輪（フローチャート）表示エリア */
-  #evolution-bar {
-    flex-shrink: 0; background: #fff; padding: 8px 10px; display: flex; align-items: center; gap: 8px;
-    overflow-x: auto; border-bottom: 3px solid #ddd; white-space: nowrap;
-    scrollbar-width: none; /* Firefox */
-  }
-  #evolution-bar::-webkit-scrollbar { display: none; } /* Chrome/Safari */
-  .evo-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fdf6e3; border: 2px solid #ecd8ba; border-radius: 8px; padding: 4px 8px; min-width: 45px; }
-  .evo-char { font-weight: bold; font-size: 16px; color: #333; }
-  .evo-sub { font-size: 9px; color: #7f8c8d; margin-top: 2px; }
-  .evo-arrow { color: #bdc3c7; font-weight: bold; font-size: 14px; }
-
-  /* 盤面エリア */
-  #canvas-container { flex: 1; position: relative; background: #fdf6e3; overflow: hidden; width: 100%; touch-action: none; }
-  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-
-  /* ゲームオーバー画面 */
-  #game-over {
-    position: absolute; inset: 0; background: rgba(44, 62, 80, 0.9);
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.5s;
-  }
-  #game-over.show { opacity: 1; pointer-events: auto; }
-  #game-over h1 { color: #e74c3c; font-size: 36px; margin-bottom: 10px; text-shadow: 2px 2px 0 #fff; }
-  #game-over .final-score { color: white; font-size: 20px; font-weight: bold; margin-bottom: 25px; }
-  .retry-btn { padding: 12px 30px; font-size: 20px; font-weight: bold; color: white; background: #27ae60; border: none; border-radius: 30px; box-shadow: 0 5px 0 #1e8449; cursor: pointer; }
-  .retry-btn:active { transform: translateY(5px); box-shadow: none; }
-
-  /* メニュー画面 */
-  #start-screen {
-    position: absolute; inset: 0; background: rgba(253, 246, 226, 0.98);
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    z-index: 200; padding: 20px;
-  }
-  .title-logo { font-size: clamp(26px, 7vw, 34px); color: #c0392b; font-weight: 900; margin-bottom: 25px; text-shadow: 2px 2px 0 #fff, 3px 3px 0 #f39c12; text-align: center; line-height: 1.3;}
-  
-  .theme-box { background: white; border: 3px solid #f39c12; padding: 15px; border-radius: 16px; margin-bottom: 25px; width: 100%; max-width: 320px; box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
-  .theme-btn {
-    width: 100%; padding: 12px 10px; margin-bottom: 8px; font-size: 15px; font-weight: bold;
-    border-radius: 10px; border: 2px solid #ecd8ba; background: #fffdf9; color: #6d4c20;
-    cursor: pointer; display: flex; flex-direction: column; align-items: center;
-  }
-  .theme-btn span.sub { font-size: 11px; font-weight: normal; margin-top: 4px; color: inherit; }
-  .theme-btn.active { background: #e67e22; color: white; border-color: #d35400; box-shadow: 0 3px 0 #d35400; }
-  
-  .start-btn { padding: 16px 50px; font-size: 22px; font-weight: bold; color: white; background: #27ae60; border: none; border-radius: 40px; box-shadow: 0 6px 0 #1e8449; cursor: pointer; }
+<script src="[https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js](https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js)"></script>
+​<style>
+:root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+​html, body { overscroll-behavior: none; touch-action: none; background: #e8dcc4; margin: 0; padding: 0; }
+​{ box-sizing: border-box; user-select: none; -webkit-user-select: none; font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif; }
+​body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+​#game-wrapper {
+position: relative; width: calc(100% - 32px); max-width: 450px; height: calc(100% - 32px); max-height: 800px;
+background: #ecf0f1; display: flex; flex-direction: column;
+box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; border-radius: 20px;
+margin: max(16px, var(--sat)) auto max(16px, var(--sab));
+}
+​/* 💡 ヘッダー部分に「つぎ」の枠を復活・調整 */
+#header {
+flex-shrink: 0; padding: 12px 15px; background: #d35400; color: white;
+display: flex; justify-content: space-between; align-items: center; z-index: 20;
+}
+.header-btn { background: rgba(255,255,255,0.25); border: 2px solid white; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 13px; cursor: pointer; }
+.header-btn:active { background: rgba(255,255,255,0.4); }
+​.next-box {
+background: rgba(0,0,0,0.2); padding: 4px 12px; border-radius: 20px;
+display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 13px;
+}
+#next-kanji {
+width: 30px; height: 30px; background: white; border-radius: 50%;
+display: flex; justify-content: center; align-items: center;
+color: #333; font-size: 16px; font-weight: bold; box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+}
+​.score-box { font-size: 16px; font-weight: bold; }
+​/* 進化の輪（フローチャート）表示エリア */
+#evolution-bar {
+flex-shrink: 0; background: #fff; padding: 8px 10px; display: flex; align-items: center; gap: 8px;
+overflow-x: auto; border-bottom: 3px solid #ddd; white-space: nowrap;
+-webkit-overflow-scrolling: touch;
+}
+#evolution-bar::-webkit-scrollbar { display: none; }
+.evo-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fdf6e3; border: 2px solid #ecd8ba; border-radius: 8px; padding: 4px 8px; min-width: 45px; }
+.evo-char { font-weight: bold; font-size: 16px; color: #333; }
+.evo-sub { font-size: 9px; color: #7f8c8d; margin-top: 2px; }
+.evo-arrow { color: #bdc3c7; font-weight: bold; font-size: 14px; }
+​/* 盤面エリア */
+#canvas-container { flex: 1; position: relative; background: #fdf6e3; overflow: hidden; width: 100%; touch-action: none; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+​/* ゲームオーバー画面 */
+#game-over {
+position: absolute; inset: 0; background: rgba(44, 62, 80, 0.9);
+display: flex; flex-direction: column; justify-content: center; align-items: center;
+z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.5s;
+}
+#game-over.show { opacity: 1; pointer-events: auto; }
+#game-over h1 { color: #e74c3c; font-size: 36px; margin-bottom: 10px; text-shadow: 2px 2px 0 #fff; }
+#game-over .final-score { color: white; font-size: 20px; font-weight: bold; margin-bottom: 25px; }
+.retry-btn { padding: 12px 30px; font-size: 20px; font-weight: bold; color: white; background: #27ae60; border: none; border-radius: 30px; box-shadow: 0 5px 0 #1e8449; cursor: pointer; }
+.retry-btn:active { transform: translateY(5px); box-shadow: none; }
+​/* メニュー画面 */
+#start-screen {
+position: absolute; inset: 0; background: rgba(253, 246, 226, 0.98);
+display: flex; flex-direction: column; justify-content: center; align-items: center;
+z-index: 200; padding: 20px;
+}
+.title-logo { font-size: clamp(26px, 7vw, 34px); color: #c0392b; font-weight: 900; margin-bottom: 25px; text-shadow: 2px 2px 0 #fff, 3px 3px 0 #f39c12; text-align: center; line-height: 1.3;}
+​.theme-box { background: white; border: 3px solid #f39c12; padding: 15px; border-radius: 16px; margin-bottom: 25px; width: 100%; max-width: 320px; box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+.theme-btn {
+width: 100%; padding: 12px 10px; margin-bottom: 8px; font-size: 15px; font-weight: bold;
+border-radius: 10px; border: 2px solid #ecd8ba; background: #fffdf9; color: #6d4c20;
+cursor: pointer; display: flex; flex-direction: column; align-items: center;
+}
+.theme-btn span.sub { font-size: 11px; font-weight: normal; margin-top: 4px; color: inherit; }
+.theme-btn.active { background: #e67e22; color: white; border-color: #d35400; box-shadow: 0 3px 0 #d35400; }
+​.start-btn { padding: 16px 50px; font-size: 22px; font-weight: bold; color: white; background: #27ae60; border: none; border-radius: 40px; box-shadow: 0 6px 0 #1e8449; cursor: pointer; }
 </style>
 </head>
 <body>
-
-<div id="game-wrapper">
-  <div id="header">
-    <button class="header-btn" onclick="showMenu()">◀ 終了</button>
-    <div class="score-box">SCORE: <span id="score">0</span></div>
-  </div>
-
-  <!-- 進化の輪（フローチャート） -->
-  <div id="evolution-bar"></div>
-
-  <div id="canvas-container">
-    <canvas id="c"></canvas>
-  </div>
-
-  <div id="game-over">
-    <h1>あふれた！</h1>
-    <div class="final-score">スコア: <span id="result-score">0</span></div>
-    <button class="retry-btn" onclick="startGame()">もういちど！</button>
-  </div>
-
-  <div id="start-screen">
-    <div class="title-logo">🍉本格物理！<br>知育パズルスイカ</div>
-    
-    <div class="theme-box">
-      <div style="font-weight:bold; color:#d35400; text-align:center; margin-bottom:10px; font-size:14px;">あそぶテーマをえらぶ</div>
-      
-      <button class="theme-btn active" onclick="selectTheme('planet')">
-        🌍 宇宙の大きさ
-        <span class="sub">丸い星が進化！リアルな直径表示つき</span>
-      </button>
-      <button class="theme-btn" onclick="selectTheme('money')">
-        💰 お金の進化
-        <span class="sub">硬貨は丸く滑る！お札は四角く積もる！</span>
-      </button>
-      <button class="theme-btn" onclick="selectTheme('kanji')">
-        🌳 漢字・部首合体
-        <span class="sub">バラバラの部首（四角・長方形）を合体！</span>
-      </button>
-    </div>
-    
-    <button class="start-btn" onclick="startGame()">スタート！</button>
-  </div>
+​<div id="game-wrapper">
+<div id="header">
+<button class="header-btn" onclick="showMenu()">◀ メニュー</button>
+<!-- 復活させた「つぎ」のエリア -->
+<div class="next-box">つぎ <div id="next-kanji"></div></div>
+<div class="score-box">SCORE: <span id="score">0</span></div>
 </div>
-
-<script>
+​<!-- 進化の輪（フローチャート） -->
+<div id="evolution-bar"></div>
+​<div id="canvas-container">
+<canvas id="c"></canvas>
+</div>
+​<div id="game-over">
+<h1>あふれた！</h1>
+<div class="final-score">スコア: <span id="result-score">0</span></div>
+<button class="retry-btn" onclick="startGame()">もういちど！</button>
+</div>
+​<div id="start-screen">
+<div class="title-logo">🍉本格物理！
+知育パズルスイカ</div>
+​<div class="theme-box">
+<div style="font-weight:bold; color:#d35400; text-align:center; margin-bottom:10px; font-size:14px;">あそぶテーマをえらぶ</div>
+​<button class="theme-btn active" onclick="selectTheme('planet')">
+🌍 宇宙の大きさ
+<span class="sub">丸い星が進化！リアルな直径表示つき</span>
+</button>
+<button class="theme-btn" onclick="selectTheme('money')">
+💰 お金の進化
+<span class="sub">硬貨は丸く滑る！お札は四角く積もる！</span>
+</button>
+<button class="theme-btn" onclick="selectTheme('kanji')">
+🌳 漢字・部首合体
+<span class="sub">バラバラの部首（四角・長方形）を合体！</span>
+</button>
+</div>
+​<button class="start-btn" onclick="startGame()">スタート！</button>
+</div>
+</div>
+​<script>
 // --- 誤爆防止 ---
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 document.addEventListener('contextmenu', (e) => e.preventDefault());
-document.addEventListener('touchmove', (e) => { if(e.touches.length > 1) e.preventDefault(); }, { passive: false });
-
-// --- 音声関連 ---
+// スワイプバック防止：進化バー以外のタッチムーブをキャンセル
+document.addEventListener('touchmove', (e) => {
+if (!e.target.closest('#evolution-bar')) {
+e.preventDefault();
+}
+}, { passive: false });
+​// --- 音声関連 ---
 let actx;
 function initAudio() { if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); } if (actx.state === 'suspended') actx.resume(); }
 function playSound(type, tier = 0) {
-  if (!actx) return;
-  const t = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
-  osc.connect(gain); gain.connect(actx.destination);
-  
-  if (type === 'drop') {
-    osc.type = 'sine'; osc.frequency.setValueAtTime(400, t); osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
-    gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.1);
-    osc.start(t); osc.stop(t + 0.1);
-  } else if (type === 'merge') {
-    osc.type = 'triangle'; osc.frequency.setValueAtTime(300 + tier * 50, t); osc.frequency.setValueAtTime(450 + tier * 50, t + 0.05);
-    gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
-    osc.start(t); osc.stop(t + 0.2);
-  } else if (type === 'kanji_merge') { // 漢字完成時のファンファーレ風
-    osc.type = 'square'; osc.frequency.setValueAtTime(600, t); osc.frequency.setValueAtTime(800, t + 0.1);
-    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
-    osc.start(t); osc.stop(t + 0.3);
-  }
+if (!actx) return;
+const t = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
+osc.connect(gain); gain.connect(actx.destination);
+​if (type === 'drop') {
+osc.type = 'sine'; osc.frequency.setValueAtTime(400, t); osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.1);
+osc.start(t); osc.stop(t + 0.1);
+} else if (type === 'merge') {
+osc.type = 'triangle'; osc.frequency.setValueAtTime(300 + tier * 50, t); osc.frequency.setValueAtTime(450 + tier * 50, t + 0.05);
+gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+osc.start(t); osc.stop(t + 0.2);
+} else if (type === 'kanji_merge') { // 漢字完成時のファンファーレ風
+osc.type = 'square'; osc.frequency.setValueAtTime(600, t); osc.frequency.setValueAtTime(800, t + 0.1);
+gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+osc.start(t); osc.stop(t + 0.3);
 }
-
-// --- テーマ別データ定義 ---
+}
+​// --- テーマ別データ定義 ---
 const THEMES = {
-  planet: {
-    type: "linear",
-    items: [
-      { char: "月", sub: "3,474km", shape: "circle", r: 16, color: "#bdc3c7", score: 1 },
-      { char: "水星", sub: "4,879km", shape: "circle", r: 22, color: "#85c1e9", score: 3 },
-      { char: "火星", sub: "6,779km", shape: "circle", r: 30, color: "#e74c3c", score: 6 },
-      { char: "金星", sub: "12,104km", shape: "circle", r: 40, color: "#f1c40f", score: 10 },
-      { char: "地球", sub: "12,742km", shape: "circle", r: 52, color: "#2ecc71", score: 15 },
-      { char: "海王星", sub: "49,244km", shape: "circle", r: 66, color: "#3498db", score: 21 },
-      { char: "天王星", sub: "50,724km", shape: "circle", r: 82, color: "#1abc9c", score: 28 },
-      { char: "土星", sub: "116,460km", shape: "circle", r: 100, color: "#e67e22", score: 36 },
-      { char: "木星", sub: "139,820km", shape: "circle", r: 120, color: "#d35400", score: 45 },
-      { char: "太陽", sub: "139万km", shape: "circle", r: 150, color: "#c0392b", score: 100 }
-    ]
-  },
-  money: {
-    type: "linear",
-    items: [
-      // 硬貨は丸くて転がりやすい（低摩擦、高反発）
-      { char: "1円", sub: "硬貨", shape: "circle", r: 18, color: "#bdc3c7", score: 1, fric: 0.005, rest: 0.4 },
-      { char: "5円", sub: "硬貨", shape: "circle", r: 24, color: "#f1c40f", score: 3, fric: 0.005, rest: 0.4 },
-      { char: "10円", sub: "硬貨", shape: "circle", r: 30, color: "#e67e22", score: 6, fric: 0.005, rest: 0.4 },
-      { char: "50円", sub: "硬貨", shape: "circle", r: 36, color: "#ecf0f1", score: 10, fric: 0.005, rest: 0.4 },
-      { char: "100円", sub: "硬貨", shape: "circle", r: 44, color: "#ecf0f1", score: 15, fric: 0.005, rest: 0.4 },
-      { char: "500円", sub: "硬貨", shape: "circle", r: 52, color: "#d4ac0d", score: 21, fric: 0.005, rest: 0.4 },
-      // お札は四角くて滑らない、積み重なる（高摩擦、低反発）
-      { char: "千円", sub: "お札", shape: "rect", w: 80, h: 40, color: "#a2d9ce", score: 30, fric: 0.8, rest: 0.05 },
-      { char: "5千円", sub: "お札", shape: "rect", w: 100, h: 50, color: "#d7bde2", score: 50, fric: 0.8, rest: 0.05 },
-      { char: "1万円", sub: "お札", shape: "rect", w: 120, h: 60, color: "#f5b041", score: 100, fric: 0.8, rest: 0.05 }
-    ]
-  },
-  kanji: {
-    type: "recipe",
-    parts: [
-      // 部首は特殊な四角形
-      { char: "氵", shape: "rect", w: 25, h: 55, color: "#85c1e9", score: 1 }, // 縦長
-      { char: "宀", shape: "rect", w: 60, h: 25, color: "#f5cba7", score: 1 }, // 横長
-      { char: "木", shape: "rect", w: 40, h: 40, color: "#a9dfbf", score: 1 }, // 正方形
-      { char: "日", shape: "rect", w: 35, h: 35, color: "#f5b041", score: 1 }, // 正方形
-      { char: "月", shape: "rect", w: 30, h: 50, color: "#f9e79f", score: 1 }, // 縦長
-      { char: "人", shape: "rect", w: 25, h: 55, color: "#d7bde2", score: 1 }  // 縦長
-    ],
-    recipes: {
-      // 部首A + 部首B = 完成漢字 (Lvl 1)
-      "氵+木": { char: "沐", read: "もく", shape: "circle", r: 40, color: "#3498db", score: 10 },
-      "宀+木": { char: "宋", read: "そう", shape: "circle", r: 40, color: "#d35400", score: 10 },
-      "木+木": { char: "林", read: "はやし", shape: "circle", r: 40, color: "#27ae60", score: 10 },
-      "日+月": { char: "明", read: "あかるい", shape: "circle", r: 40, color: "#f39c12", score: 10 },
-      "人+木": { char: "休", read: "やすむ", shape: "circle", r: 40, color: "#9b59b6", score: 10 }
-    },
-    levels: [
-      // Lvl 1同士がぶつかると Lvl 2へ
-      { char: "森", read: "もり", shape: "circle", r: 60, color: "#1e8449", score: 30 },
-      { char: "晶", read: "あきら", shape: "circle", r: 85, color: "#e67e22", score: 60 },
-      { char: "爆", read: "ばくはつ", shape: "circle", r: 120, color: "#c0392b", score: 150 }
-    ]
-  }
+planet: {
+type: "linear",
+items: [
+{ char: "月", sub: "3,474km", shape: "circle", r: 16, color: "#bdc3c7", score: 1 },
+{ char: "水星", sub: "4,879km", shape: "circle", r: 22, color: "#85c1e9", score: 3 },
+{ char: "火星", sub: "6,779km", shape: "circle", r: 30, color: "#e74c3c", score: 6 },
+{ char: "金星", sub: "12,104km", shape: "circle", r: 40, color: "#f1c40f", score: 10 },
+{ char: "地球", sub: "12,742km", shape: "circle", r: 52, color: "#2ecc71", score: 15 },
+{ char: "海王星", sub: "49,244km", shape: "circle", r: 66, color: "#3498db", score: 21 },
+{ char: "天王星", sub: "50,724km", shape: "circle", r: 82, color: "#1abc9c", score: 28 },
+{ char: "土星", sub: "116,460km", shape: "circle", r: 100, color: "#e67e22", score: 36 },
+{ char: "木星", sub: "139,820km", shape: "circle", r: 120, color: "#d35400", score: 45 },
+{ char: "太陽", sub: "139万km", shape: "circle", r: 150, color: "#c0392b", score: 100 }
+]
+},
+money: {
+type: "linear",
+items: [
+// 硬貨は丸くて転がりやすい（低摩擦、高反発）
+{ char: "1円", sub: "硬貨", shape: "circle", r: 18, color: "#bdc3c7", score: 1, fric: 0.005, rest: 0.4 },
+{ char: "5円", sub: "硬貨", shape: "circle", r: 24, color: "#f1c40f", score: 3, fric: 0.005, rest: 0.4 },
+{ char: "10円", sub: "硬貨", shape: "circle", r: 30, color: "#e67e22", score: 6, fric: 0.005, rest: 0.4 },
+{ char: "50円", sub: "硬貨", shape: "circle", r: 36, color: "#ecf0f1", score: 10, fric: 0.005, rest: 0.4 },
+{ char: "100円", sub: "硬貨", shape: "circle", r: 44, color: "#ecf0f1", score: 15, fric: 0.005, rest: 0.4 },
+{ char: "500円", sub: "硬貨", shape: "circle", r: 52, color: "#d4ac0d", score: 21, fric: 0.005, rest: 0.4 },
+// お札は四角くて滑らない、積み重なる（高摩擦、低反発）
+{ char: "千円", sub: "お札", shape: "rect", w: 80, h: 40, color: "#a2d9ce", score: 30, fric: 0.8, rest: 0.05 },
+{ char: "5千円", sub: "お札", shape: "rect", w: 100, h: 50, color: "#d7bde2", score: 50, fric: 0.8, rest: 0.05 },
+{ char: "1万円", sub: "お札", shape: "rect", w: 120, h: 60, color: "#f5b041", score: 100, fric: 0.8, rest: 0.05 }
+]
+},
+kanji: {
+type: "recipe",
+parts: [
+// 部首は特殊な四角形
+{ char: "氵", shape: "rect", w: 25, h: 55, color: "#85c1e9", score: 1 }, // 縦長
+{ char: "宀", shape: "rect", w: 60, h: 25, color: "#f5cba7", score: 1 }, // 横長
+{ char: "木", shape: "rect", w: 40, h: 40, color: "#a9dfbf", score: 1 }, // 正方形
+{ char: "日", shape: "rect", w: 35, h: 35, color: "#f5b041", score: 1 }, // 正方形
+{ char: "月", shape: "rect", w: 30, h: 50, color: "#f9e79f", score: 1 }, // 縦長
+{ char: "人", shape: "rect", w: 25, h: 55, color: "#d7bde2", score: 1 }  // 縦長
+],
+recipes: {
+// 部首A + 部首B = 完成漢字 (Lvl 1)
+"氵+木": { char: "沐", read: "もく", shape: "circle", r: 40, color: "#3498db", score: 10 },
+"宀+木": { char: "宋", read: "そう", shape: "circle", r: 40, color: "#d35400", score: 10 },
+"木+木": { char: "林", read: "はやし", shape: "circle", r: 40, color: "#27ae60", score: 10 },
+"日+月": { char: "明", read: "あかるい", shape: "circle", r: 40, color: "#f39c12", score: 10 },
+"人+木": { char: "休", read: "やすむ", shape: "circle", r: 40, color: "#9b59b6", score: 10 }
+},
+levels: [
+// Lvl 1同士がぶつかると Lvl 2へ
+{ char: "森", read: "もり", shape: "circle", r: 60, color: "#1e8449", score: 30 },
+{ char: "晶", read: "あきら", shape: "circle", r: 85, color: "#e67e22", score: 60 },
+{ char: "爆", read: "ばくはつ", shape: "circle", r: 120, color: "#c0392b", score: 150 }
+]
+}
 };
-
-let currentTheme = 'planet';
-
-// === Matter.js セットアップ ===
+​let currentTheme = 'planet';
+​// === Matter.js セットアップ ===
 const Engine = Matter.Engine,
-      Render = Matter.Render,
-      Runner = Matter.Runner,
-      Composite = Matter.Composite,
-      Bodies = Matter.Bodies,
-      Events = Matter.Events;
-
-let engine, runner;
+Render = Matter.Render,
+Runner = Matter.Runner,
+Composite = Matter.Composite,
+Bodies = Matter.Bodies,
+Events = Matter.Events;
+​let engine, runner;
 let L_WIDTH = 400, L_HEIGHT = 650; // 物理演算用の論理サイズ
 const GAMEOVER_Y = 120;
-
-const c = document.getElementById('c');
+​const c = document.getElementById('c');
 const ctx = c.getContext('2d');
 let scaleRatio = 1;
-
-let score = 0;
+​let score = 0;
 let nextDrop = null;
 let currentX = L_WIDTH / 2;
 let gameState = 'menu'; // 'menu', 'playing', 'gameover'
@@ -239,332 +230,293 @@ let pendingMerges = [];
 let particles = [];
 let floatTexts = [];
 let overflowTimer = 0;
-
-function selectTheme(theme) {
-  currentTheme = theme;
-  document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('onclick').includes(theme)));
+​function selectTheme(theme) {
+currentTheme = theme;
+document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('onclick').includes(theme)));
 }
-
-function showMenu() {
-  gameState = 'menu';
-  document.getElementById('start-screen').style.display = 'flex';
-  document.getElementById('game-over').classList.remove('show');
-  if(runner) Runner.stop(runner);
-  if(engine) Composite.clear(engine.world);
+​function showMenu() {
+gameState = 'menu';
+document.getElementById('start-screen').style.display = 'flex';
+document.getElementById('game-over').classList.remove('show');
+if(runner) Runner.stop(runner);
+if(engine) Composite.clear(engine.world);
 }
-
-function initUIBar() {
-  const bar = document.getElementById('evolution-bar');
-  bar.innerHTML = '';
-  let themeObj = THEMES[currentTheme];
-  
-  if (themeObj.type === 'linear') {
-    themeObj.items.forEach((item, i) => {
-      let div = document.createElement('div'); div.className = 'evo-item';
-      div.innerHTML = `<span class="evo-char">${item.char}</span><span class="evo-sub">${item.sub || ''}</span>`;
-      bar.appendChild(div);
-      if (i < themeObj.items.length - 1) {
-        let arrow = document.createElement('div'); arrow.className = 'evo-arrow'; arrow.innerText = '▶';
-        bar.appendChild(arrow);
-      }
-    });
-  } else if (themeObj.type === 'recipe') {
-    // 漢字のレシピと進化先を表示
-    let txt = `<div class="evo-item"><span class="evo-sub">レシピ</span><span class="evo-char" style="font-size:12px;">氵+木=沐 / 木+木=林 / 日+月=明 ...</span></div>`;
-    txt += `<div class="evo-arrow">▶</div>`;
-    txt += `<div class="evo-item"><span class="evo-sub">完成合体で</span><span class="evo-char">森</span></div>`;
-    txt += `<div class="evo-arrow">▶</div>`;
-    txt += `<div class="evo-item"><span class="evo-char">晶</span></div>`;
-    txt += `<div class="evo-arrow">▶</div>`;
-    txt += `<div class="evo-item"><span class="evo-char">爆</span></div>`;
-    bar.innerHTML = txt;
-  }
+​function initUIBar() {
+const bar = document.getElementById('evolution-bar');
+bar.innerHTML = '';
+let themeObj = THEMES[currentTheme];
+​if (themeObj.type === 'linear') {
+themeObj.items.forEach((item, i) => {
+let div = document.createElement('div'); div.className = 'evo-item';
+div.innerHTML = <span class="evo-char">${item.char}</span><span class="evo-sub">${item.sub || ''}</span>;
+bar.appendChild(div);
+if (i < themeObj.items.length - 1) {
+let arrow = document.createElement('div'); arrow.className = 'evo-arrow'; arrow.innerText = '▶';
+bar.appendChild(arrow);
 }
-
-function resize() {
-  const rect = c.parentElement.getBoundingClientRect();
-  const dpr = window.devicePixelRatio || 1;
-  c.width = rect.width * dpr; c.height = rect.height * dpr;
-  scaleRatio = (rect.width / L_WIDTH) * dpr;
-  ctx.resetTransform(); ctx.scale(scaleRatio, scaleRatio);
+});
+} else if (themeObj.type === 'recipe') {
+// 漢字のレシピと進化先を表示
+let txt = <div class="evo-item"><span class="evo-sub">レシピ</span><span class="evo-char" style="font-size:12px;">氵+木=沐 / 木+木=林 / 日+月=明 ...</span></div>;
+txt += <div class="evo-arrow">▶</div>;
+txt += <div class="evo-item"><span class="evo-sub">完成合体で</span><span class="evo-char">森</span></div>;
+txt += <div class="evo-arrow">▶</div>;
+txt += <div class="evo-item"><span class="evo-char">晶</span></div>;
+txt += <div class="evo-arrow">▶</div>;
+txt += <div class="evo-item"><span class="evo-char">爆</span></div>;
+bar.innerHTML = txt;
+}
+}
+​function resize() {
+const rect = c.parentElement.getBoundingClientRect();
+const dpr = window.devicePixelRatio || 1;
+c.width = rect.width * dpr; c.height = rect.height * dpr;
+scaleRatio = (rect.width / L_WIDTH) * dpr;
+ctx.resetTransform(); ctx.scale(scaleRatio, scaleRatio);
 }
 window.addEventListener('resize', resize);
-
-function startGame() {
-  initAudio();
-  document.getElementById('start-screen').style.display = 'none';
-  document.getElementById('game-over').classList.remove('show');
-  initUIBar();
-  resize();
-
-  // 物理エンジン初期化
-  if(engine) { Composite.clear(engine.world); Engine.clear(engine); }
-  engine = Engine.create();
-  engine.world.gravity.y = 1.2; // 気持ちよく落ちる重力
-
-  // 壁の作成（見えない壁）
-  const wallOpt = { isStatic: true, render: { visible: false } };
-  Composite.add(engine.world, [
-    Bodies.rectangle(L_WIDTH/2, L_HEIGHT + 30, L_WIDTH + 100, 60, wallOpt), // 床
-    Bodies.rectangle(-30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt), // 左壁
-    Bodies.rectangle(L_WIDTH+30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt) // 右壁
-  ]);
-
-  // 衝突イベント（スイカの合体処理）
-  Events.on(engine, 'collisionStart', handleCollision);
-
-  if(runner) Runner.stop(runner);
-  runner = Runner.create();
-  Runner.run(runner, engine);
-
-  score = 0; updateScore();
-  particles = []; floatTexts = []; overflowTimer = 0;
-  gameState = 'playing'; dropCooldown = false;
-  pickNext();
-  if(!window.animLoop) { requestAnimationFrame(loop); window.animLoop = true; }
+​function startGame() {
+initAudio();
+document.getElementById('start-screen').style.display = 'none';
+document.getElementById('game-over').classList.remove('show');
+initUIBar();
+resize();
+​// 物理エンジン初期化
+if(engine) { Composite.clear(engine.world); Engine.clear(engine); }
+engine = Engine.create();
+engine.world.gravity.y = 1.2; // 気持ちよく落ちる重力
+​// 壁の作成（見えない壁）
+const wallOpt = { isStatic: true, render: { visible: false } };
+Composite.add(engine.world, [
+Bodies.rectangle(L_WIDTH/2, L_HEIGHT + 30, L_WIDTH + 100, 60, wallOpt), // 床
+Bodies.rectangle(-30, L_HEIGHT/2, 60, L_HEIGHT2, wallOpt), // 左壁
+Bodies.rectangle(L_WIDTH+30, L_HEIGHT/2, 60, L_HEIGHT2, wallOpt) // 右壁
+]);
+​// 衝突イベント（スイカの合体処理）
+Events.on(engine, 'collisionStart', handleCollision);
+​if(runner) Runner.stop(runner);
+runner = Runner.create();
+Runner.run(runner, engine);
+​score = 0; updateScore();
+particles = []; floatTexts = []; overflowTimer = 0;
+gameState = 'playing'; dropCooldown = false;
+pickNext();
+if(!window.animLoop) { requestAnimationFrame(loop); window.animLoop = true; }
 }
-
-function updateScore() { document.getElementById('score').innerText = score; }
-
-function pickNext() {
-  let themeObj = THEMES[currentTheme];
-  let maxTier = Math.min(3, Math.floor(score / 50) + 1);
-  
-  if (themeObj.type === 'linear') {
-    let t = Math.floor(Math.random() * maxTier);
-    nextDrop = { tier: t, ...themeObj.items[t] };
-  } else {
-    // 漢字モードは部首（parts）のみ落ちてくる
-    let idx = Math.floor(Math.random() * themeObj.parts.length);
-    nextDrop = { type: 'part', idx: idx, ...themeObj.parts[idx] };
-  }
-  
-  let nextEl = document.getElementById('next-kanji');
-  nextEl.innerText = nextDrop.char;
-  nextEl.style.backgroundColor = nextDrop.color;
-  nextEl.style.fontSize = nextDrop.char.length > 1 ? '12px' : '18px';
-  if(nextDrop.shape === 'rect') nextEl.style.borderRadius = '4px';
-  else nextEl.style.borderRadius = '50%';
+​function updateScore() { document.getElementById('score').innerText = score; }
+​function pickNext() {
+let themeObj = THEMES[currentTheme];
+let maxTier = Math.min(3, Math.floor(score / 50) + 1);
+​if (themeObj.type === 'linear') {
+let t = Math.floor(Math.random() * maxTier);
+nextDrop = { tier: t, ...themeObj.items[t] };
+} else {
+// 漢字モードは部首（parts）のみ落ちてくる
+let idx = Math.floor(Math.random() * themeObj.parts.length);
+nextDrop = { type: 'part', idx: idx, ...themeObj.parts[idx] };
 }
-
-function createBodyObject(x, y, data) {
-  let opt = {
-    restitution: data.rest !== undefined ? data.rest : 0.3,
-    friction: data.fric !== undefined ? data.fric : 0.1,
-    density: 0.002,
-    customData: data // 描画・判定用データを丸ごと持たせる
-  };
-
-  let body;
-  if (data.shape === 'circle') {
-    body = Bodies.circle(x, y, data.r, opt);
-  } else {
-    // お札や部首（四角形）の場合、角を少し丸くする
-    opt.chamfer = { radius: 4 };
-    body = Bodies.rectangle(x, y, data.w, data.h, opt);
-  }
-  return body;
+​let nextEl = document.getElementById('next-kanji');
+if (nextEl) {
+nextEl.innerText = nextDrop.char;
+nextEl.style.backgroundColor = nextDrop.color;
+nextEl.style.fontSize = nextDrop.char.length > 1 ? '11px' : '16px';
+if(nextDrop.shape === 'rect') {
+nextEl.style.borderRadius = '6px';
+} else {
+nextEl.style.borderRadius = '50%';
 }
-
-// === 合体（衝突）判定ロジック ===
+}
+}
+​function createBodyObject(x, y, data) {
+let opt = {
+restitution: data.rest !== undefined ? data.rest : 0.3,
+friction: data.fric !== undefined ? data.fric : 0.1,
+density: 0.002,
+customData: data // 描画・判定用データを丸ごと持たせる
+};
+​let body;
+if (data.shape === 'circle') {
+body = Bodies.circle(x, y, data.r, opt);
+} else {
+// お札や部首（四角形）の場合、角を少し丸くする
+opt.chamfer = { radius: 4 };
+body = Bodies.rectangle(x, y, data.w, data.h, opt);
+}
+return body;
+}
+​// === 合体（衝突）判定ロジック ===
 function handleCollision(event) {
-  let pairs = event.pairs;
-  for (let i = 0; i < pairs.length; i++) {
-    let bodyA = pairs[i].bodyA; let bodyB = pairs[i].bodyB;
-    let d1 = bodyA.customData;  let d2 = bodyB.customData;
-    if (!d1 || !d2 || bodyA.isMarked || bodyB.isMarked) continue;
-
-    let mergedData = null;
-    let themeObj = THEMES[currentTheme];
-
-    // ① linear（宇宙・お金）の場合：同じtierなら進化
-    if (themeObj.type === 'linear') {
-      if (d1.tier === d2.tier && d1.tier < themeObj.items.length - 1) {
-        let nextT = d1.tier + 1;
-        mergedData = { tier: nextT, ...themeObj.items[nextT] };
-      }
-    } 
-    // ② recipe（漢字）の場合
-    else {
-      // 部首 + 部首 = 完成漢字(Lvl 1)
-      if (d1.type === 'part' && d2.type === 'part') {
-        let key1 = d1.char + "+" + d2.char;
-        let key2 = d2.char + "+" + d1.char;
-        let recipe = themeObj.recipes[key1] || themeObj.recipes[key2];
-        if (recipe) mergedData = { type: 'lvl1', ...recipe };
-      }
-      // Lvl1 + Lvl1 = Lvl2...
-      else if (d1.type === 'lvl1' && d2.type === 'lvl1') {
-        mergedData = { type: 'lvl2', ...themeObj.levels[0] };
-      } else if (d1.type === 'lvl2' && d2.type === 'lvl2') {
-        mergedData = { type: 'lvl3', ...themeObj.levels[1] };
-      } else if (d1.type === 'lvl3' && d2.type === 'lvl3') {
-        mergedData = { type: 'lvl4', ...themeObj.levels[2] };
-      }
-    }
-
-    if (mergedData) {
-      bodyA.isMarked = true; bodyB.isMarked = true;
-      let nx = (bodyA.position.x + bodyB.position.x) / 2;
-      let ny = (bodyA.position.y + bodyB.position.y) / 2;
-      pendingMerges.push({ x: nx, y: ny, data: mergedData, bodyA: bodyA, bodyB: bodyB });
-    }
-  }
+let pairs = event.pairs;
+for (let i = 0; i < pairs.length; i++) {
+let bodyA = pairs[i].bodyA; let bodyB = pairs[i].bodyB;
+let d1 = bodyA.customData;  let d2 = bodyB.customData;
+if (!d1 || !d2 || bodyA.isMarked || bodyB.isMarked) continue;
+​let mergedData = null;
+let themeObj = THEMES[currentTheme];
+​// ① linear（宇宙・お金）の場合：同じtierなら進化
+if (themeObj.type === 'linear') {
+if (d1.tier === d2.tier && d1.tier < themeObj.items.length - 1) {
+let nextT = d1.tier + 1;
+mergedData = { tier: nextT, ...themeObj.items[nextT] };
 }
-
-// 物理エンジン更新後の合体実行フェーズ
+}
+// ② recipe（漢字）の場合
+else {
+// 部首 + 部首 = 完成漢字(Lvl 1)
+if (d1.type === 'part' && d2.type === 'part') {
+let key1 = d1.char + "+" + d2.char;
+let key2 = d2.char + "+" + d1.char;
+let recipe = themeObj.recipes[key1] || themeObj.recipes[key2];
+if (recipe) mergedData = { type: 'lvl1', ...recipe };
+}
+// Lvl1 + Lvl1 = Lvl2...
+else if (d1.type === 'lvl1' && d2.type === 'lvl1') {
+mergedData = { type: 'lvl2', ...themeObj.levels[0] };
+} else if (d1.type === 'lvl2' && d2.type === 'lvl2') {
+mergedData = { type: 'lvl3', ...themeObj.levels[1] };
+} else if (d1.type === 'lvl3' && d2.type === 'lvl3') {
+mergedData = { type: 'lvl4', ...themeObj.levels[2] };
+}
+}
+​if (mergedData) {
+bodyA.isMarked = true; bodyB.isMarked = true;
+let nx = (bodyA.position.x + bodyB.position.x) / 2;
+let ny = (bodyA.position.y + bodyB.position.y) / 2;
+pendingMerges.push({ x: nx, y: ny, data: mergedData, bodyA: bodyA, bodyB: bodyB });
+}
+}
+}
+​// 物理エンジン更新後の合体実行フェーズ
 Events.on(engine, 'afterUpdate', function() {
-  if (pendingMerges.length > 0) {
-    for (let m of pendingMerges) {
-      Composite.remove(engine.world, [m.bodyA, m.bodyB]);
-      let newBody = createBodyObject(m.x, m.y, m.data);
-      // 合体時に少し跳ねる演出
-      Matter.Body.setVelocity(newBody, { x: 0, y: -2 });
-      Composite.add(engine.world, newBody);
-      
-      score += m.data.score;
-      playSound(m.data.read ? 'kanji_merge' : 'merge', m.data.tier || 0);
-      
-      // パーティクル＆テキスト発生
-      for (let i=0; i<15; i++) {
-        let a = Math.random()*Math.PI*2, s = Math.random()*5+3;
-        particles.push({ x: m.x, y: m.y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 1, color: m.data.color });
-      }
-      if (m.data.read) {
-        floatTexts.push({ x: m.x, y: m.y, text: m.data.read, life: 1 });
-      } else if (m.data.sub) {
-        floatTexts.push({ x: m.x, y: m.y, text: "進化！", life: 1 });
-      }
-    }
-    pendingMerges = [];
-    updateScore();
-  }
+if (pendingMerges.length > 0) {
+for (let m of pendingMerges) {
+Composite.remove(engine.world, [m.bodyA, m.bodyB]);
+let newBody = createBodyObject(m.x, m.y, m.data);
+// 合体時に少し跳ねる演出
+Matter.Body.setVelocity(newBody, { x: 0, y: -2 });
+Composite.add(engine.world, newBody);
+​score += m.data.score;
+playSound(m.data.read ? 'kanji_merge' : 'merge', m.data.tier || 0);
+​// パーティクル＆テキスト発生
+for (let i=0; i<15; i++) {
+let a = Math.random()Math.PI2, s = Math.random()*5+3;
+particles.push({ x: m.x, y: m.y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 1, color: m.data.color });
+}
+if (m.data.read) {
+floatTexts.push({ x: m.x, y: m.y, text: m.data.read, life: 1 });
+} else if (m.data.sub) {
+floatTexts.push({ x: m.x, y: m.y, text: "進化！", life: 1 });
+}
+}
+pendingMerges = [];
+updateScore();
+}
 });
-
-function handleInput(clientX) {
-  if (gameState !== 'playing') return;
-  const rect = c.getBoundingClientRect();
-  let rawX = (clientX - rect.left) / scaleRatio;
-  let w = nextDrop.shape === 'rect' ? nextDrop.w/2 : nextDrop.r;
-  currentX = Math.max(w, Math.min(L_WIDTH - w, rawX));
+​function handleInput(clientX) {
+if (gameState !== 'playing' || !nextDrop) return;
+const rect = c.getBoundingClientRect();
+let rawX = (clientX - rect.left) / scaleRatio;
+let w = nextDrop.shape === 'rect' ? nextDrop.w/2 : nextDrop.r;
+currentX = Math.max(w, Math.min(L_WIDTH - w, rawX));
 }
-
-function dropItem() {
-  if (dropCooldown || gameState !== 'playing') return;
-  playSound('drop');
-  
-  let newBody = createBodyObject(currentX, 50, nextDrop);
-  Composite.add(engine.world, newBody);
-  
-  dropCooldown = true;
-  setTimeout(() => { pickNext(); dropCooldown = false; }, 700);
+​function dropItem() {
+if (dropCooldown || gameState !== 'playing' || !nextDrop) return;
+playSound('drop');
+​let newBody = createBodyObject(currentX, 40, nextDrop);
+Composite.add(engine.world, newBody);
+​dropCooldown = true;
+setTimeout(() => { pickNext(); dropCooldown = false; }, 600);
 }
-
-// 入力イベント
+​// 入力イベント
 c.addEventListener('pointerdown', (e) => { e.preventDefault(); initAudio(); handleInput(e.clientX); });
 c.addEventListener('pointermove', (e) => { e.preventDefault(); handleInput(e.clientX); });
 c.addEventListener('pointerup', (e) => { e.preventDefault(); dropItem(); });
 c.addEventListener('pointercancel', (e) => { e.preventDefault(); dropItem(); });
-
-function drawBody(body) {
-  let d = body.customData;
-  ctx.translate(body.position.x, body.position.y);
-  ctx.rotate(body.angle);
-  
-  // 影
-  ctx.fillStyle = "rgba(0,0,0,0.15)";
-  if (d.shape === 'circle') {
-    ctx.beginPath(); ctx.arc(0, 5, d.r, 0, Math.PI*2); ctx.fill();
-  } else {
-    ctx.beginPath(); ctx.roundRect(-d.w/2, -d.h/2 + 5, d.w, d.h, 4); ctx.fill();
-  }
-
-  // 本体
-  ctx.fillStyle = d.color;
-  ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.15)";
-  if (d.shape === 'circle') {
-    ctx.beginPath(); ctx.arc(0, 0, d.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-  } else {
-    ctx.beginPath(); ctx.roundRect(-d.w/2, -d.h/2, d.w, d.h, 4); ctx.fill(); ctx.stroke();
-  }
-
-  // テキスト
-  ctx.fillStyle = "#333"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  
-  let fontSize = d.shape === 'circle' ? d.r*0.8 : Math.min(d.w, d.h)*0.7;
-  if(d.char.length > 2) fontSize *= 0.5;
-  else if(d.char.length > 1) fontSize *= 0.7;
-  
-  ctx.font = `bold ${fontSize}px sans-serif`;
-  ctx.fillText(d.char, 0, 0);
-
-  ctx.rotate(-body.angle);
-  ctx.translate(-body.position.x, -body.position.y);
+​function drawBody(body) {
+let d = body.customData;
+if (!d) return; // セーフガード
+​ctx.translate(body.position.x, body.position.y);
+ctx.rotate(body.angle);
+​// 影
+ctx.fillStyle = "rgba(0,0,0,0.15)";
+if (d.shape === 'circle') {
+ctx.beginPath(); ctx.arc(0, 5, d.r, 0, Math.PI*2); ctx.fill();
+} else {
+ctx.beginPath(); ctx.roundRect(-d.w/2, -d.h/2 + 5, d.w, d.h, 4); ctx.fill();
 }
-
-function loop() {
-  if (gameState !== 'menu') {
-    ctx.clearRect(0, 0, L_WIDTH, L_HEIGHT);
-
-    // デッドライン判定＆描画
-    ctx.strokeStyle = "rgba(231, 76, 60, 0.6)"; ctx.lineWidth = 3; ctx.setLineDash([10, 10]);
-    ctx.beginPath(); ctx.moveTo(0, GAMEOVER_Y); ctx.lineTo(L_WIDTH, GAMEOVER_Y); ctx.stroke(); ctx.setLineDash([]);
-    
-    let isOverflowing = false;
-    let bodies = Composite.allBodies(engine.world);
-    for (let b of bodies) {
-      if (b.isStatic) continue;
-      // 画面上部にはみ出していて、かつ動きが止まっているか
-      let topY = b.position.y - (b.customData.shape === 'circle' ? b.customData.r : b.customData.h/2);
-      if (topY < GAMEOVER_Y && b.speed < 1.0) { isOverflowing = true; break; }
-    }
-    
-    if (isOverflowing && gameState === 'playing') {
-      overflowTimer += 1/60;
-      ctx.fillStyle = `rgba(231, 76, 60, ${Math.sin(Date.now()/100)*0.2})`;
-      ctx.fillRect(0, 0, L_WIDTH, GAMEOVER_Y);
-      if (overflowTimer > 2.0) {
-        gameState = 'gameover'; Runner.stop(runner);
-        document.getElementById('result-score').innerText = score;
-        document.getElementById('game-over').classList.add('show');
-      }
-    } else { overflowTimer = 0; }
-
-    // 落下ガイドと待機アイテム
-    if (!dropCooldown && gameState === 'playing' && nextDrop) {
-      ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(currentX, 40); ctx.lineTo(currentX, L_HEIGHT); ctx.stroke();
-      
-      let dummyBody = { position: { x: currentX, y: 50 }, angle: 0, customData: nextDrop };
-      drawBody(dummyBody);
-    }
-
-    // すべての物理ボディを描画
-    for (let b of bodies) {
-      if (b.isStatic) continue;
-      drawBody(b);
-    }
-
-    // パーティクル
-    for (let i = particles.length - 1; i >= 0; i--) {
-      let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.03;
-      if (p.life <= 0) { particles.splice(i, 1); continue; }
-      ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
-      ctx.beginPath(); ctx.arc(p.x, p.y, 6 * p.life, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha = 1.0;
-
-    // フリガナ・進化テキストポップアップ
-    for (let i = floatTexts.length - 1; i >= 0; i--) {
-      let ft = floatTexts[i]; ft.y -= 1.5; ft.life -= 0.02;
-      if (ft.life <= 0) { floatTexts.splice(i, 1); continue; }
-      ctx.globalAlpha = ft.life; ctx.font = "bold 22px sans-serif"; ctx.textAlign = "center";
-      ctx.lineWidth = 5; ctx.strokeStyle = "#fff"; ctx.strokeText(ft.text, ft.x, ft.y);
-      ctx.fillStyle = "#e74c3c"; ctx.fillText(ft.text, ft.x, ft.y);
-    }
-    ctx.globalAlpha = 1.0;
-  }
-  requestAnimationFrame(loop);
+​// 本体
+ctx.fillStyle = d.color;
+ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.15)";
+if (d.shape === 'circle') {
+ctx.beginPath(); ctx.arc(0, 0, d.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+} else {
+ctx.beginPath(); ctx.roundRect(-d.w/2, -d.h/2, d.w, d.h, 4); ctx.fill(); ctx.stroke();
+}
+​// テキスト
+ctx.fillStyle = "#333"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+​let fontSize = d.shape === 'circle' ? d.r*0.8 : Math.min(d.w, d.h)*0.7;
+if(d.char.length > 2) fontSize *= 0.5;
+else if(d.char.length > 1) fontSize *= 0.7;
+​ctx.font = bold ${fontSize}px sans-serif;
+ctx.fillText(d.char, 0, 0);
+​ctx.rotate(-body.angle);
+ctx.translate(-body.position.x, -body.position.y);
+}
+​function loop() {
+if (gameState !== 'menu') {
+ctx.clearRect(0, 0, L_WIDTH, L_HEIGHT);
+​// デッドライン判定＆描画
+ctx.strokeStyle = "rgba(231, 76, 60, 0.6)"; ctx.lineWidth = 3; ctx.setLineDash([10, 10]);
+ctx.beginPath(); ctx.moveTo(0, GAMEOVER_Y); ctx.lineTo(L_WIDTH, GAMEOVER_Y); ctx.stroke(); ctx.setLineDash([]);
+​let isOverflowing = false;
+let bodies = Composite.allBodies(engine.world);
+for (let b of bodies) {
+if (b.isStatic || !b.customData) continue;
+// 画面上部にはみ出していて、かつ動きが止まっているか
+let topY = b.position.y - (b.customData.shape === 'circle' ? b.customData.r : b.customData.h/2);
+if (topY < GAMEOVER_Y && b.speed < 1.0) { isOverflowing = true; break; }
+}
+​if (isOverflowing && gameState === 'playing') {
+overflowTimer += 1/60;
+ctx.fillStyle = rgba(231, 76, 60, ${Math.sin(Date.now()/100)*0.2});
+ctx.fillRect(0, 0, L_WIDTH, GAMEOVER_Y);
+if (overflowTimer > 2.0) {
+gameState = 'gameover'; Runner.stop(runner);
+document.getElementById('result-score').innerText = score;
+document.getElementById('game-over').classList.add('show');
+}
+} else { overflowTimer = 0; }
+​// 落下ガイドと待機アイテム
+if (!dropCooldown && gameState === 'playing' && nextDrop) {
+ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.lineWidth = 2;
+ctx.beginPath(); ctx.moveTo(currentX, 40); ctx.lineTo(currentX, L_HEIGHT); ctx.stroke();
+​let dummyBody = { position: { x: currentX, y: 50 }, angle: 0, customData: nextDrop };
+drawBody(dummyBody);
+}
+​// すべての物理ボディを描画
+for (let b of bodies) {
+if (b.isStatic || !b.customData) continue;
+drawBody(b);
+}
+​// パーティクル
+for (let i = particles.length - 1; i >= 0; i--) {
+let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.03;
+if (p.life <= 0) { particles.splice(i, 1); continue; }
+ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+ctx.beginPath(); ctx.arc(p.x, p.y, 6 * p.life, 0, Math.PI*2); ctx.fill();
+}
+ctx.globalAlpha = 1.0;
+​// フリガナ・進化テキストポップアップ
+for (let i = floatTexts.length - 1; i >= 0; i--) {
+let ft = floatTexts[i]; ft.y -= 1.5; ft.life -= 0.02;
+if (ft.life <= 0) { floatTexts.splice(i, 1); continue; }
+ctx.globalAlpha = ft.life; ctx.font = "bold 22px sans-serif"; ctx.textAlign = "center";
+ctx.lineWidth = 5; ctx.strokeStyle = "#fff"; ctx.strokeText(ft.text, ft.x, ft.y);
+ctx.fillStyle = "#e74c3c"; ctx.fillText(ft.text, ft.x, ft.y);
+}
+ctx.globalAlpha = 1.0;
+}
+requestAnimationFrame(loop);
 }
 </script>
 </body>
