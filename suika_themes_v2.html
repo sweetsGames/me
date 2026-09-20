@@ -41,12 +41,17 @@
   }
   .score-box { font-size: 16px; font-weight: bold; }
 
-  /* 💡 改善：進化の輪（折り返し表示で全体を見渡せるように変更） */
+  /* 💡 改善：進化の輪（折り返し表示で絶対に見切れないパネル型に） */
   #evolution-bar {
-    flex-shrink: 0; background: #fff; padding: 10px 8px; display: flex; align-items: center; justify-content: center;
-    flex-wrap: wrap; gap: 4px 2px; border-bottom: 3px solid #ddd;
+    flex-shrink: 0; background: #fff; padding: 10px 8px;
+    display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 3px;
+    border-bottom: 3px solid #ddd;
   }
-  .evo-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fdf6e3; border: 2px solid #ecd8ba; border-radius: 6px; padding: 3px 5px; min-width: 36px; }
+  .evo-item { 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    background: #fdf6e3; border: 2px solid #ecd8ba; border-radius: 6px; 
+    padding: 3px 5px; min-width: 32px; 
+  }
   .evo-char { font-weight: bold; font-size: 13px; color: #333; }
   .evo-sub { font-size: 9px; color: #7f8c8d; margin-top: 1px; letter-spacing: -0.5px; }
   .evo-arrow { color: #bdc3c7; font-weight: bold; font-size: 11px; margin: 0 1px; }
@@ -92,11 +97,12 @@
 <div id="game-wrapper">
   <div id="header">
     <button class="header-btn" onclick="showMenu()">◀ メニュー</button>
+    <!-- つぎのアイコン枠 -->
     <div class="next-box">つぎ <div id="next-kanji"></div></div>
     <div class="score-box">SCORE: <span id="score">0</span></div>
   </div>
 
-  <!-- 進化の輪（全体が見えるように自動改行） -->
+  <!-- 進化の輪（自動改行で全体が見切れない） -->
   <div id="evolution-bar"></div>
 
   <div id="canvas-container">
@@ -137,10 +143,7 @@
 // --- 誤爆防止 ---
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 document.addEventListener('contextmenu', (e) => e.preventDefault());
-// スワイプバック防止：キャンバス上のタッチムーブをキャンセル
-document.addEventListener('touchmove', (e) => { 
-  if (!e.target.closest('#evolution-bar')) { e.preventDefault(); }
-}, { passive: false });
+document.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false }); // 画面スワイプを完全無効化
 
 // --- 音声関連 ---
 let actx;
@@ -223,14 +226,16 @@ const THEMES = {
 
 let currentTheme = 'planet';
 
-// === Matter.js セットアップ ===
+// === 💡 Matter.js グローバルセットアップ（フリーズ防止用） ===
 const Engine = Matter.Engine,
       Composite = Matter.Composite,
       Bodies = Matter.Bodies,
       Events = Matter.Events;
 
-let engine;
-let L_WIDTH = 400, L_HEIGHT = 650; // 物理演算用の論理サイズ
+const engine = Engine.create();
+engine.world.gravity.y = 1.2;
+
+let L_WIDTH = 400, L_HEIGHT = 650; 
 const GAMEOVER_Y = 120;
 
 const c = document.getElementById('c');
@@ -240,7 +245,7 @@ let scaleRatio = 1;
 let score = 0;
 let nextDrop = null;
 let currentX = L_WIDTH / 2;
-let gameState = 'menu'; // 'menu', 'playing', 'gameover'
+let gameState = 'menu'; 
 let dropCooldown = false;
 let pendingMerges = [];
 let particles = [];
@@ -256,7 +261,6 @@ function showMenu() {
   gameState = 'menu';
   document.getElementById('start-screen').style.display = 'flex';
   document.getElementById('game-over').classList.remove('show');
-  if(engine) Composite.clear(engine.world);
 }
 
 // 💡 改善：進化フローを折り返し表示にする
@@ -278,9 +282,9 @@ function initUIBar() {
   } else if (themeObj.type === 'recipe') {
     let txt = `<div style="width:100%; text-align:center; font-size:11px; font-weight:bold; color:#e67e22; margin-bottom:4px;">💡 部首(四角)を組み合わせて漢字(丸)を作ろう！</div>`;
     txt += `<div style="display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:4px;">`;
-    txt += `<div class="evo-item"><span class="evo-char" style="font-size:11px;">氵+木=沐</span></div>`;
-    txt += `<div class="evo-item"><span class="evo-char" style="font-size:11px;">木+木=林</span></div>`;
-    txt += `<div class="evo-item"><span class="evo-char" style="font-size:11px;">日+月=明</span></div>`;
+    txt += `<div class="evo-item"><span class="evo-char" style="font-size:12px;">氵+木=沐</span></div>`;
+    txt += `<div class="evo-item"><span class="evo-char" style="font-size:12px;">木+木=林</span></div>`;
+    txt += `<div class="evo-item"><span class="evo-char" style="font-size:12px;">日+月=明</span></div>`;
     txt += `<div class="evo-arrow">▶</div>`;
     txt += `<div class="evo-item"><span class="evo-sub">合体で</span><span class="evo-char" style="font-size:13px;">森</span></div>`;
     txt += `<div class="evo-arrow">▶</div>`;
@@ -308,10 +312,9 @@ function startGame() {
   initUIBar();
   resize();
 
-  // 💡 改善：Matter.Runnerを廃止し、自前の描画ループで計算を同期する（フリーズ防止）
-  if(engine) { Composite.clear(engine.world); Engine.clear(engine); }
-  engine = Engine.create();
-  engine.world.gravity.y = 1.2;
+  // 物理エンジン盤面リセット
+  Composite.clear(engine.world);
+  Engine.clear(engine);
 
   const wallOpt = { isStatic: true, render: { visible: false } };
   Composite.add(engine.world, [
@@ -320,10 +323,8 @@ function startGame() {
     Bodies.rectangle(L_WIDTH+30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt)
   ]);
 
-  Events.on(engine, 'collisionStart', handleCollision);
-
   score = 0; updateScore();
-  particles = []; floatTexts = []; overflowTimer = 0;
+  particles = []; floatTexts = []; overflowTimer = 0; pendingMerges = [];
   gameState = 'playing'; dropCooldown = false;
   pickNext();
   if(!window.animLoop) { requestAnimationFrame(loop); window.animLoop = true; }
@@ -353,7 +354,6 @@ function pickNext() {
   }
 }
 
-// 💡 改善：Body生成時に customData を確実に付与
 function createBodyObject(x, y, data) {
   let opt = {
     restitution: data.rest !== undefined ? data.rest : 0.3,
@@ -364,12 +364,12 @@ function createBodyObject(x, y, data) {
   if (data.shape === 'circle') { body = Bodies.circle(x, y, data.r, opt); } 
   else { opt.chamfer = { radius: 4 }; body = Bodies.rectangle(x, y, data.w, data.h, opt); }
   
-  body.customData = data; // 直接代入で確実性アップ
+  body.customData = data; 
   return body;
 }
 
-// === 合体（衝突）判定 ===
-function handleCollision(event) {
+// === 合体イベント（エラーが出ないよう外側で定義） ===
+Events.on(engine, 'collisionStart', function(event) {
   let pairs = event.pairs;
   for (let i = 0; i < pairs.length; i++) {
     let bodyA = pairs[i].bodyA; let bodyB = pairs[i].bodyB;
@@ -402,15 +402,14 @@ function handleCollision(event) {
       pendingMerges.push({ x: nx, y: ny, data: mergedData, bodyA: bodyA, bodyB: bodyB });
     }
   }
-}
+});
 
-// 更新後の合体実行フェーズ
 Events.on(engine, 'afterUpdate', function() {
   if (pendingMerges.length > 0) {
     for (let m of pendingMerges) {
       Composite.remove(engine.world, [m.bodyA, m.bodyB]);
       let newBody = createBodyObject(m.x, m.y, m.data);
-      Matter.Body.setVelocity(newBody, { x: 0, y: -2 }); // 少し跳ねる
+      Matter.Body.setVelocity(newBody, { x: 0, y: -2 });
       Composite.add(engine.world, newBody);
       
       score += m.data.score;
@@ -427,43 +426,43 @@ Events.on(engine, 'afterUpdate', function() {
   }
 });
 
-// 💡 改善：マルチ入力対応でタップ漏れを完全に防ぐ
+// 💡 改善：PC/スマホのタップ漏れを完全に防ぐタッチイベント処理
 function handleInput(clientX) {
   if (gameState !== 'playing' || !nextDrop) return;
   const rect = c.getBoundingClientRect();
   let rawX = (clientX - rect.left) / scaleRatio;
   let w = nextDrop.shape === 'rect' ? nextDrop.w/2 : nextDrop.r;
-  currentX = Math.max(w, Math.min(L_WIDTH - w, rawX));
+  currentX = Math.max(w + 5, Math.min(L_WIDTH - w - 5, rawX));
 }
 
 function dropItem() {
   if (dropCooldown || gameState !== 'playing' || !nextDrop) return;
   playSound('drop');
-  
-  let newBody = createBodyObject(currentX, 40, nextDrop);
+  let newBody = createBodyObject(currentX, 50, nextDrop);
   Composite.add(engine.world, newBody);
-  
   dropCooldown = true;
   setTimeout(() => { pickNext(); dropCooldown = false; }, 600);
 }
 
 let isMouseDown = false;
-function attachInput() {
-  const handleTouch = (e) => {
-    e.preventDefault();
-    if (e.touches.length > 0) handleInput(e.touches[0].clientX);
-    else if (e.changedTouches.length > 0) handleInput(e.changedTouches[0].clientX);
-  };
-  c.addEventListener('touchstart', (e) => { initAudio(); handleTouch(e); }, { passive: false });
-  c.addEventListener('touchmove', handleTouch, { passive: false });
-  c.addEventListener('touchend', (e) => { e.preventDefault(); dropItem(); }, { passive: false });
-  c.addEventListener('touchcancel', (e) => { e.preventDefault(); dropItem(); }, { passive: false });
+c.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); if(e.touches.length > 0) handleInput(e.touches[0].clientX); }, { passive: false });
+c.addEventListener('touchmove', (e) => { e.preventDefault(); if(e.touches.length > 0) handleInput(e.touches[0].clientX); }, { passive: false });
+c.addEventListener('touchend', (e) => { e.preventDefault(); dropItem(); }, { passive: false });
+c.addEventListener('touchcancel', (e) => { e.preventDefault(); dropItem(); }, { passive: false });
 
-  c.addEventListener('mousedown', (e) => { e.preventDefault(); initAudio(); handleInput(e.clientX); isMouseDown = true; });
-  c.addEventListener('mousemove', (e) => { if (isMouseDown) { e.preventDefault(); handleInput(e.clientX); } });
-  window.addEventListener('mouseup', (e) => { if (isMouseDown) { isMouseDown = false; dropItem(); } });
+c.addEventListener('mousedown', (e) => { e.preventDefault(); initAudio(); isMouseDown = true; handleInput(e.clientX); });
+c.addEventListener('mousemove', (e) => { e.preventDefault(); if(isMouseDown) handleInput(e.clientX); });
+window.addEventListener('mouseup', (e) => { if(isMouseDown) { isMouseDown = false; dropItem(); } });
+
+// 💡 改善：古いiPhoneやiPadでも絶対にエラーにならない安全な四角形描画
+function fillSafeRect(ctx, x, y, w, h) {
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill(); } 
+  else { ctx.fillRect(x, y, w, h); }
 }
-attachInput();
+function strokeSafeRect(ctx, x, y, w, h) {
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.stroke(); } 
+  else { ctx.strokeRect(x, y, w, h); }
+}
 
 function drawBody(body) {
   let d = body.customData;
@@ -472,23 +471,25 @@ function drawBody(body) {
   ctx.translate(body.position.x, body.position.y);
   ctx.rotate(body.angle);
   
+  // 影
   ctx.fillStyle = "rgba(0,0,0,0.15)";
   if (d.shape === 'circle') {
     ctx.beginPath(); ctx.arc(0, 5, d.r, 0, Math.PI*2); ctx.fill();
   } else {
-    ctx.beginPath(); ctx.roundRect(-d.w/2, -d.h/2 + 5, d.w, d.h, 4); ctx.fill();
+    fillSafeRect(ctx, -d.w/2, -d.h/2 + 5, d.w, d.h);
   }
 
+  // 本体
   ctx.fillStyle = d.color;
   ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.15)";
   if (d.shape === 'circle') {
     ctx.beginPath(); ctx.arc(0, 0, d.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
   } else {
-    ctx.beginPath(); ctx.roundRect(-d.w/2, -d.h/2, d.w, d.h, 4); ctx.fill(); ctx.stroke();
+    fillSafeRect(ctx, -d.w/2, -d.h/2, d.w, d.h); strokeSafeRect(ctx, -d.w/2, -d.h/2, d.w, d.h);
   }
 
+  // テキスト
   ctx.fillStyle = "#333"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  
   let fontSize = d.shape === 'circle' ? d.r*0.8 : Math.min(d.w, d.h)*0.7;
   if(d.char.length > 2) fontSize *= 0.5;
   else if(d.char.length > 1) fontSize *= 0.7;
@@ -504,7 +505,7 @@ function loop() {
   if (gameState !== 'menu') {
     ctx.clearRect(0, 0, L_WIDTH, L_HEIGHT);
 
-    // 💡 改善：Runnerをやめて自前で確実に物理エンジンを更新する
+    // 💡 改善：画面の更新と物理エンジンを完全に同期させる（フリーズ防止）
     if (gameState === 'playing') {
       Engine.update(engine, 1000 / 60);
     }
@@ -534,7 +535,6 @@ function loop() {
     if (!dropCooldown && gameState === 'playing' && nextDrop) {
       ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(currentX, 40); ctx.lineTo(currentX, L_HEIGHT); ctx.stroke();
-      
       let dummyBody = { position: { x: currentX, y: 50 }, angle: 0, customData: nextDrop };
       drawBody(dummyBody);
     }
