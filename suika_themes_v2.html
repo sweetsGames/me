@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>本格・知育スイカパズル</title>
-<!-- 💡 本格物理エンジン「Matter.js」を読み込む -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 
 <style>
@@ -22,13 +21,11 @@
     margin: max(16px, var(--sat)) auto max(16px, var(--sab));
   }
 
-  /* ヘッダー部分 */
   #header {
     flex-shrink: 0; padding: 12px 15px; background: #d35400; color: white;
     display: flex; justify-content: space-between; align-items: center; z-index: 20;
   }
   .header-btn { background: rgba(255,255,255,0.25); border: 2px solid white; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 13px; cursor: pointer; }
-  .header-btn:active { background: rgba(255,255,255,0.4); }
   
   .next-box {
     background: rgba(0,0,0,0.2); padding: 4px 12px; border-radius: 20px;
@@ -41,7 +38,6 @@
   }
   .score-box { font-size: 16px; font-weight: bold; }
 
-  /* 進化の輪（折り返し表示） */
   #evolution-bar {
     flex-shrink: 0; background: #fff; padding: 10px 8px;
     display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 3px;
@@ -56,11 +52,9 @@
   .evo-sub { font-size: 9px; color: #7f8c8d; margin-top: 1px; letter-spacing: -0.5px; }
   .evo-arrow { color: #bdc3c7; font-weight: bold; font-size: 11px; margin: 0 1px; }
 
-  /* 盤面エリア */
   #canvas-container { flex: 1; position: relative; background: #fdf6e3; overflow: hidden; width: 100%; touch-action: none; }
   canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
-  /* ゲームオーバー画面 */
   #game-over {
     position: absolute; inset: 0; background: rgba(44, 62, 80, 0.9);
     display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -70,9 +64,7 @@
   #game-over h1 { color: #e74c3c; font-size: 36px; margin-bottom: 10px; text-shadow: 2px 2px 0 #fff; }
   #game-over .final-score { color: white; font-size: 20px; font-weight: bold; margin-bottom: 25px; }
   .retry-btn { padding: 12px 30px; font-size: 20px; font-weight: bold; color: white; background: #27ae60; border: none; border-radius: 30px; box-shadow: 0 5px 0 #1e8449; cursor: pointer; }
-  .retry-btn:active { transform: translateY(5px); box-shadow: none; }
 
-  /* メニュー画面 */
   #start-screen {
     position: absolute; inset: 0; background: rgba(253, 246, 226, 0.98);
     display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -97,12 +89,10 @@
 <div id="game-wrapper">
   <div id="header">
     <button class="header-btn" onclick="showMenu()">◀ メニュー</button>
-    <!-- つぎのアイコン枠 -->
     <div class="next-box">つぎ <div id="next-kanji"></div></div>
     <div class="score-box">SCORE: <span id="score">0</span></div>
   </div>
 
-  <!-- 進化の輪 -->
   <div id="evolution-bar"></div>
 
   <div id="canvas-container">
@@ -123,15 +113,15 @@
       
       <button class="theme-btn active" onclick="selectTheme('planet')">
         🌍 宇宙の大きさ
-        <span class="sub">丸い星が進化！リアルな直径表示つき</span>
+        <span class="sub">実際の体積比で星が進化！</span>
       </button>
       <button class="theme-btn" onclick="selectTheme('money')">
         💰 お金の進化
-        <span class="sub">硬貨は丸く滑る！お札は四角く積もる！</span>
+        <span class="sub">本物の硬貨・お札のサイズ比率！</span>
       </button>
       <button class="theme-btn" onclick="selectTheme('kanji')">
         🌳 漢字・部首合体
-        <span class="sub">バラバラの部首（四角・長方形）を合体！</span>
+        <span class="sub">バラバラの部首（四角）を合体！</span>
       </button>
     </div>
     
@@ -170,35 +160,38 @@ function playSound(type, tier = 0) {
   }
 }
 
-// --- テーマ別データ定義 ---
+// --- テーマ別データ定義（💡実際の比率に修正！） ---
 const THEMES = {
   planet: {
     type: "linear",
+    // 💡 実際の体積比（直径の立方根）に合わせたサイズ感！
     items: [
-      { char: "月", sub: "3,474km", shape: "circle", r: 16, color: "#bdc3c7", score: 1 },
-      { char: "水星", sub: "4,879km", shape: "circle", r: 22, color: "#85c1e9", score: 3 },
-      { char: "火星", sub: "6,779km", shape: "circle", r: 30, color: "#e74c3c", score: 6 },
-      { char: "金星", sub: "12,104km", shape: "circle", r: 40, color: "#f1c40f", score: 10 },
-      { char: "地球", sub: "12,742km", shape: "circle", r: 52, color: "#2ecc71", score: 15 },
-      { char: "海王星", sub: "49,244km", shape: "circle", r: 66, color: "#3498db", score: 21 },
-      { char: "天王星", sub: "50,724km", shape: "circle", r: 82, color: "#1abc9c", score: 28 },
-      { char: "土星", sub: "116,460km", shape: "circle", r: 100, color: "#e67e22", score: 36 },
-      { char: "木星", sub: "139,820km", shape: "circle", r: 120, color: "#d35400", score: 45 },
-      { char: "太陽", sub: "139万km", shape: "circle", r: 150, color: "#c0392b", score: 100 }
+      { char: "月", sub: "3,474km", shape: "circle", r: 18, color: "#bdc3c7", score: 1 },
+      { char: "水星", sub: "4,879km", shape: "circle", r: 20, color: "#85c1e9", score: 3 },
+      { char: "火星", sub: "6,779km", shape: "circle", r: 22, color: "#e74c3c", score: 6 },
+      { char: "金星", sub: "1.2万km", shape: "circle", r: 27, color: "#f1c40f", score: 10 },
+      { char: "地球", sub: "1.2万km", shape: "circle", r: 28, color: "#2ecc71", score: 15 },
+      { char: "海王星", sub: "4.9万km", shape: "circle", r: 43, color: "#3498db", score: 21 },
+      { char: "天王星", sub: "5.0万km", shape: "circle", r: 44, color: "#1abc9c", score: 28 },
+      { char: "土星", sub: "11.6万km", shape: "circle", r: 58, color: "#e67e22", score: 36 },
+      { char: "木星", sub: "13.9万km", shape: "circle", r: 62, color: "#d35400", score: 45 },
+      { char: "太陽", sub: "139万km", shape: "circle", r: 133, color: "#c0392b", score: 100 }
     ]
   },
   money: {
     type: "linear",
+    // 💡 実際のミリ単位の比率！10円から50円への進化でサイズが小さくなるパズル要素
     items: [
-      { char: "1円", sub: "硬貨", shape: "circle", r: 18, color: "#bdc3c7", score: 1, fric: 0.005, rest: 0.4 },
-      { char: "5円", sub: "硬貨", shape: "circle", r: 24, color: "#f1c40f", score: 3, fric: 0.005, rest: 0.4 },
-      { char: "10円", sub: "硬貨", shape: "circle", r: 30, color: "#e67e22", score: 6, fric: 0.005, rest: 0.4 },
-      { char: "50円", sub: "硬貨", shape: "circle", r: 36, color: "#ecf0f1", score: 10, fric: 0.005, rest: 0.4 },
-      { char: "100円", sub: "硬貨", shape: "circle", r: 44, color: "#ecf0f1", score: 15, fric: 0.005, rest: 0.4 },
-      { char: "500円", sub: "硬貨", shape: "circle", r: 52, color: "#d4ac0d", score: 21, fric: 0.005, rest: 0.4 },
-      { char: "千円", sub: "お札", shape: "rect", w: 80, h: 40, color: "#a2d9ce", score: 30, fric: 0.8, rest: 0.05 },
-      { char: "5千円", sub: "お札", shape: "rect", w: 100, h: 50, color: "#d7bde2", score: 50, fric: 0.8, rest: 0.05 },
-      { char: "1万円", sub: "お札", shape: "rect", w: 120, h: 60, color: "#f5b041", score: 100, fric: 0.8, rest: 0.05 }
+      { char: "①", sub: "20.0mm", shape: "circle", r: 16, color: "#ecf0f1", score: 1, fric: 0.005, rest: 0.4 },
+      { char: "⑤", sub: "22.0mm", shape: "circle", r: 17.6, color: "#f1c40f", score: 3, fric: 0.005, rest: 0.4 },
+      { char: "⑩", sub: "23.5mm", shape: "circle", r: 18.8, color: "#e67e22", score: 6, fric: 0.005, rest: 0.4 },
+      { char: "㊿", sub: "21.0mm", shape: "circle", r: 16.8, color: "#bdc3c7", score: 10, fric: 0.005, rest: 0.4 }, // 💡10円より小さい！
+      { char: "100", sub: "22.6mm", shape: "circle", r: 18.1, color: "#ecf0f1", score: 15, fric: 0.005, rest: 0.4 },
+      { char: "500", sub: "26.5mm", shape: "circle", r: 21.2, color: "#d4ac0d", score: 21, fric: 0.005, rest: 0.4 },
+      // お札も現実の縦横比を再現
+      { char: "千円", sub: "150mm", shape: "rect", w: 150, h: 76, color: "#a2d9ce", score: 30, fric: 0.8, rest: 0.05 },
+      { char: "5千円", sub: "156mm", shape: "rect", w: 156, h: 76, color: "#d7bde2", score: 50, fric: 0.8, rest: 0.05 },
+      { char: "1万円", sub: "160mm", shape: "rect", w: 160, h: 76, color: "#f5b041", score: 100, fric: 0.8, rest: 0.05 }
     ]
   },
   kanji: {
@@ -237,14 +230,13 @@ const Engine = Matter.Engine,
 const engine = Engine.create();
 engine.world.gravity.y = 1.2;
 
-// 💡改善：高さを固定せず、スマホの画面サイズに合わせて自動計算（地面見切れ防止）
 let L_WIDTH = 400;
-let L_HEIGHT = 650; // resize()でスマホに合わせて自動調整されます
+let L_HEIGHT = 650; // resize()でスマホに合わせて自動調整
 const GAMEOVER_Y = 120;
 
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
-let scaleRatio = 1;
+let displayScale = 1; // 💡 座標変換用のスケール
 
 let score = 0;
 let nextDrop = null;
@@ -300,18 +292,18 @@ function initUIBar() {
   }
 }
 
-// 💡改善：キャンバスの縦横比を完全にスマホに合わせて、一番下を「床」にする
 function resize() {
   const rect = c.parentElement.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   c.width = rect.width * dpr; 
   c.height = rect.height * dpr;
-  scaleRatio = (rect.width / L_WIDTH) * dpr;
   
-  // スマホの画面の縦の長さに合わせて、物理演算の高さ（L_HEIGHT）を自動で決定！
-  L_HEIGHT = rect.height / (rect.width / L_WIDTH);
+  // 💡 改善：画面の横幅から表示スケールを正確に計算
+  displayScale = rect.width / L_WIDTH; 
+  L_HEIGHT = rect.height / displayScale; // スマホの縦幅に合わせて床を下げる
   
-  ctx.resetTransform(); ctx.scale(scaleRatio, scaleRatio);
+  ctx.resetTransform(); 
+  ctx.scale(displayScale * dpr, displayScale * dpr);
 }
 window.addEventListener('resize', resize);
 
@@ -320,18 +312,16 @@ function startGame() {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('game-over').classList.remove('show');
   initUIBar();
-  resize(); // 先にサイズとL_HEIGHTを計算
+  resize();
 
-  // 物理エンジン盤面リセット
   Composite.clear(engine.world);
   Engine.clear(engine);
 
-  // 💡改善：上で計算したピッタリのL_HEIGHTの位置に、物理的な「床」を設置
   const wallOpt = { isStatic: true, render: { visible: false } };
   Composite.add(engine.world, [
-    Bodies.rectangle(L_WIDTH/2, L_HEIGHT + 15, L_WIDTH + 100, 60, wallOpt), // ←床が絶対に見切れない！
-    Bodies.rectangle(-30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt),
-    Bodies.rectangle(L_WIDTH+30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt)
+    Bodies.rectangle(L_WIDTH/2, L_HEIGHT + 15, L_WIDTH + 100, 60, wallOpt), // 床
+    Bodies.rectangle(-30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt), // 左
+    Bodies.rectangle(L_WIDTH+30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt) // 右
   ]);
 
   score = 0; updateScore();
@@ -437,10 +427,12 @@ Events.on(engine, 'afterUpdate', function() {
   }
 });
 
+// 💡 改善：指のドラッグに完璧に追従する座標計算
 function handleInput(clientX) {
   if (gameState !== 'playing' || !nextDrop) return;
   const rect = c.getBoundingClientRect();
-  let rawX = (clientX - rect.left) / scaleRatio;
+  // displayScale で割ることで、スマホ上のピクセルをゲーム内の論理ピクセルに正確に変換
+  let rawX = (clientX - rect.left) / displayScale;
   let w = nextDrop.shape === 'rect' ? nextDrop.w/2 : nextDrop.r;
   currentX = Math.max(w + 5, Math.min(L_WIDTH - w - 5, rawX));
 }
@@ -496,9 +488,9 @@ function drawBody(body) {
   }
 
   ctx.fillStyle = "#333"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  let fontSize = d.shape === 'circle' ? d.r*0.8 : Math.min(d.w, d.h)*0.7;
-  if(d.char.length > 2) fontSize *= 0.5;
-  else if(d.char.length > 1) fontSize *= 0.7;
+  let fontSize = d.shape === 'circle' ? d.r*0.9 : Math.min(d.w, d.h)*0.5;
+  if(d.shape === 'circle' && d.char.length > 2) fontSize *= 0.55;
+  else if(d.shape === 'circle' && d.char.length > 1) fontSize *= 0.7;
   
   ctx.font = `bold ${fontSize}px sans-serif`;
   ctx.fillText(d.char, 0, 0);
@@ -515,11 +507,9 @@ function loop() {
       Engine.update(engine, 1000 / 60);
     }
 
-    // 💡改善：ユーザーに分かりやすいように、一番下に「地面（土台）」を描画
-    ctx.fillStyle = "#d35400";
-    ctx.fillRect(0, L_HEIGHT - 15, L_WIDTH, 15);
-    ctx.fillStyle = "#e67e22";
-    ctx.fillRect(0, L_HEIGHT - 15, L_WIDTH, 4);
+    // 床の描画
+    ctx.fillStyle = "#d35400"; ctx.fillRect(0, L_HEIGHT - 15, L_WIDTH, 15);
+    ctx.fillStyle = "#e67e22"; ctx.fillRect(0, L_HEIGHT - 15, L_WIDTH, 4);
 
     ctx.strokeStyle = "rgba(231, 76, 60, 0.6)"; ctx.lineWidth = 3; ctx.setLineDash([10, 10]);
     ctx.beginPath(); ctx.moveTo(0, GAMEOVER_Y); ctx.lineTo(L_WIDTH, GAMEOVER_Y); ctx.stroke(); ctx.setLineDash([]);
