@@ -41,7 +41,7 @@
   }
   .score-box { font-size: 16px; font-weight: bold; }
 
-  /* 💡 改善：進化の輪（折り返し表示で絶対に見切れないパネル型に） */
+  /* 進化の輪（折り返し表示） */
   #evolution-bar {
     flex-shrink: 0; background: #fff; padding: 10px 8px;
     display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 3px;
@@ -102,7 +102,7 @@
     <div class="score-box">SCORE: <span id="score">0</span></div>
   </div>
 
-  <!-- 進化の輪（自動改行で全体が見切れない） -->
+  <!-- 進化の輪 -->
   <div id="evolution-bar"></div>
 
   <div id="canvas-container">
@@ -143,7 +143,9 @@
 // --- 誤爆防止 ---
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 document.addEventListener('contextmenu', (e) => e.preventDefault());
-document.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false }); // 画面スワイプを完全無効化
+document.addEventListener('touchmove', (e) => { 
+  if (!e.target.closest('#evolution-bar')) { e.preventDefault(); }
+}, { passive: false });
 
 // --- 音声関連 ---
 let actx;
@@ -161,7 +163,7 @@ function playSound(type, tier = 0) {
     osc.type = 'triangle'; osc.frequency.setValueAtTime(300 + tier * 50, t); osc.frequency.setValueAtTime(450 + tier * 50, t + 0.05);
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
     osc.start(t); osc.stop(t + 0.2);
-  } else if (type === 'kanji_merge') { // 漢字完成時のファンファーレ風
+  } else if (type === 'kanji_merge') { 
     osc.type = 'square'; osc.frequency.setValueAtTime(600, t); osc.frequency.setValueAtTime(800, t + 0.1);
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
@@ -226,7 +228,7 @@ const THEMES = {
 
 let currentTheme = 'planet';
 
-// === 💡 Matter.js グローバルセットアップ（フリーズ防止用） ===
+// === Matter.js セットアップ ===
 const Engine = Matter.Engine,
       Composite = Matter.Composite,
       Bodies = Matter.Bodies,
@@ -235,7 +237,9 @@ const Engine = Matter.Engine,
 const engine = Engine.create();
 engine.world.gravity.y = 1.2;
 
-let L_WIDTH = 400, L_HEIGHT = 650; 
+// 💡改善：高さを固定せず、スマホの画面サイズに合わせて自動計算（地面見切れ防止）
+let L_WIDTH = 400;
+let L_HEIGHT = 650; // resize()でスマホに合わせて自動調整されます
 const GAMEOVER_Y = 120;
 
 const c = document.getElementById('c');
@@ -261,9 +265,9 @@ function showMenu() {
   gameState = 'menu';
   document.getElementById('start-screen').style.display = 'flex';
   document.getElementById('game-over').classList.remove('show');
+  if(engine) Composite.clear(engine.world);
 }
 
-// 💡 改善：進化フローを折り返し表示にする
 function initUIBar() {
   const bar = document.getElementById('evolution-bar');
   bar.innerHTML = '';
@@ -296,11 +300,17 @@ function initUIBar() {
   }
 }
 
+// 💡改善：キャンバスの縦横比を完全にスマホに合わせて、一番下を「床」にする
 function resize() {
   const rect = c.parentElement.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
-  c.width = rect.width * dpr; c.height = rect.height * dpr;
+  c.width = rect.width * dpr; 
+  c.height = rect.height * dpr;
   scaleRatio = (rect.width / L_WIDTH) * dpr;
+  
+  // スマホの画面の縦の長さに合わせて、物理演算の高さ（L_HEIGHT）を自動で決定！
+  L_HEIGHT = rect.height / (rect.width / L_WIDTH);
+  
   ctx.resetTransform(); ctx.scale(scaleRatio, scaleRatio);
 }
 window.addEventListener('resize', resize);
@@ -310,15 +320,16 @@ function startGame() {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('game-over').classList.remove('show');
   initUIBar();
-  resize();
+  resize(); // 先にサイズとL_HEIGHTを計算
 
   // 物理エンジン盤面リセット
   Composite.clear(engine.world);
   Engine.clear(engine);
 
+  // 💡改善：上で計算したピッタリのL_HEIGHTの位置に、物理的な「床」を設置
   const wallOpt = { isStatic: true, render: { visible: false } };
   Composite.add(engine.world, [
-    Bodies.rectangle(L_WIDTH/2, L_HEIGHT + 30, L_WIDTH + 100, 60, wallOpt),
+    Bodies.rectangle(L_WIDTH/2, L_HEIGHT + 15, L_WIDTH + 100, 60, wallOpt), // ←床が絶対に見切れない！
     Bodies.rectangle(-30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt),
     Bodies.rectangle(L_WIDTH+30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt)
   ]);
@@ -368,7 +379,7 @@ function createBodyObject(x, y, data) {
   return body;
 }
 
-// === 合体イベント（エラーが出ないよう外側で定義） ===
+// === 合体イベント ===
 Events.on(engine, 'collisionStart', function(event) {
   let pairs = event.pairs;
   for (let i = 0; i < pairs.length; i++) {
@@ -426,7 +437,6 @@ Events.on(engine, 'afterUpdate', function() {
   }
 });
 
-// 💡 改善：PC/スマホのタップ漏れを完全に防ぐタッチイベント処理
 function handleInput(clientX) {
   if (gameState !== 'playing' || !nextDrop) return;
   const rect = c.getBoundingClientRect();
@@ -454,7 +464,6 @@ c.addEventListener('mousedown', (e) => { e.preventDefault(); initAudio(); isMous
 c.addEventListener('mousemove', (e) => { e.preventDefault(); if(isMouseDown) handleInput(e.clientX); });
 window.addEventListener('mouseup', (e) => { if(isMouseDown) { isMouseDown = false; dropItem(); } });
 
-// 💡 改善：古いiPhoneやiPadでも絶対にエラーにならない安全な四角形描画
 function fillSafeRect(ctx, x, y, w, h) {
   if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill(); } 
   else { ctx.fillRect(x, y, w, h); }
@@ -471,7 +480,6 @@ function drawBody(body) {
   ctx.translate(body.position.x, body.position.y);
   ctx.rotate(body.angle);
   
-  // 影
   ctx.fillStyle = "rgba(0,0,0,0.15)";
   if (d.shape === 'circle') {
     ctx.beginPath(); ctx.arc(0, 5, d.r, 0, Math.PI*2); ctx.fill();
@@ -479,7 +487,6 @@ function drawBody(body) {
     fillSafeRect(ctx, -d.w/2, -d.h/2 + 5, d.w, d.h);
   }
 
-  // 本体
   ctx.fillStyle = d.color;
   ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,0.15)";
   if (d.shape === 'circle') {
@@ -488,7 +495,6 @@ function drawBody(body) {
     fillSafeRect(ctx, -d.w/2, -d.h/2, d.w, d.h); strokeSafeRect(ctx, -d.w/2, -d.h/2, d.w, d.h);
   }
 
-  // テキスト
   ctx.fillStyle = "#333"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   let fontSize = d.shape === 'circle' ? d.r*0.8 : Math.min(d.w, d.h)*0.7;
   if(d.char.length > 2) fontSize *= 0.5;
@@ -505,10 +511,15 @@ function loop() {
   if (gameState !== 'menu') {
     ctx.clearRect(0, 0, L_WIDTH, L_HEIGHT);
 
-    // 💡 改善：画面の更新と物理エンジンを完全に同期させる（フリーズ防止）
     if (gameState === 'playing') {
       Engine.update(engine, 1000 / 60);
     }
+
+    // 💡改善：ユーザーに分かりやすいように、一番下に「地面（土台）」を描画
+    ctx.fillStyle = "#d35400";
+    ctx.fillRect(0, L_HEIGHT - 15, L_WIDTH, 15);
+    ctx.fillStyle = "#e67e22";
+    ctx.fillRect(0, L_HEIGHT - 15, L_WIDTH, 4);
 
     ctx.strokeStyle = "rgba(231, 76, 60, 0.6)"; ctx.lineWidth = 3; ctx.setLineDash([10, 10]);
     ctx.beginPath(); ctx.moveTo(0, GAMEOVER_Y); ctx.lineTo(L_WIDTH, GAMEOVER_Y); ctx.stroke(); ctx.setLineDash([]);
@@ -534,7 +545,7 @@ function loop() {
 
     if (!dropCooldown && gameState === 'playing' && nextDrop) {
       ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(currentX, 40); ctx.lineTo(currentX, L_HEIGHT); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(currentX, 40); ctx.lineTo(currentX, L_HEIGHT - 15); ctx.stroke();
       let dummyBody = { position: { x: currentX, y: 50 }, angle: 0, customData: nextDrop };
       drawBody(dummyBody);
     }
