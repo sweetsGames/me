@@ -28,34 +28,36 @@
     display: flex; justify-content: space-between; align-items: center; z-index: 20;
   }
   .header-btn { background: rgba(255,255,255,0.25); border: 2px solid white; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 13px; cursor: pointer; }
+  .header-btn:active { background: rgba(255,255,255,0.4); }
   
   .next-box {
     background: rgba(0,0,0,0.2); padding: 4px 12px; border-radius: 20px;
     display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 13px;
   }
-  #next-kanji {
+  #next-item {
     width: 30px; height: 30px; background: white; border-radius: 50%;
     display: flex; justify-content: center; align-items: center;
     color: #333; font-size: 16px; font-weight: bold; box-shadow: 0 2px 0 rgba(0,0,0,0.2);
   }
   .score-box { font-size: 16px; font-weight: bold; }
 
-  /* 💡 進化の輪（スライド表示＋ヒントアニメーション） */
+  /* 進化の輪（見切れないスライドパネル） */
   .evo-wrapper {
     position: relative; flex-shrink: 0; width: 100%; background: #fff; border-bottom: 3px solid #ddd; z-index: 15;
   }
   .evo-scroll-hint {
-    position: absolute; top: -12px; right: 10px; font-size: 11px; color: #fff; background: #e67e22; 
-    font-weight: bold; padding: 4px 10px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); 
+    position: absolute; top: 4px; right: 8px; font-size: 10px; color: #fff; background: #e67e22; 
+    font-weight: bold; padding: 3px 8px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); 
     pointer-events: none; z-index: 10; animation: bounceX 1.5s infinite;
   }
   @keyframes bounceX {
     0%, 100% { transform: translateX(0); }
-    50% { transform: translateX(-5px); }
+    50% { transform: translateX(-4px); }
   }
   #evolution-bar {
     display: flex; align-items: center; justify-content: flex-start;
-    padding: 12px 10px; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: 18px 10px 8px 10px;
+    gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
     white-space: nowrap;
   }
   #evolution-bar::-webkit-scrollbar { display: none; }
@@ -90,18 +92,18 @@
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     z-index: 200; padding: 20px;
   }
-  .title-logo { font-size: clamp(26px, 7vw, 34px); color: #c0392b; font-weight: 900; margin-bottom: 25px; text-shadow: 2px 2px 0 #fff, 3px 3px 0 #f39c12; text-align: center; line-height: 1.3;}
+  .title-logo { font-size: clamp(26px, 7vw, 34px); color: #c0392b; font-weight: 900; margin-bottom: 30px; text-shadow: 2px 2px 0 #fff, 3px 3px 0 #f39c12; text-align: center; line-height: 1.3;}
   
-  .theme-box { background: white; border: 3px solid #f39c12; padding: 15px; border-radius: 16px; margin-bottom: 25px; width: 100%; max-width: 320px; box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+  .theme-box { background: white; border: 3px solid #f39c12; padding: 20px 15px; border-radius: 16px; margin-bottom: 25px; width: 100%; max-width: 320px; box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
   .theme-btn {
-    width: 100%; padding: 12px 10px; margin-bottom: 8px; font-size: 15px; font-weight: bold;
+    width: 100%; padding: 15px 10px; margin-bottom: 12px; font-size: 16px; font-weight: bold;
     border-radius: 10px; border: 2px solid #ecd8ba; background: #fffdf9; color: #6d4c20;
     cursor: pointer; display: flex; flex-direction: column; align-items: center;
   }
-  .theme-btn span.sub { font-size: 11px; font-weight: normal; margin-top: 4px; color: inherit; }
+  .theme-btn span.sub { font-size: 11px; font-weight: normal; margin-top: 6px; color: inherit; }
   .theme-btn.active { background: #e67e22; color: white; border-color: #d35400; box-shadow: 0 3px 0 #d35400; }
   
-  .start-btn { padding: 16px 50px; font-size: 22px; font-weight: bold; color: white; background: #27ae60; border: none; border-radius: 40px; box-shadow: 0 6px 0 #1e8449; cursor: pointer; }
+  .start-btn { padding: 16px 60px; font-size: 24px; font-weight: bold; color: white; background: #27ae60; border: none; border-radius: 40px; box-shadow: 0 6px 0 #1e8449; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -109,11 +111,10 @@
 <div id="game-wrapper">
   <div id="header">
     <button class="header-btn" onclick="showMenu()">◀ メニュー</button>
-    <div class="next-box">つぎ <div id="next-kanji"></div></div>
+    <div class="next-box">つぎ <div id="next-item"></div></div>
     <div class="score-box">SCORE: <span id="score">0</span></div>
   </div>
 
-  <!-- 💡 スライドできる進化の輪 -->
   <div class="evo-wrapper">
     <div class="evo-scroll-hint">◀ スワイプできるよ！ ▶</div>
     <div id="evolution-bar"></div>
@@ -133,19 +134,15 @@
     <div class="title-logo">🍉本格物理！<br>知育パズルスイカ</div>
     
     <div class="theme-box">
-      <div style="font-weight:bold; color:#d35400; text-align:center; margin-bottom:10px; font-size:14px;">あそぶテーマをえらぶ</div>
+      <div style="font-weight:bold; color:#d35400; text-align:center; margin-bottom:15px; font-size:15px;">あそぶテーマをえらぶ</div>
       
       <button class="theme-btn active" onclick="selectTheme('planet')">
         🌍 宇宙の大きさ
-        <span class="sub">実際の体積比で星が進化！</span>
+        <span class="sub">太陽から遠ざかる順に進化！(実際の体積比)</span>
       </button>
       <button class="theme-btn" onclick="selectTheme('money')">
         💰 お金の進化
         <span class="sub">1円×5枚で5円に！リアルな両替ルール</span>
-      </button>
-      <button class="theme-btn" onclick="selectTheme('kanji')">
-        🌳 漢字・部首合体
-        <span class="sub">バラバラの部首（四角）を合体！</span>
       </button>
     </div>
     
@@ -158,7 +155,6 @@
 document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('touchmove', (e) => { 
-  // スクロールバー上でのみ横スワイプを許可
   if (!e.target.closest('#evolution-bar')) { e.preventDefault(); }
 }, { passive: false });
 
@@ -178,32 +174,27 @@ function playSound(type, tier = 0) {
     osc.type = 'triangle'; osc.frequency.setValueAtTime(300 + tier * 50, t); osc.frequency.setValueAtTime(450 + tier * 50, t + 0.05);
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
     osc.start(t); osc.stop(t + 0.2);
-  } else if (type === 'kanji_merge') { 
-    osc.type = 'square'; osc.frequency.setValueAtTime(600, t); osc.frequency.setValueAtTime(800, t + 0.1);
-    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
-    osc.start(t); osc.stop(t + 0.3);
   }
 }
 
-// --- 💡 テーマ別データ定義（お金モードをリアルな両替ルールに変更！） ---
+// --- 💡 テーマ別データ定義（宇宙モード：遠ざかる順・リアル体積比） ---
 const THEMES = {
   planet: {
     type: "linear",
     items: [
-      { baseChar: "月", sub: "3,474km", shape: "circle", r: 18, color: "#bdc3c7", score: 1 },
-      { baseChar: "水星", sub: "4,879km", shape: "circle", r: 20, color: "#85c1e9", score: 3 },
-      { baseChar: "火星", sub: "6,779km", shape: "circle", r: 22, color: "#e74c3c", score: 6 },
-      { baseChar: "金星", sub: "1.2万km", shape: "circle", r: 27, color: "#f1c40f", score: 10 },
-      { baseChar: "地球", sub: "1.2万km", shape: "circle", r: 28, color: "#2ecc71", score: 15 },
-      { baseChar: "海王星", sub: "4.9万km", shape: "circle", r: 43, color: "#3498db", score: 21 },
-      { baseChar: "天王星", sub: "5.0万km", shape: "circle", r: 44, color: "#1abc9c", score: 28 },
-      { baseChar: "土星", sub: "11.6万km", shape: "circle", r: 58, color: "#e67e22", score: 36 },
-      { baseChar: "木星", sub: "13.9万km", shape: "circle", r: 62, color: "#d35400", score: 45 },
+      { baseChar: "水星", sub: "4,879km", shape: "circle", r: 20, color: "#85c1e9", score: 1 },
+      { baseChar: "金星", sub: "1.2万km", shape: "circle", r: 27, color: "#f1c40f", score: 3 },
+      { baseChar: "地球", sub: "1.2万km", shape: "circle", r: 28, color: "#2ecc71", score: 6 },
+      { baseChar: "火星", sub: "6,779km", shape: "circle", r: 22, color: "#e74c3c", score: 10 }, // 💡 地球より小さい！
+      { baseChar: "木星", sub: "13.9万km", shape: "circle", r: 62, color: "#d35400", score: 15 },
+      { baseChar: "土星", sub: "11.6万km", shape: "circle", r: 58, color: "#e67e22", score: 21 }, // 💡 木星より少し小さい！
+      { baseChar: "天王星", sub: "5.0万km", shape: "circle", r: 44, color: "#1abc9c", score: 28 }, // 💡 さらに小さくなる！
+      { baseChar: "海王星", sub: "4.9万km", shape: "circle", r: 43, color: "#3498db", score: 36 },
       { baseChar: "太陽", sub: "139万km", shape: "circle", r: 133, color: "#c0392b", score: 100 }
     ]
   },
   money: {
-    type: "money", // 💡 個数で進化する専用モード
+    type: "money",
     items: [
       { baseChar: "1円", sub: "20.0mm", shape: "circle", r: 16, color: "#ecf0f1", score: 1, fric: 0.005, rest: 0.4, req: 5 },
       { baseChar: "5円", sub: "22.0mm", shape: "circle", r: 17.6, color: "#f1c40f", score: 3, fric: 0.005, rest: 0.4, req: 2 },
@@ -214,29 +205,6 @@ const THEMES = {
       { baseChar: "千円", sub: "お札", shape: "rect", w: 140, h: 30, color: "#a2d9ce", score: 30, fric: 0.8, rest: 0.05, req: 5 },
       { baseChar: "5千円", sub: "お札", shape: "rect", w: 146, h: 30, color: "#d7bde2", score: 50, fric: 0.8, rest: 0.05, req: 2 },
       { baseChar: "1万円", sub: "お札", shape: "rect", w: 150, h: 30, color: "#f5b041", score: 100, fric: 0.8, rest: 0.05, req: 1 }
-    ]
-  },
-  kanji: {
-    type: "recipe",
-    parts: [
-      { baseChar: "氵", shape: "rect", w: 25, h: 55, color: "#85c1e9", score: 1 },
-      { baseChar: "宀", shape: "rect", w: 60, h: 25, color: "#f5cba7", score: 1 },
-      { baseChar: "木", shape: "rect", w: 40, h: 40, color: "#a9dfbf", score: 1 },
-      { baseChar: "日", shape: "rect", w: 35, h: 35, color: "#f5b041", score: 1 },
-      { baseChar: "月", shape: "rect", w: 30, h: 50, color: "#f9e79f", score: 1 },
-      { baseChar: "人", shape: "rect", w: 25, h: 55, color: "#d7bde2", score: 1 }
-    ],
-    recipes: {
-      "氵+木": { baseChar: "沐", read: "もく", shape: "circle", r: 40, color: "#3498db", score: 10 },
-      "宀+木": { baseChar: "宋", read: "そう", shape: "circle", r: 40, color: "#d35400", score: 10 },
-      "木+木": { baseChar: "林", read: "はやし", shape: "circle", r: 40, color: "#27ae60", score: 10 },
-      "日+月": { baseChar: "明", read: "あかるい", shape: "circle", r: 40, color: "#f39c12", score: 10 },
-      "人+木": { baseChar: "休", read: "やすむ", shape: "circle", r: 40, color: "#9b59b6", score: 10 }
-    },
-    levels: [
-      { baseChar: "森", read: "もり", shape: "circle", r: 60, color: "#1e8449", score: 30 },
-      { baseChar: "晶", read: "あきら", shape: "circle", r: 85, color: "#e67e22", score: 60 },
-      { baseChar: "爆", read: "ばくはつ", shape: "circle", r: 120, color: "#c0392b", score: 150 }
     ]
   }
 };
@@ -254,7 +222,7 @@ engine.world.gravity.y = 1.2;
 
 let L_WIDTH = 400;
 let L_HEIGHT = 650; 
-const GAMEOVER_Y = 160; // 💡 判定ラインを少し下げて空間を確保
+const GAMEOVER_Y = 160; // デッドラインを下に下げて遊びやすく
 
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
@@ -272,7 +240,9 @@ let overflowTimer = 0;
 
 function selectTheme(theme) {
   currentTheme = theme;
-  document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.toggle('active', btn.getAttribute('onclick').includes(theme)));
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('onclick').includes(theme));
+  });
 }
 
 function showMenu() {
@@ -298,29 +268,17 @@ function initUIBar() {
       }
     });
   } else if (themeObj.type === 'money') {
-    // 💡 お金モードの特殊な表示
     themeObj.items.forEach((item, i) => {
       let div = document.createElement('div'); div.className = 'evo-item';
       div.innerHTML = `<span class="evo-char">${item.baseChar}</span><span class="evo-sub">${item.sub || ''}</span>`;
       bar.appendChild(div);
       if (i < themeObj.items.length - 1) {
         let arrow = document.createElement('div'); arrow.className = 'evo-arrow'; 
-        arrow.style.color = "#e74c3c"; // かけ算を強調
+        arrow.style.color = "#e74c3c"; 
         arrow.innerText = `×${item.req} ▶`; 
         bar.appendChild(arrow);
       }
     });
-  } else if (themeObj.type === 'recipe') {
-    let txt = `<div class="evo-item"><span class="evo-char" style="font-size:12px;">氵+木=沐</span></div>`;
-    txt += `<div class="evo-item"><span class="evo-char" style="font-size:12px;">木+木=林</span></div>`;
-    txt += `<div class="evo-item"><span class="evo-char" style="font-size:12px;">日+月=明</span></div>`;
-    txt += `<div class="evo-arrow">▶</div>`;
-    txt += `<div class="evo-item"><span class="evo-sub">合体で</span><span class="evo-char" style="font-size:14px;">森</span></div>`;
-    txt += `<div class="evo-arrow">▶</div>`;
-    txt += `<div class="evo-item"><span class="evo-char" style="font-size:14px;">晶</span></div>`;
-    txt += `<div class="evo-arrow">▶</div>`;
-    txt += `<div class="evo-item"><span class="evo-char" style="font-size:14px;">爆</span></div>`;
-    bar.innerHTML = txt;
   }
 }
 
@@ -362,28 +320,16 @@ function startGame() {
 
 function updateScore() { document.getElementById('score').innerText = score; }
 
-// 💡 ランダム性の強化：最初から2種類以上のアイテムが落ちるように！
+// 💡 改善：初期から4種類（火星や50円まで）がランダムで落ちてくる！
 function pickNext() {
   let themeObj = THEMES[currentTheme];
-  let maxTier;
+  let maxTier = Math.min(4, Math.floor(score / 100) + 4);
   
-  if (themeObj.type === 'recipe') {
-    maxTier = Math.min(themeObj.parts.length, Math.floor(score / 50) + 3);
-  } else {
-    maxTier = Math.min(4, Math.floor(score / 100) + 2); // 初期スコア0でも tier0,1 の2種類がランダムで出る
-  }
+  let t = Math.floor(Math.random() * maxTier);
+  nextDrop = { tier: t, count: 1, ...themeObj.items[t] };
+  nextDrop.char = nextDrop.baseChar;
   
-  if (themeObj.type === 'linear' || themeObj.type === 'money') {
-    let t = Math.floor(Math.random() * maxTier);
-    nextDrop = { tier: t, count: 1, ...themeObj.items[t] };
-    nextDrop.char = nextDrop.baseChar;
-  } else {
-    let idx = Math.floor(Math.random() * maxTier);
-    nextDrop = { type: 'part', idx: idx, count: 1, ...themeObj.parts[idx] };
-    nextDrop.char = nextDrop.baseChar;
-  }
-  
-  let nextEl = document.getElementById('next-kanji');
+  let nextEl = document.getElementById('next-item');
   if (nextEl) {
     nextEl.innerText = nextDrop.char;
     nextEl.style.backgroundColor = nextDrop.color;
@@ -407,7 +353,7 @@ function createBodyObject(x, y, data) {
   return body;
 }
 
-// === 合体イベント（💡お金の特殊ルール実装！） ===
+// === 合体イベント（💡お金の特殊ルール実装） ===
 Events.on(engine, 'collisionStart', function(event) {
   let pairs = event.pairs;
   for (let i = 0; i < pairs.length; i++) {
@@ -416,7 +362,7 @@ Events.on(engine, 'collisionStart', function(event) {
     if (!d1 || !d2 || bodyA.isMarked || bodyB.isMarked) continue;
 
     let mergedData = null;
-    let isEvolution = false; // 完全に進化したらtrue
+    let isEvolution = false;
     let themeObj = THEMES[currentTheme];
 
     if (themeObj.type === 'linear') {
@@ -428,35 +374,21 @@ Events.on(engine, 'collisionStart', function(event) {
       }
     } 
     else if (themeObj.type === 'money') {
-      // 💡 お金モード：必要数（req）に達するまでカウントアップ！
       if (d1.tier === d2.tier && d1.tier < themeObj.items.length - 1) {
         let newCount = (d1.count || 1) + (d2.count || 1);
         let req = themeObj.items[d1.tier].req;
         
         if (newCount >= req) {
-          // 進化！
           let nextT = d1.tier + 1;
           mergedData = { tier: nextT, count: 1, ...themeObj.items[nextT] };
           mergedData.char = mergedData.baseChar;
           isEvolution = true;
         } else {
-          // まだ進化しない（1円×2 などの状態）
           mergedData = { tier: d1.tier, count: newCount, ...themeObj.items[d1.tier] };
           mergedData.char = mergedData.baseChar + "×" + newCount;
           isEvolution = false;
         }
       }
-    }
-    else {
-      // 漢字モード
-      if (d1.type === 'part' && d2.type === 'part') {
-        let key1 = d1.baseChar + "+" + d2.baseChar; let key2 = d2.baseChar + "+" + d1.baseChar;
-        let recipe = themeObj.recipes[key1] || themeObj.recipes[key2];
-        if (recipe) { mergedData = { type: 'lvl1', ...recipe }; mergedData.char = mergedData.baseChar; isEvolution = true; }
-      }
-      else if (d1.type === 'lvl1' && d2.type === 'lvl1') { mergedData = { type: 'lvl2', ...themeObj.levels[0] }; mergedData.char = mergedData.baseChar; isEvolution = true; }
-      else if (d1.type === 'lvl2' && d2.type === 'lvl2') { mergedData = { type: 'lvl3', ...themeObj.levels[1] }; mergedData.char = mergedData.baseChar; isEvolution = true; }
-      else if (d1.type === 'lvl3' && d2.type === 'lvl3') { mergedData = { type: 'lvl4', ...themeObj.levels[2] }; mergedData.char = mergedData.baseChar; isEvolution = true; }
     }
 
     if (mergedData) {
@@ -476,18 +408,15 @@ Events.on(engine, 'afterUpdate', function() {
       Matter.Body.setVelocity(newBody, { x: 0, y: -2 });
       Composite.add(engine.world, newBody);
       
-      // 💡 進化か部分合体かで演出を変える
       if (m.isEvolution) {
         score += m.data.score;
-        playSound(m.data.read ? 'kanji_merge' : 'merge', m.data.tier || 0);
+        playSound('merge', m.data.tier || 0);
         for (let i=0; i<15; i++) {
           let a = Math.random()*Math.PI*2, s = Math.random()*5+3;
           particles.push({ x: m.x, y: m.y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, life: 1, color: m.data.color });
         }
-        if (m.data.read) floatTexts.push({ x: m.x, y: m.y, text: m.data.read, life: 1 });
-        else if (m.data.sub) floatTexts.push({ x: m.x, y: m.y, text: "進化！", life: 1 });
+        floatTexts.push({ x: m.x, y: m.y, text: "進化！", life: 1 });
       } else {
-        // お金がくっついただけの時
         score += Math.max(1, Math.floor(m.data.score / 2));
         playSound('drop');
       }
@@ -548,7 +477,6 @@ function drawBody(body) {
   if (d.shape === 'circle') { ctx.beginPath(); ctx.arc(0, 0, d.r, 0, Math.PI*2); ctx.fill(); ctx.stroke(); } 
   else { fillSafeRect(ctx, -d.w/2, -d.h/2, d.w, d.h); strokeSafeRect(ctx, -d.w/2, -d.h/2, d.w, d.h); }
 
-  // 💡 お金の「×2」などの特殊テキスト描画
   ctx.fillStyle = "#333"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   let charStr = d.char || "";
   
@@ -560,7 +488,7 @@ function drawBody(body) {
     
     ctx.font = `bold ${fontSize}px sans-serif`;
     ctx.fillText(parts[0], 0, -fontSize*0.25);
-    ctx.fillStyle = "#e74c3c"; // かけ算を赤で強調
+    ctx.fillStyle = "#e74c3c";
     ctx.font = `bold ${fontSize*0.8}px sans-serif`;
     ctx.fillText("×" + parts[1], 0, fontSize*0.6);
   } else {
