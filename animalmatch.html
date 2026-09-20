@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>絵合わせ</title>
+<style>
+    body {
+        margin: 0;
+        background: lavenderblush;
+        font-family: sans-serif;
+        user-select: none;
+        touch-action: manipulation;
+        text-align: center;
+    }
+    h1 {
+        color: deeppink;
+        margin: 20px 0;
+    }
+    button {
+        margin: 8px;
+        padding: 15px;
+        font-size: 18px;
+        background: hotpink;
+        border: none;
+        border-radius: 30px;
+        color: white;
+        font-weight: bold;
+        width: 80%;
+        max-width: 300px;
+        box-shadow: 0 4px 0 deeppink;
+        cursor: pointer;
+    }
+    button:active {
+        transform: translateY(4px);
+        box-shadow: none;
+    }
+    .grid {
+        display: none;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        width: 90vw;
+        max-width: 380px;
+        margin: 20px auto;
+    }
+    .card {
+        background: white;
+        border-radius: 12px;
+        aspect-ratio: 1/1.1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 35px;
+        box-shadow: 0 4px 0 lightgray;
+        cursor: pointer;
+    }
+    .flipped {
+        background: white;
+        transform: translateY(2px);
+        box-shadow: 0 2px 0 lightgray;
+    }
+    .back {
+        background: lightpink;
+        color: white;
+        font-size: 30px;
+        box-shadow: 0 4px 0 palevioletred;
+    }
+    .matched {
+        background: palegreen;
+        box-shadow: 0 2px 0 mediumseagreen;
+        transform: scale(0.95);
+    }
+</style>
+</head>
+<body>
+
+<div id="tit">
+    <h1>どうぶつ絵合わせ🐾</h1>
+    <div style="background:white;padding:10px;border-radius:10px;display:inline-block;color:gray;margin-bottom:10px">
+        あそびかたを えらんでね
+    </div><br>
+    <button onclick="m(1)" style="background:orange;box-shadow:0 4px 0 darkorange">1人で遊ぶ</button>
+    <button onclick="m(2)" style="background:dodgerblue;box-shadow:0 4px 0 royalblue">2人で遊ぶ</button>
+</div>
+
+<div id="sel" style="display:none">
+    <h2 id="mT" style="color:gray"></h2>
+    <button onclick="s(4)">かんたん (8まい)</button>
+    <button onclick="s(6)">ふつう (12まい)</button>
+    <button onclick="s(8)">むずかしい (16まい)</button>
+    <button onclick="s(16)" style="background:mediumpurple;box-shadow:0 4px 0 indigo">超むずかしい (32まい)</button>
+</div>
+
+<div id="ui" style="font-size:20px;font-weight:bold;color:hotpink;padding:10px;display:none"></div>
+<div id="grid" class="grid"></div>
+
+<div id="clr" style="display:none">
+    <h1 id="cM">クリア！</h1>
+    <h2 id="cS" style="color:gray"></h2>
+    <button onclick="location.reload()">タイトルへ</button>
+</div>
+
+<script>
+const A = ['🐶','🐱','🐰','🐻','🐼','🐨','🦁','🐸','🐵','🐷','🦊','🐯','🐭','🐹','🐧','🦉'];
+let tP = 0, mC = 0, fC = [], md = 1, tr = 1, s0 = 0, s1 = 0, s2 = 0, isL = 0;
+const D = document, 
+      tit = D.getElementById('tit'), 
+      sel = D.getElementById('sel'), 
+      mT = D.getElementById('mT'), 
+      ui = D.getElementById('ui'), 
+      grd = D.getElementById('grid'), 
+      clr = D.getElementById('clr'), 
+      cM = D.getElementById('cM'), 
+      cS = D.getElementById('cS');
+
+function m(x) {
+    md = x;
+    tit.style.display = 'none';
+    sel.style.display = 'block';
+    mT.innerText = x == 1 ? '1人で遊ぶ' : '2人で遊ぶ';
+}
+
+function s(p) {
+    tP = p;
+    sel.style.display = 'none';
+    ui.style.display = 'block';
+    grd.style.display = 'grid';
+    uUI();
+    let arr = [...A.slice(0, p), ...A.slice(0, p)].sort(() => Math.random() - 0.5);
+    grd.innerHTML = '';
+    arr.forEach(a => {
+        let c = D.createElement('div');
+        c.className = 'card back';
+        c.innerText = '🐾';
+        c.onclick = () => f(c, a);
+        grd.appendChild(c);
+    });
+}
+
+function uUI() {
+    if (md == 1) {
+        ui.innerHTML = 'ペア: ' + s0 + ' / ' + tP;
+    } else {
+        ui.innerHTML = (tr == 1 ? '<span style="color:hotpink">★1P: ' + s1 + '</span>' : '1P: ' + s1) + ' / ' + 
+                       (tr == 2 ? '<span style="color:dodgerblue">★2P: ' + s2 + '</span>' : '2P: ' + s2);
+    }
+}
+
+function f(c, a) {
+    if (isL || c.className != 'card back') return;
+    c.className = 'card flipped';
+    c.innerText = a;
+    fC.push(c);
+    if (fC.length == 2) {
+        isL = 1;
+        let c1 = fC[0], c2 = fC[1];
+        if (c1.innerText == c2.innerText) {
+            setTimeout(() => {
+                c1.className = 'card matched';
+                c2.className = 'card matched';
+                mC++;
+                if (md == 1) s0++;
+                else if (tr == 1) s1++;
+                else s2++;
+                uUI();
+                fC = [];
+                isL = 0;
+                if (mC == tP) setTimeout(ed, 500);
+            }, 400);
+        } else {
+            setTimeout(() => {
+                c1.className = 'card back';
+                c1.innerText = '🐾';
+                c2.className = 'card back';
+                c2.innerText = '🐾';
+                if (md == 2) {
+                    tr = tr == 1 ? 2 : 1;
+                    uUI();
+                }
+                fC = [];
+                isL = 0;
+            }, 1000);
+        }
+    }
+}
+
+function ed() {
+    ui.style.display = 'none';
+    grd.style.display = 'none';
+    clr.style.display = 'block';
+    
+    // 途切れていた結果発表処理を補完
+    if (md == 1) {
+        cS.innerText = '';
+    } else {
+        cM.innerText = s1 > s2 ? '1Pのかち！' : (s2 > s1 ? '2Pのかち！' : 'ひきわけ！');
+        cS.innerText = '1P: ' + s1 + '組 - 2P: ' + s2 + '組';
+    }
+}
+</script>
+</body>
+</html>
