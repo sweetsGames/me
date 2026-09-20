@@ -177,7 +177,7 @@ function playSound(type, tier = 0) {
   }
 }
 
-// --- 💡 テーマ別データ定義（宇宙モード：遠ざかる順・リアル体積比） ---
+// --- 💡 漢字モードを削除し、2大テーマに特化！ ---
 const THEMES = {
   planet: {
     type: "linear",
@@ -185,10 +185,10 @@ const THEMES = {
       { baseChar: "水星", sub: "4,879km", shape: "circle", r: 20, color: "#85c1e9", score: 1 },
       { baseChar: "金星", sub: "1.2万km", shape: "circle", r: 27, color: "#f1c40f", score: 3 },
       { baseChar: "地球", sub: "1.2万km", shape: "circle", r: 28, color: "#2ecc71", score: 6 },
-      { baseChar: "火星", sub: "6,779km", shape: "circle", r: 22, color: "#e74c3c", score: 10 }, // 💡 地球より小さい！
+      { baseChar: "火星", sub: "6,779km", shape: "circle", r: 22, color: "#e74c3c", score: 10 }, 
       { baseChar: "木星", sub: "13.9万km", shape: "circle", r: 62, color: "#d35400", score: 15 },
-      { baseChar: "土星", sub: "11.6万km", shape: "circle", r: 58, color: "#e67e22", score: 21 }, // 💡 木星より少し小さい！
-      { baseChar: "天王星", sub: "5.0万km", shape: "circle", r: 44, color: "#1abc9c", score: 28 }, // 💡 さらに小さくなる！
+      { baseChar: "土星", sub: "11.6万km", shape: "circle", r: 58, color: "#e67e22", score: 21 }, 
+      { baseChar: "天王星", sub: "5.0万km", shape: "circle", r: 44, color: "#1abc9c", score: 28 }, 
       { baseChar: "海王星", sub: "4.9万km", shape: "circle", r: 43, color: "#3498db", score: 36 },
       { baseChar: "太陽", sub: "139万km", shape: "circle", r: 133, color: "#c0392b", score: 100 }
     ]
@@ -196,12 +196,12 @@ const THEMES = {
   money: {
     type: "money",
     items: [
-      { baseChar: "1円", sub: "20.0mm", shape: "circle", r: 16, color: "#ecf0f1", score: 1, fric: 0.005, rest: 0.4, req: 5 },
-      { baseChar: "5円", sub: "22.0mm", shape: "circle", r: 17.6, color: "#f1c40f", score: 3, fric: 0.005, rest: 0.4, req: 2 },
-      { baseChar: "10円", sub: "23.5mm", shape: "circle", r: 18.8, color: "#e67e22", score: 6, fric: 0.005, rest: 0.4, req: 5 },
-      { baseChar: "50円", sub: "21.0mm", shape: "circle", r: 16.8, color: "#bdc3c7", score: 10, fric: 0.005, rest: 0.4, req: 2 },
-      { baseChar: "100円", sub: "22.6mm", shape: "circle", r: 18.1, color: "#ecf0f1", score: 15, fric: 0.005, rest: 0.4, req: 5 },
-      { baseChar: "500円", sub: "26.5mm", shape: "circle", r: 21.2, color: "#d4ac0d", score: 21, fric: 0.005, rest: 0.4, req: 2 },
+      { baseChar: "1円", sub: "20.0mm", shape: "circle", r: 16, color: "#ecf0f1", score: 1, req: 5 },
+      { baseChar: "5円", sub: "22.0mm", shape: "circle", r: 17.6, color: "#f1c40f", score: 3, req: 2 },
+      { baseChar: "10円", sub: "23.5mm", shape: "circle", r: 18.8, color: "#e67e22", score: 6, req: 5 },
+      { baseChar: "50円", sub: "21.0mm", shape: "circle", r: 16.8, color: "#bdc3c7", score: 10, req: 2 },
+      { baseChar: "100円", sub: "22.6mm", shape: "circle", r: 18.1, color: "#ecf0f1", score: 15, req: 5 },
+      { baseChar: "500円", sub: "26.5mm", shape: "circle", r: 21.2, color: "#d4ac0d", score: 21, req: 2 },
       { baseChar: "千円", sub: "お札", shape: "rect", w: 140, h: 30, color: "#a2d9ce", score: 30, fric: 0.8, rest: 0.05, req: 5 },
       { baseChar: "5千円", sub: "お札", shape: "rect", w: 146, h: 30, color: "#d7bde2", score: 50, fric: 0.8, rest: 0.05, req: 2 },
       { baseChar: "1万円", sub: "お札", shape: "rect", w: 150, h: 30, color: "#f5b041", score: 100, fric: 0.8, rest: 0.05, req: 1 }
@@ -222,7 +222,7 @@ engine.world.gravity.y = 1.2;
 
 let L_WIDTH = 400;
 let L_HEIGHT = 650; 
-const GAMEOVER_Y = 160; // デッドラインを下に下げて遊びやすく
+const GAMEOVER_Y = 160; 
 
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
@@ -257,29 +257,21 @@ function initUIBar() {
   bar.innerHTML = '';
   let themeObj = THEMES[currentTheme];
   
-  if (themeObj.type === 'linear') {
-    themeObj.items.forEach((item, i) => {
-      let div = document.createElement('div'); div.className = 'evo-item';
-      div.innerHTML = `<span class="evo-char">${item.baseChar}</span><span class="evo-sub">${item.sub || ''}</span>`;
-      bar.appendChild(div);
-      if (i < themeObj.items.length - 1) {
-        let arrow = document.createElement('div'); arrow.className = 'evo-arrow'; arrow.innerText = '▶';
-        bar.appendChild(arrow);
-      }
-    });
-  } else if (themeObj.type === 'money') {
-    themeObj.items.forEach((item, i) => {
-      let div = document.createElement('div'); div.className = 'evo-item';
-      div.innerHTML = `<span class="evo-char">${item.baseChar}</span><span class="evo-sub">${item.sub || ''}</span>`;
-      bar.appendChild(div);
-      if (i < themeObj.items.length - 1) {
-        let arrow = document.createElement('div'); arrow.className = 'evo-arrow'; 
+  themeObj.items.forEach((item, i) => {
+    let div = document.createElement('div'); div.className = 'evo-item';
+    div.innerHTML = `<span class="evo-char">${item.baseChar}</span><span class="evo-sub">${item.sub || ''}</span>`;
+    bar.appendChild(div);
+    if (i < themeObj.items.length - 1) {
+      let arrow = document.createElement('div'); arrow.className = 'evo-arrow'; 
+      if(themeObj.type === 'money') {
         arrow.style.color = "#e74c3c"; 
         arrow.innerText = `×${item.req} ▶`; 
-        bar.appendChild(arrow);
+      } else {
+        arrow.innerText = '▶';
       }
-    });
-  }
+      bar.appendChild(arrow);
+    }
+  });
 }
 
 function resize() {
@@ -304,7 +296,8 @@ function startGame() {
   Composite.clear(engine.world);
   Engine.clear(engine);
 
-  const wallOpt = { isStatic: true, render: { visible: false } };
+  // 💡 壁の摩擦を0にして、端っこでアイテムが引っかからないようにする
+  const wallOpt = { isStatic: true, friction: 0, render: { visible: false } };
   Composite.add(engine.world, [
     Bodies.rectangle(L_WIDTH/2, L_HEIGHT + 15, L_WIDTH + 100, 60, wallOpt), 
     Bodies.rectangle(-30, L_HEIGHT/2, 60, L_HEIGHT*2, wallOpt),
@@ -320,7 +313,6 @@ function startGame() {
 
 function updateScore() { document.getElementById('score').innerText = score; }
 
-// 💡 改善：初期から4種類（火星や50円まで）がランダムで落ちてくる！
 function pickNext() {
   let themeObj = THEMES[currentTheme];
   let maxTier = Math.min(4, Math.floor(score / 100) + 4);
@@ -339,21 +331,25 @@ function pickNext() {
   }
 }
 
+// 💡 【重要】丸いアイテムの「静止摩擦」を0にして、ツルッと隙間に転がるようにチューニング
 function createBodyObject(x, y, data) {
+  let isCircle = data.shape === 'circle';
   let opt = {
-    restitution: data.rest !== undefined ? data.rest : 0.3,
-    friction: data.fric !== undefined ? data.fric : 0.1,
+    restitution: data.rest !== undefined ? data.rest : (isCircle ? 0.35 : 0.05),
+    friction: data.fric !== undefined ? data.fric : (isCircle ? 0.001 : 0.8),
+    frictionStatic: isCircle ? 0 : 0.5, // ←これのおかげで丸が絶対に引っかからない
     density: 0.002
   };
+  
   let body;
-  if (data.shape === 'circle') { body = Bodies.circle(x, y, data.r, opt); } 
+  if (isCircle) { body = Bodies.circle(x, y, data.r, opt); } 
   else { opt.chamfer = { radius: 4 }; body = Bodies.rectangle(x, y, data.w, data.h, opt); }
   
   body.customData = data; 
   return body;
 }
 
-// === 合体イベント（💡お金の特殊ルール実装） ===
+// === 合体イベント（お金の両替ルール＆進化） ===
 Events.on(engine, 'collisionStart', function(event) {
   let pairs = event.pairs;
   for (let i = 0; i < pairs.length; i++) {
