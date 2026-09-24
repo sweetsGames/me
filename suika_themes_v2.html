@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>本格・知育スイカパズル</title>
-<!-- 💡 本格物理エンジン「Matter.js」を読み込む -->
+<!-- 💡 本格物理エンジン「Matter.js」 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 
 <style>
@@ -22,7 +22,6 @@
     margin: max(16px, var(--sat)) auto max(16px, var(--sab));
   }
 
-  /* ヘッダー部分 */
   #header {
     flex-shrink: 0; padding: 12px 15px; background: #d35400; color: white;
     display: flex; justify-content: space-between; align-items: center; z-index: 20;
@@ -41,7 +40,7 @@
   }
   .score-box { font-size: 16px; font-weight: bold; }
 
-  /* 進化の輪（見切れないスライドパネル） */
+  /* 進化の輪（スライド） */
   .evo-wrapper {
     position: relative; flex-shrink: 0; width: 100%; background: #fff; border-bottom: 3px solid #ddd; z-index: 15;
   }
@@ -56,8 +55,7 @@
   }
   #evolution-bar {
     display: flex; align-items: center; justify-content: flex-start;
-    padding: 18px 10px 8px 10px;
-    gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: 18px 10px 8px 10px; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch;
     white-space: nowrap;
   }
   #evolution-bar::-webkit-scrollbar { display: none; }
@@ -177,7 +175,7 @@ function playSound(type, tier = 0) {
   }
 }
 
-// --- 💡 漢字モードを削除し、2大テーマに特化！ ---
+// --- テーマ別データ定義 ---
 const THEMES = {
   planet: {
     type: "linear",
@@ -195,16 +193,18 @@ const THEMES = {
   },
   money: {
     type: "money",
+    // 💡 お金のサイズをすべて【2倍】に拡大！大迫力のパズルになります
     items: [
-      { baseChar: "1円", sub: "20.0mm", shape: "circle", r: 16, color: "#ecf0f1", score: 1, req: 5 },
-      { baseChar: "5円", sub: "22.0mm", shape: "circle", r: 17.6, color: "#f1c40f", score: 3, req: 2 },
-      { baseChar: "10円", sub: "23.5mm", shape: "circle", r: 18.8, color: "#e67e22", score: 6, req: 5 },
-      { baseChar: "50円", sub: "21.0mm", shape: "circle", r: 16.8, color: "#bdc3c7", score: 10, req: 2 },
-      { baseChar: "100円", sub: "22.6mm", shape: "circle", r: 18.1, color: "#ecf0f1", score: 15, req: 5 },
-      { baseChar: "500円", sub: "26.5mm", shape: "circle", r: 21.2, color: "#d4ac0d", score: 21, req: 2 },
-      { baseChar: "千円", sub: "お札", shape: "rect", w: 140, h: 30, color: "#a2d9ce", score: 30, fric: 0.8, rest: 0.05, req: 5 },
-      { baseChar: "5千円", sub: "お札", shape: "rect", w: 146, h: 30, color: "#d7bde2", score: 50, fric: 0.8, rest: 0.05, req: 2 },
-      { baseChar: "1万円", sub: "お札", shape: "rect", w: 150, h: 30, color: "#f5b041", score: 100, fric: 0.8, rest: 0.05, req: 1 }
+      { baseChar: "1円", sub: "20.0mm", shape: "circle", r: 32, color: "#ecf0f1", score: 1, req: 5 },
+      { baseChar: "5円", sub: "22.0mm", shape: "circle", r: 35.2, color: "#f1c40f", score: 3, req: 2 },
+      { baseChar: "10円", sub: "23.5mm", shape: "circle", r: 37.6, color: "#e67e22", score: 6, req: 5 },
+      { baseChar: "50円", sub: "21.0mm", shape: "circle", r: 33.6, color: "#bdc3c7", score: 10, req: 2 },
+      { baseChar: "100円", sub: "22.6mm", shape: "circle", r: 36.2, color: "#ecf0f1", score: 15, req: 5 },
+      { baseChar: "500円", sub: "26.5mm", shape: "circle", r: 42.4, color: "#d4ac0d", score: 21, req: 2 },
+      // お札は四角く、摩擦を強くして滑らないように設定
+      { baseChar: "千円", sub: "お札", shape: "rect", w: 280, h: 60, color: "#a2d9ce", score: 30, fric: 0.8, rest: 0.05, req: 5 },
+      { baseChar: "5千円", sub: "お札", shape: "rect", w: 292, h: 60, color: "#d7bde2", score: 50, fric: 0.8, rest: 0.05, req: 2 },
+      { baseChar: "1万円", sub: "お札", shape: "rect", w: 300, h: 60, color: "#f5b041", score: 100, fric: 0.8, rest: 0.05, req: 1 }
     ]
   }
 };
@@ -217,7 +217,11 @@ const Engine = Matter.Engine,
       Bodies = Matter.Bodies,
       Events = Matter.Events;
 
-const engine = Engine.create();
+// 💡 物理エンジンの精度（滑らかさ）を大幅アップ！
+const engine = Engine.create({
+  positionIterations: 12,
+  velocityIterations: 8
+});
 engine.world.gravity.y = 1.2;
 
 let L_WIDTH = 400;
@@ -296,7 +300,7 @@ function startGame() {
   Composite.clear(engine.world);
   Engine.clear(engine);
 
-  // 💡 壁の摩擦を0にして、端っこでアイテムが引っかからないようにする
+  // 壁の摩擦を0にし、アイテムがツルッと滑り落ちるように
   const wallOpt = { isStatic: true, friction: 0, render: { visible: false } };
   Composite.add(engine.world, [
     Bodies.rectangle(L_WIDTH/2, L_HEIGHT + 15, L_WIDTH + 100, 60, wallOpt), 
@@ -313,6 +317,7 @@ function startGame() {
 
 function updateScore() { document.getElementById('score').innerText = score; }
 
+// 初期から4種類（金星・50円まで）がランダムで落ちてくる
 function pickNext() {
   let themeObj = THEMES[currentTheme];
   let maxTier = Math.min(4, Math.floor(score / 100) + 4);
@@ -331,25 +336,25 @@ function pickNext() {
   }
 }
 
-// 💡 【重要】丸いアイテムの「静止摩擦」を0にして、ツルッと隙間に転がるようにチューニング
+// 💡 【重要】摩擦を極限まで減らし、丸いアイテムをコロコロ転がす究極のチューニング
 function createBodyObject(x, y, data) {
   let isCircle = data.shape === 'circle';
   let opt = {
-    restitution: data.rest !== undefined ? data.rest : (isCircle ? 0.35 : 0.05),
+    restitution: data.rest !== undefined ? data.rest : (isCircle ? 0.3 : 0.05),
     friction: data.fric !== undefined ? data.fric : (isCircle ? 0.001 : 0.8),
-    frictionStatic: isCircle ? 0 : 0.5, // ←これのおかげで丸が絶対に引っかからない
+    frictionStatic: isCircle ? 0 : 0.5, // 静止摩擦0で絶対に引っかからない
     density: 0.002
   };
   
   let body;
   if (isCircle) { body = Bodies.circle(x, y, data.r, opt); } 
-  else { opt.chamfer = { radius: 4 }; body = Bodies.rectangle(x, y, data.w, data.h, opt); }
+  else { opt.chamfer = { radius: 6 }; body = Bodies.rectangle(x, y, data.w, data.h, opt); }
   
   body.customData = data; 
   return body;
 }
 
-// === 合体イベント（お金の両替ルール＆進化） ===
+// === 合体イベント ===
 Events.on(engine, 'collisionStart', function(event) {
   let pairs = event.pairs;
   for (let i = 0; i < pairs.length; i++) {
@@ -449,11 +454,11 @@ c.addEventListener('mousemove', (e) => { e.preventDefault(); if(isMouseDown) han
 window.addEventListener('mouseup', (e) => { if(isMouseDown) { isMouseDown = false; dropItem(); } });
 
 function fillSafeRect(ctx, x, y, w, h) {
-  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill(); } 
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.fill(); } 
   else { ctx.fillRect(x, y, w, h); }
 }
 function strokeSafeRect(ctx, x, y, w, h) {
-  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.stroke(); } 
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.stroke(); } 
   else { ctx.strokeRect(x, y, w, h); }
 }
 
