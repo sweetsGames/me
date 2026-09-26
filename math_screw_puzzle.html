@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>おうちネジ外しパズル</title>
+<title>無限ネジ外しパズル</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   
-  html, body { overscroll-behavior: none; touch-action: none; background: #d0e3ff; margin: 0; padding: 0; }
+  html, body { overscroll-behavior: none; touch-action: none; background: #e0eaff; margin: 0; padding: 0; }
   * { box-sizing: border-box; user-select: none; -webkit-user-select: none; font-family: 'Rounded M+ 1c', sans-serif; }
   
   body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -18,17 +18,24 @@
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);
   }
 
-  /* 上部UI（ツールボックス） */
+  /* 上部ヘッダー（レベル表示） */
+  #header {
+    padding: max(15px, var(--sat)) 10px 5px; display: flex; justify-content: space-between; align-items: center; z-index: 50;
+  }
+  .header-btn { background: rgba(0,0,0,0.2); border: none; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 14px; cursor: pointer; }
+  .level-text { font-size: 22px; font-weight: 900; color: #fff; text-shadow: 2px 2px 0 #34495e; letter-spacing: 1px; }
+
+  /* ツールボックス（上部） */
   #ui-top {
-    padding: max(15px, var(--sat)) 10px 10px; display: flex; justify-content: center; gap: 8px; z-index: 50;
+    padding: 10px; display: flex; justify-content: center; gap: 8px; z-index: 50; min-height: 85px;
   }
   .toolbox {
-    width: 60px; height: 65px; background: white; border-radius: 12px; border-bottom: 6px solid #ccc;
+    width: 60px; height: 65px; background: #fdfdfd; border-radius: 12px; border-bottom: 6px solid #ccc;
     display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 4px; padding: 5px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; transition: transform 0.3s, opacity 0.3s;
   }
   .toolbox-top { position: absolute; top: -6px; width: 30px; height: 10px; border-radius: 4px 4px 0 0; }
-  .hole { width: 14px; height: 14px; background: #333; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
+  .hole { width: 14px; height: 14px; background: #333; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.6); }
   .hole.filled { box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2), 0 2px 2px rgba(0,0,0,0.3); }
 
   /* 待機スロット（下部） */
@@ -36,72 +43,68 @@
     display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; z-index: 50;
   }
   .slot {
-    width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.1); border: 2px solid rgba(255,255,255,0.5);
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+    width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.15); border: 2px solid rgba(255,255,255,0.6);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
   }
 
   /* 盤面エリア */
   #board-container { flex: 1; position: relative; width: 100%; touch-action: none; perspective: 1000px; }
-  #board { width: 400px; height: 500px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-
-  /* 板とネジのデザイン */
+  
+  /* ブロックとネジのデザイン */
   .plate {
     position: absolute; border-radius: 8px; border: 3px solid rgba(0,0,0,0.2); pointer-events: auto;
-    box-shadow: 0 8px 15px rgba(0,0,0,0.4), inset 0 2px 5px rgba(255,255,255,0.3);
+    box-shadow: 0 6px 10px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4);
     display: flex; justify-content: center; align-items: center;
+    transition: top 0.6s cubic-bezier(0.5, 0, 1, 1), transform 0.6s, opacity 0.5s;
+    transform-origin: center;
   }
-  .plate::after { /* 木目風の装飾 */
+  .plate::after { /* ブロックの模様 */
     content: ''; position: absolute; inset: 0; border-radius: 5px; pointer-events: none;
-    background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.03) 10px, rgba(0,0,0,0.03) 20px);
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px);
   }
   
   .screw {
     position: absolute; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; pointer-events: auto;
     border: 2px solid rgba(0,0,0,0.3); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.4);
     display: flex; justify-content: center; align-items: center; transform: translate(-50%, -50%);
-    transition: transform 0.1s;
   }
   .screw:active { transform: translate(-50%, -50%) scale(0.9); }
-  .screw::before { /* 十字の溝 */
-    content: ''; position: absolute; width: 14px; height: 4px; background: rgba(0,0,0,0.4); border-radius: 2px;
-  }
-  .screw::after {
-    content: ''; position: absolute; width: 4px; height: 14px; background: rgba(0,0,0,0.4); border-radius: 2px;
-  }
+  .screw::before { content: ''; position: absolute; width: 12px; height: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; }
+  .screw::after { content: ''; position: absolute; width: 4px; height: 12px; background: rgba(0,0,0,0.4); border-radius: 2px; }
 
-  /* 落下アニメーション */
-  @keyframes fallDown {
-    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(600px) rotate(20deg); opacity: 0; }
-  }
-  .falling { animation: fallDown 0.6s cubic-bezier(0.5, 0, 1, 1) forwards; pointer-events: none !important; }
-  
-  /* エラー時の揺れアニメーション */
+  /* エラー時の揺れアニメーション（上の板に邪魔されている時） */
   @keyframes shake {
-    0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); }
+    0%, 100% { transform: translateX(0) rotate(var(--rot)); } 
+    25% { transform: translateX(-4px) rotate(var(--rot)); } 
+    75% { transform: translateX(4px) rotate(var(--rot)); }
   }
   .shake { animation: shake 0.2s; }
 
   /* オーバーレイ画面 */
   .overlay {
-    position: absolute; inset: 0; background: rgba(0, 0, 0, 0.8);
+    position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85);
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s;
   }
   .overlay.show { opacity: 1; pointer-events: auto; }
   .title-logo { font-size: 32px; color: white; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #333; text-align: center; }
-  .btn { padding: 15px 40px; font-size: 20px; font-weight: bold; color: white; background: #3498db; border: none; border-radius: 30px; box-shadow: 0 6px 0 #2980b9; cursor: pointer; }
+  .btn { padding: 15px 40px; font-size: 20px; font-weight: bold; color: white; background: #3498db; border: none; border-radius: 30px; box-shadow: 0 6px 0 #2980b9; cursor: pointer; transition: 0.1s; }
   .btn:active { transform: translateY(6px); box-shadow: none; }
   
-  #header-btn { position: absolute; top: max(15px, var(--sat)); left: 15px; background: rgba(0,0,0,0.2); border: none; color: white; padding: 8px 12px; border-radius: 15px; font-weight: bold; font-size: 12px; z-index: 100; cursor: pointer; }
+  #clear-text { font-size: 40px; color: #2ecc71; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #fff; animation: floatUp 2s infinite ease-in-out; }
+  @keyframes floatUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 </style>
 </head>
 <body>
 
 <div id="game-wrapper">
-  <button id="header-btn" onclick="initGame()">リトライ</button>
+  <div id="header">
+    <button class="header-btn" onclick="showMenu()">◀ メニュー</button>
+    <div class="level-text">LEVEL <span id="ui-level">1</span></div>
+    <div style="width: 70px;"></div>
+  </div>
   
-  <!-- ツールボックス（4つ） -->
+  <!-- ツールボックス -->
   <div id="ui-top"></div>
   
   <!-- 待機スロット（5つ） -->
@@ -111,29 +114,29 @@
   </div>
 
   <div id="board-container">
-    <div id="board"></div>
+    <!-- ここにブロックとネジが生成されます -->
   </div>
 
   <!-- スタート画面 -->
   <div id="start-screen" class="overlay show">
-    <div class="title-logo">🏠<br>おうちネジ外しパズル</div>
-    <div style="color:white; margin-bottom:30px; text-align:center; line-height:1.6;">
-      重なっている板の<br>「一番上」のネジから外せるよ！<br><br>
-      同じ色のネジを3つ集めて<br>箱にいれよう📦✨
+    <div class="title-logo">🏠<br>無限ネジ外しパズル</div>
+    <div style="background:white; padding:20px; border-radius:15px; text-align:center; font-weight:bold; color:#333; margin-bottom:30px; line-height:1.6;">
+      重なっているブロックの<br><span style="color:#e74c3c;">「一番上」のネジ</span>から外そう！<br><br>
+      同じ色のネジを3つ集めて<br>箱をいっぱいにしてね📦✨
     </div>
     <button class="btn" onclick="startGame()">スタート！</button>
   </div>
 
   <!-- ゲームオーバー画面 -->
   <div id="game-over" class="overlay">
-    <h1 style="color:#e74c3c; font-size:40px; margin-bottom:20px;">いっぱい！</h1>
-    <button class="btn" style="background:#e74c3c; box-shadow: 0 6px 0 #c0392b;" onclick="initGame()">もういちど</button>
+    <h1 style="color:#e74c3c; font-size:40px; margin-bottom:20px;">スロットがいっぱい！</h1>
+    <button class="btn" style="background:#e74c3c; box-shadow: 0 6px 0 #c0392b;" onclick="initLevel(currentLevel)">リトライ</button>
   </div>
 
   <!-- クリア画面 -->
   <div id="game-clear" class="overlay">
-    <h1 style="color:#2ecc71; font-size:40px; margin-bottom:20px;">クリア！🎉</h1>
-    <button class="btn" style="background:#2ecc71; box-shadow: 0 6px 0 #27ae60;" onclick="initGame()">もういちど</button>
+    <div id="clear-text">ステージクリア！🎉</div>
+    <button class="btn" style="background:#2ecc71; box-shadow: 0 6px 0 #27ae60;" onclick="nextLevel()">次のレベルへ</button>
   </div>
 </div>
 
@@ -145,142 +148,190 @@ function playSound(type) {
   if (!actx) return;
   const t = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
   osc.connect(gain); gain.connect(actx.destination);
-  if (type === 'tap') { // ネジを回す音
+  if (type === 'tap') { 
     osc.type = 'sine'; osc.frequency.setValueAtTime(800, t); osc.frequency.exponentialRampToValueAtTime(1200, t + 0.1);
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
     osc.start(t); osc.stop(t + 0.1);
-  } else if (type === 'drop') { // 板が落ちる音
-    osc.type = 'square'; osc.frequency.setValueAtTime(150, t); osc.frequency.exponentialRampToValueAtTime(50, t + 0.2);
-    gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
-    osc.start(t); osc.stop(t + 0.2);
-  } else if (type === 'box') { // 箱が消える音
+  } else if (type === 'drop') { 
+    osc.type = 'square'; osc.frequency.setValueAtTime(150, t); osc.frequency.exponentialRampToValueAtTime(50, t + 0.3);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+    osc.start(t); osc.stop(t + 0.3);
+  } else if (type === 'box') { 
     osc.type = 'triangle'; osc.frequency.setValueAtTime(400, t); osc.frequency.setValueAtTime(600, t+0.1); osc.frequency.setValueAtTime(800, t+0.2);
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
     osc.start(t); osc.stop(t + 0.4);
-  } else if (type === 'error') { // エラー音
-    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, t);
+  } else if (type === 'error') { 
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t);
     gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
     osc.start(t); osc.stop(t + 0.2);
   }
 }
 
 // --- 色の定義 ---
-const COLORS = {
-  R: '#ff4757', // 赤
-  B: '#1e90ff', // 青
-  Y: '#eccc68', // 黄
-  G: '#2ed573', // 緑
-  P: '#9b59b6', // 紫
-  O: '#ffa502'  // オレンジ
-};
+const COLORS = ['#ff4757', '#1e90ff', '#eccc68', '#2ed573', '#9b59b6', '#ffa502', '#00d2d3', '#ff9ff3'];
 
-// --- レベルデータ（おうちの構造） ---
-const LEVEL_DATA = {
-  // 💡 zIndexが大きい板ほど「手前」にあり、奥のネジを隠します
-  plates: [
-    { id: 'base', x: 20, y: 380, w: 360, h: 80, z: 10, c: '#d2b48c' }, // 土台（茶色）
-    { id: 'wall', x: 70, y: 200, w: 260, h: 200, z: 20, c: '#34495e' }, // 壁（紺色）
-    { id: 'roof', x: 30, y: 80, w: 340, h: 140, z: 30, c: '#e74c3c', clip: 'polygon(50% 0%, 0% 100%, 100% 100%)' }, // 屋根（赤色三角）
-    { id: 'door', x: 160, y: 280, w: 80, h: 120, z: 40, c: '#e67e22' }, // ドア（オレンジ）
-    { id: 'win1', x: 100, y: 230, w: 50, h: 50, z: 40, c: '#ecf0f1' }, // 窓左（白）
-    { id: 'win2', x: 250, y: 230, w: 50, h: 50, z: 40, c: '#ecf0f1' }  // 窓右（白）
-  ],
-  // 💡 各ネジが「どの板を留めているか」を定義
-  screws: [
-    // 一番手前（窓・ドア）z=41
-    { id: 's1', x: 125, y: 255, color: 'R', plates: ['win1', 'wall'] },
-    { id: 's2', x: 275, y: 255, color: 'R', plates: ['win2', 'wall'] },
-    { id: 's3', x: 180, y: 300, color: 'R', plates: ['door', 'wall'] },
-    { id: 's4', x: 220, y: 300, color: 'B', plates: ['door', 'wall'] },
-    { id: 's5', x: 200, y: 370, color: 'B', plates: ['door', 'wall', 'base'] },
-    // 屋根（z=31）
-    { id: 's6', x: 200, y: 120, color: 'B', plates: ['roof'] },
-    { id: 's7', x: 140, y: 190, color: 'Y', plates: ['roof', 'wall'] },
-    { id: 's8', x: 260, y: 190, color: 'Y', plates: ['roof', 'wall'] },
-    { id: 's9', x: 200, y: 170, color: 'Y', plates: ['roof', 'wall'] },
-    // 壁（z=21）
-    { id: 's10', x: 90, y: 280, color: 'G', plates: ['wall'] },
-    { id: 's11', x: 310, y: 280, color: 'G', plates: ['wall'] },
-    { id: 's12', x: 100, y: 370, color: 'G', plates: ['wall', 'base'] },
-    { id: 's13', x: 300, y: 370, color: 'P', plates: ['wall', 'base'] },
-    // 土台（z=11）
-    { id: 's14', x: 40, y: 420, color: 'P', plates: ['base'] },
-    { id: 's15', x: 140, y: 420, color: 'P', plates: ['base'] },
-    { id: 's16', x: 260, y: 420, color: 'O', plates: ['base'] },
-    { id: 's17', x: 360, y: 420, color: 'O', plates: ['base'] },
-    { id: 's18', x: 200, y: 430, color: 'O', plates: ['base'] }
-  ]
-};
-
-// ツールボックスの出現順（詰まらないように調整済み）
-const BOX_QUEUE = ['R', 'B', 'Y', 'G', 'P', 'O'];
-
+let currentLevel = 1;
 let state = {
-  activeBoxes: [], // 最大4つ
-  queue: [],
-  slots: [null, null, null, null, null],
-  screwsDict: {},
-  platesDict: {},
-  isAnimating: false
+  activeBoxes: [], queue: [], slots: [null, null, null, null, null],
+  screwsDict: {}, platesDict: {}, isAnimating: false
 };
+
+function showMenu() {
+  document.getElementById('start-screen').classList.add('show');
+  document.getElementById('game-over').classList.remove('show');
+  document.getElementById('game-clear').classList.remove('show');
+}
 
 function startGame() {
   initAudio();
   document.getElementById('start-screen').classList.remove('show');
-  initGame();
+  currentLevel = 1;
+  initLevel(currentLevel);
 }
 
-function initGame() {
+function nextLevel() {
+  document.getElementById('game-clear').classList.remove('show');
+  currentLevel++;
+  initLevel(currentLevel);
+}
+
+// 💡 【超重要】パズルを無限に自動生成する神ロジック
+function generateLevelData(level) {
+  // レベルが上がるごとに板の数が増える！
+  let numPlates = Math.min(15, 2 + Math.floor(level * 1.2)); 
+  let totalScrews = numPlates * 2;
+  
+  // ネジの総数を3の倍数に調整（箱をピッタリ空にするため）
+  let rem = totalScrews % 3;
+  if (rem !== 0) totalScrews += (3 - rem);
+  
+  // 使う色の種類を決定（難易度調整）
+  let numColors = Math.min(COLORS.length, 2 + Math.floor(level / 2));
+  let availableColors = COLORS.slice(0, numColors);
+
+  // 全ネジの色を決定（各色3個ずつのセットを作る）
+  let boxColors = [];
+  for(let i = 0; i < totalScrews / 3; i++) {
+    boxColors.push(availableColors[Math.floor(Math.random() * availableColors.length)]);
+  }
+
+  let screwColors = [];
+  boxColors.forEach(c => { screwColors.push(c, c, c); });
+  screwColors.sort(() => Math.random() - 0.5); // シャッフル
+
+  let plates = [];
+  let screws = [];
+  let sIdx = 0;
+
+  // 板を生成（Z-indexを10ずつ上げて重ねていく）
+  for(let i = 0; i < numPlates; i++) {
+    let w = Math.floor(Math.random() * 80) + 120; // 幅 120〜200
+    let h = 45; // 高さ固定
+    
+    // 画面中央付近にランダム配置
+    let x = Math.floor(Math.random() * 180) + 100;
+    let y = Math.floor(Math.random() * 250) + 150;
+    
+    // 角度は綺麗に見えるように 0, 45, 90, -45 のいずれか
+    let angles = [0, 45, 90, -45];
+    let angle = angles[Math.floor(Math.random() * angles.length)];
+    let z = (i + 1) * 10; // 💡 これが重なり順！
+    let c = `hsl(${Math.random()*40 + 20}, 70%, 45%)`; // 木の色
+
+    let pid = 'p' + i;
+    plates.push({ id: pid, x: x, y: y, w: w, h: h, z: z, angle: angle, c: c });
+
+    // 板1枚につき2つのネジを配置（最後の板で端数を吸収）
+    let screwsOnThisPlate = (i === numPlates - 1) ? (totalScrews - sIdx) : 2;
+    for(let j = 0; j < screwsOnThisPlate; j++) {
+      let offset = (j === 0) ? (-w/2 + 25) : ((j === 1) ? (w/2 - 25) : 0);
+      let rad = angle * Math.PI / 180;
+      let sx = x + offset * Math.cos(rad);
+      let sy = y + offset * Math.sin(rad);
+
+      screws.push({
+        id: 's' + sIdx, x: sx, y: sy, color: screwColors[sIdx], plates: [pid]
+      });
+      sIdx++;
+    }
+  }
+
+  // 💡 【重要】手前のネジ（高いZ）の色ほど、早く箱に出現するようにスマートソート
+  // これにより「最初から箱の色が合わなくて詰む」のを防ぎます
+  let sortedScrews = [...screws].sort((a, b) => {
+    let za = plates.find(p => p.id === a.plates[0]).z;
+    let zb = plates.find(p => p.id === b.plates[0]).z;
+    return zb - za; // Zが大きい順
+  });
+  
+  let smartBoxQueue = [];
+  let colorCounts = {};
+  sortedScrews.forEach(s => {
+    colorCounts[s.color] = (colorCounts[s.color] || 0) + 1;
+    if (colorCounts[s.color] === 3) {
+      smartBoxQueue.push(s.color);
+      colorCounts[s.color] = 0;
+    }
+  });
+
+  return { plates: plates, screws: screws, queue: smartBoxQueue };
+}
+
+function initLevel(level) {
   document.getElementById('game-over').classList.remove('show');
   document.getElementById('game-clear').classList.remove('show');
-  const board = document.getElementById('board');
+  document.getElementById('ui-level').innerText = level;
+  
+  const board = document.getElementById('board-container');
   board.innerHTML = '';
   
-  state.queue = [...BOX_QUEUE];
+  let levelData = generateLevelData(level);
+  
+  state.queue = [...levelData.queue];
   state.activeBoxes = [];
   state.slots = [null, null, null, null, null];
   state.screwsDict = {};
   state.platesDict = {};
   state.isAnimating = false;
 
-  // 待機スロットの見た目リセット
   for(let i=0; i<5; i++) document.getElementById('slot-'+i).innerHTML = '';
 
   // 板の描画
-  LEVEL_DATA.plates.forEach(p => {
+  levelData.plates.forEach(p => {
     let el = document.createElement('div');
     el.className = 'plate';
-    el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+    el.style.left = (p.x - p.w/2) + 'px'; 
+    el.style.top = (p.y - p.h/2) + 'px';
     el.style.width = p.w + 'px'; el.style.height = p.h + 'px';
     el.style.zIndex = p.z; el.style.backgroundColor = p.c;
-    if (p.clip) el.style.clipPath = p.clip;
+    el.style.transform = `rotate(${p.angle}deg)`;
+    el.style.setProperty('--rot', `${p.angle}deg`); // エラー揺れ用
     
-    // 💡 zIndexによって、手前の板がクリックをブロックする仕組み！
-    el.onclick = () => { if(!state.isAnimating) { playSound('error'); el.classList.add('shake'); setTimeout(()=>el.classList.remove('shake'), 200); }};
+    // 💡 下のネジを押させない「ブロック」処理
+    el.onclick = (e) => { 
+      e.stopPropagation(); 
+      if(!state.isAnimating) { playSound('error'); el.classList.add('shake'); setTimeout(()=>el.classList.remove('shake'), 200); }
+    };
     
     board.appendChild(el);
-    state.platesDict[p.id] = { el: el, screwsCount: 0 };
+    state.platesDict[p.id] = { el: el, screwsCount: 0, x: p.x, y: p.y, angle: p.angle };
   });
 
   // ネジの描画
-  LEVEL_DATA.screws.forEach(s => {
+  levelData.screws.forEach(s => {
     let el = document.createElement('div');
     el.className = 'screw';
     el.style.left = s.x + 'px'; el.style.top = s.y + 'px';
-    el.style.backgroundColor = COLORS[s.color];
+    el.style.backgroundColor = s.color;
     
-    // ネジのzIndexは、留めている板の中で一番手前の板＋1
-    let maxZ = 0;
-    s.plates.forEach(pid => {
-      let pz = LEVEL_DATA.plates.find(p => p.id === pid).z;
-      if (pz > maxZ) maxZ = pz;
-      state.platesDict[pid].screwsCount++;
-    });
-    el.style.zIndex = maxZ + 1;
+    // ネジは、自分が留めている板より「1つだけ上」のZインデックスを持つ
+    let pz = levelData.plates.find(p => p.id === s.plates[0]).z;
+    el.style.zIndex = pz + 1;
+    state.platesDict[s.plates[0]].screwsCount++;
     
     // ネジクリック処理
     el.onclick = (e) => {
-      e.stopPropagation(); // 下の板にクリックを貫通させない
+      e.stopPropagation(); // 板へのクリック貫通を防ぐ
       handleScrewClick(s.id);
     };
 
@@ -288,7 +339,6 @@ function initGame() {
     state.screwsDict[s.id] = { el: el, color: s.color, plates: s.plates, removed: false };
   });
 
-  // 初期ボックス生成
   renderBoxes();
 }
 
@@ -296,19 +346,18 @@ function renderBoxes() {
   const ui = document.getElementById('ui-top');
   ui.innerHTML = '';
   
-  // 最大4つまでキューから補充
   while (state.activeBoxes.length < 4 && state.queue.length > 0) {
     state.activeBoxes.push({ color: state.queue.shift(), count: 0 });
   }
 
-  state.activeBoxes.forEach((box, i) => {
+  state.activeBoxes.forEach((box) => {
     let el = document.createElement('div');
     el.className = 'toolbox';
-    el.style.borderColor = COLORS[box.color];
+    el.style.borderColor = box.color;
     
     let top = document.createElement('div');
     top.className = 'toolbox-top';
-    top.style.backgroundColor = COLORS[box.color];
+    top.style.backgroundColor = box.color;
     el.appendChild(top);
 
     for(let j=0; j<3; j++) {
@@ -316,7 +365,7 @@ function renderBoxes() {
       hole.className = 'hole';
       if (j < box.count) {
         hole.classList.add('filled');
-        hole.style.backgroundColor = COLORS[box.color];
+        hole.style.backgroundColor = box.color;
       }
       el.appendChild(hole);
     }
@@ -330,36 +379,31 @@ function handleScrewClick(screwId) {
   let screw = state.screwsDict[screwId];
   if (screw.removed) return;
 
-  // 1. マッチするアクティブボックスを探す
   let targetBox = state.activeBoxes.find(b => b.color === screw.color && b.count < 3);
   let targetSlotIndex = -1;
 
-  // 2. マッチしなければ空きスロットを探す
   if (!targetBox) {
     targetSlotIndex = state.slots.indexOf(null);
     if (targetSlotIndex === -1) {
-      playSound('error'); // スロット満杯でマッチなし
-      document.getElementById('board-container').classList.add('shake');
-      setTimeout(()=>document.getElementById('board-container').classList.remove('shake'), 200);
+      playSound('error'); 
+      let bContainer = document.getElementById('board-container');
+      bContainer.style.transform = 'translateX(5px)';
+      setTimeout(()=>bContainer.style.transform = 'none', 100);
       return;
     }
   }
 
-  // 成功：ネジを外す
   initAudio(); playSound('tap');
   screw.removed = true;
   state.isAnimating = true;
 
-  // クローンを作ってアニメーション移動
+  // アニメーション用クローン
   let clone = screw.el.cloneNode(true);
   let rect = screw.el.getBoundingClientRect();
-  clone.style.position = 'fixed';
-  clone.style.left = rect.left + 'px';
-  clone.style.top = rect.top + 'px';
-  clone.style.zIndex = 1000;
-  clone.style.transform = 'none';
+  clone.style.position = 'fixed'; clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
+  clone.style.zIndex = 1000; clone.style.transform = 'none';
   document.body.appendChild(clone);
-  screw.el.remove(); // 元のネジを消す
+  screw.el.style.display = 'none'; 
 
   // 板の落下判定
   screw.plates.forEach(pid => {
@@ -368,22 +412,22 @@ function handleScrewClick(screwId) {
     if (p.screwsCount === 0) {
       setTimeout(() => {
         playSound('drop');
-        p.el.classList.add('falling');
+        p.el.style.pointerEvents = 'none';
+        p.el.style.top = (p.y + 600) + 'px';
+        p.el.style.transform = `rotate(${p.angle + 45}deg)`;
+        p.el.style.opacity = '0';
       }, 100);
     }
   });
 
-  // 移動先の座標計算
   let destRect;
-  if (targetBox) {
-    destRect = targetBox.el.getBoundingClientRect();
-  } else {
+  if (targetBox) destRect = targetBox.el.getBoundingClientRect();
+  else {
     let slotEl = document.getElementById('slot-' + targetSlotIndex);
     destRect = slotEl.getBoundingClientRect();
     state.slots[targetSlotIndex] = { color: screw.color, id: screwId };
   }
 
-  // フライトアニメーション
   setTimeout(() => {
     clone.style.transition = 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
     let dx = destRect.left + destRect.width/2 - (rect.left + rect.width/2);
@@ -397,16 +441,14 @@ function handleScrewClick(screwId) {
       targetBox.count++;
       checkBoxCompletion(targetBox);
     } else {
-      // スロットにネジを表示
       let slotEl = document.getElementById('slot-' + targetSlotIndex);
       let sIcon = document.createElement('div');
       sIcon.className = 'screw';
       sIcon.style.position = 'relative'; sIcon.style.left = '50%'; sIcon.style.top = '50%';
       sIcon.style.transform = 'translate(-50%, -50%) scale(0.8)';
-      sIcon.style.backgroundColor = COLORS[screw.color];
+      sIcon.style.backgroundColor = screw.color;
       slotEl.appendChild(sIcon);
       
-      // ゲームオーバー判定
       if (state.slots.indexOf(null) === -1) {
         setTimeout(() => { document.getElementById('game-over').classList.add('show'); }, 500);
       }
@@ -416,7 +458,7 @@ function handleScrewClick(screwId) {
 }
 
 function checkBoxCompletion(box) {
-  renderBoxes(); // UI更新
+  renderBoxes(); 
   if (box.count === 3) {
     playSound('box');
     box.el.style.transform = 'scale(1.1)';
@@ -426,13 +468,10 @@ function checkBoxCompletion(box) {
       state.activeBoxes = state.activeBoxes.filter(b => b !== box);
       renderBoxes();
       
-      // クリア判定
       if (state.activeBoxes.length === 0 && state.queue.length === 0) {
         setTimeout(() => { document.getElementById('game-clear').classList.add('show'); }, 500);
         return;
       }
-      
-      // 💡 新しい箱が出たので、待機スロットのネジが自動で飛んでいくかチェック！
       autoMatchFromSlots();
     }, 300);
   }
@@ -453,7 +492,7 @@ function autoMatchFromSlots() {
         clone.style.zIndex = 1000; clone.style.transform = 'translate(18px, 18px) scale(0.8)';
         document.body.appendChild(clone);
         slotEl.innerHTML = '';
-        state.slots[i] = null; // スロットを空ける
+        state.slots[i] = null; 
         
         let destRect = targetBox.el.getBoundingClientRect();
         setTimeout(() => {
@@ -468,9 +507,9 @@ function autoMatchFromSlots() {
           playSound('tap');
           targetBox.count++;
           state.isAnimating = false;
-          checkBoxCompletion(targetBox); // 再帰的にチェック
+          checkBoxCompletion(targetBox); 
         }, 320);
-        return; // 一度に1つずつアニメーションさせる
+        return; 
       }
     }
   }
