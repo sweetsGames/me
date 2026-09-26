@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>算数ネジ外しパズル</title>
+<!-- 💡 本格物理エンジン「Matter.js」を読み込む -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  
+  html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; }
+  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', sans-serif; }
+  
+  body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  
+  #game-wrapper {
+    position: relative; width: calc(100% - 20px); max-width: 450px; height: calc(100% - 20px); max-height: 800px;
+    background: #ecf0f1; display: flex; flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); overflow: hidden; border-radius: 20px;
+    margin: max(10px, var(--sat)) auto max(10px, var(--sab));
+  }
+
+  /* ヘッダー・問題表示エリア */
+  #header {
+    flex-shrink: 0; padding: 15px 20px; background: #34495e; color: white;
+    display: flex; flex-direction: column; align-items: center; z-index: 20;
+    border-bottom: 4px solid #2c3e50;
+  }
+  .top-info { width: 100%; display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; font-size: 14px; color: #bdc3c7; }
+  
+  /* 黒板風の問題パネル */
+  #question-board {
+    background: #27ae60; border: 4px solid #8e44ad; border-radius: 12px;
+    width: 100%; padding: 12px; text-align: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+    transition: transform 0.2s;
+  }
+  #question-board.pop { transform: scale(1.05); }
+  .q-title { font-size: 12px; color: #f1c40f; margin-bottom: 4px; font-weight: bold; }
+  .q-text { font-size: 32px; font-weight: 900; color: white; letter-spacing: 2px; text-shadow: 2px 2px 0 rgba(0,0,0,0.2); }
+
+  /* 盤面エリア（木の壁風背景） */
+  #canvas-container { 
+    flex: 1; position: relative; background: #e6cec3; overflow: hidden; width: 100%; touch-action: none;
+    background-image: repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0,0,0,0.03) 40px, rgba(0,0,0,0.03) 80px);
+  }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  /* UIオーバーレイ */
+  .overlay {
+    position: absolute; inset: 0; background: rgba(44, 62, 80, 0.95);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.4s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  
+  /* メニュー画面 */
+  .title-logo { font-size: clamp(28px, 8vw, 36px); color: #f1c40f; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #d35400, 4px 4px 0 #c0392b; text-align: center; line-height: 1.3;}
+  .instruction-box { background: white; padding: 20px; border-radius: 16px; margin-bottom: 30px; width: 85%; max-width: 320px; text-align: center; border: 4px solid #3498db; }
+  .instruction-text { font-size: 15px; color: #333; line-height: 1.6; font-weight: bold; }
+  .instruction-text span { color: #e74c3c; font-size: 18px; }
+  .action-btn { padding: 16px 50px; font-size: 22px; font-weight: bold; color: white; background: #e67e22; border: none; border-radius: 40px; box-shadow: 0 6px 0 #d35400; cursor: pointer; transition: transform 0.1s; }
+  .action-btn:active { transform: translateY(6px); box-shadow: none; }
+
+  /* ステージクリア画面 */
+  #clear-text { font-size: 40px; color: #2ecc71; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #fff; animation: floatUp 2s infinite ease-in-out; }
+  @keyframes floatUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+  #btn-quit { position: absolute; bottom: max(15px, var(--sab)); left: 20px; background: rgba(0,0,0,0.3); border: none; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; z-index: 50; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="header">
+    <div class="top-info">
+      <div>STAGE <span id="ui-stage">1</span></div>
+      <div>のこり: <span id="ui-remain">0</span> コ</div>
+    </div>
+    <div id="question-board">
+      <div class="q-title">はずれのネジをタップ！</div>
+      <div class="q-text" id="ui-question">？ ＋ ？</div>
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <canvas id="c"></canvas>
+    <button id="btn-quit" onclick="showMenu()">◀ やめる</button>
+  </div>
+
+  <!-- クリア画面 -->
+  <div id="clear-screen" class="overlay">
+    <div id="clear-text">大正解！</div>
+    <button class="action-btn" onclick="nextStage()">つぎのステージへ</button>
+  </div>
+
+  <!-- スタート画面 -->
+  <div id="start-screen" class="overlay show">
+    <div class="title-logo">🔩<br>算数ネジ外しパズル</div>
+    <div class="instruction-box">
+      <div class="instruction-text">
+        上の黒板の<span>「計算の答え」</span>と<br>同じ数字のネジをタップ！<br><br>
+        すべてのネジを外して<br>木の板を落とそう🪵✨
+      </div>
+    </div>
+    <button class="action-btn" onclick="startGame()">スタート！</button>
+  </div>
+</div>
+
+<script>
+// --- 誤爆防止 ---
+document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('contextmenu', (e) => e.preventDefault());
+document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+// --- 音声関連 ---
+let actx;
+function initAudio() { if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); } if (actx.state === 'suspended') actx.resume(); }
+function playSound(type) {
+  if (!actx) return;
+  const t = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
+  osc.connect(gain); gain.connect(actx.destination);
+  
+  if (type === 'pop') { // ネジが外れた音
+    osc.type = 'sine'; osc.frequency.setValueAtTime(600, t); osc.frequency.exponentialRampToValueAtTime(800, t + 0.1);
+    gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    osc.start(t); osc.stop(t + 0.1);
+  } else if (type === 'wrong') { // ブッブー
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); osc.frequency.setValueAtTime(150, t + 0.2);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
+    osc.start(t); osc.stop(t + 0.2);
+  } else if (type === 'clear') { // ファンファーレ
+    osc.type = 'square'; osc.frequency.setValueAtTime(400, t); osc.frequency.setValueAtTime(600, t + 0.1); osc.frequency.setValueAtTime(800, t + 0.2);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+    osc.start(t); osc.stop(t + 0.4);
+  }
+}
+
+// === Matter.js セットアップ ===
+const Engine = Matter.Engine,
+      Composite = Matter.Composite,
+      Bodies = Matter.Bodies,
+      Constraint = Matter.Constraint,
+      Vector = Matter.Vector;
+
+const engine = Engine.create({ positionIterations: 12, velocityIterations: 8 });
+engine.world.gravity.y = 1.5; // 板が重く落ちるように重力強め
+
+let L_WIDTH = 400, L_HEIGHT = 600; 
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+let displayScale = 1; 
+
+// ゲーム状態
+let stage = 1;
+let screws = []; // { id, body, constraints: [], answer, text, x, y, isRemoved }
+let planks = []; // 木の板
+let questions = []; // 今ステージの問題リスト
+let currentQ = null;
+let gameState = 'menu'; // menu, playing, clear
+let usedAnswers = new Set();
+let shakeTimer = 0;
+
+function resize() {
+  const rect = c.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  c.width = rect.width * dpr; c.height = rect.height * dpr;
+  displayScale = rect.width / L_WIDTH; 
+  L_HEIGHT = rect.height / displayScale; 
+  ctx.resetTransform(); ctx.scale(displayScale * dpr, displayScale * dpr);
+}
+window.addEventListener('resize', resize);
+
+function showMenu() {
+  gameState = 'menu';
+  document.getElementById('start-screen').classList.add('show');
+  document.getElementById('clear-screen').classList.remove('show');
+  Composite.clear(engine.world);
+}
+
+function startGame() {
+  initAudio();
+  document.getElementById('start-screen').classList.remove('show');
+  stage = 1;
+  generateStage();
+  if(!window.animLoop) { requestAnimationFrame(loop); window.animLoop = true; }
+}
+
+function nextStage() {
+  document.getElementById('clear-screen').classList.remove('show');
+  stage++;
+  generateStage();
+}
+
+// 💡 算数の問題を生成するロジック（被りなし）
+function generateProblem() {
+  let a, b, ans, op;
+  let maxTries = 100;
+  while(maxTries-- > 0) {
+    if (stage <= 2) { // レベル1〜2：簡単な足し算
+      a = Math.floor(Math.random()*5) + 1;
+      b = Math.floor(Math.random()*5) + 1;
+      ans = a + b; op = '＋';
+    } else if (stage <= 4) { // レベル3〜4：引き算導入
+      if(Math.random() > 0.5) {
+        a = Math.floor(Math.random()*8) + 2;
+        b = Math.floor(Math.random()*8) + 2;
+        ans = a + b; op = '＋';
+      } else {
+        a = Math.floor(Math.random()*8) + 2;
+        b = Math.floor(Math.random()*(a-1)) + 1;
+        ans = a - b; op = 'ー';
+      }
+    } else { // レベル5以上：くりあがり・くりさがり混じり
+      if(Math.random() > 0.5) {
+        a = Math.floor(Math.random()*9) + 4;
+        b = Math.floor(Math.random()*9) + 4;
+        ans = a + b; op = '＋';
+      } else {
+        a = Math.floor(Math.random()*15) + 5;
+        b = Math.floor(Math.random()*9) + 1;
+        if(a <= b) continue;
+        ans = a - b; op = 'ー';
+      }
+    }
+    // 同じ答えが画面に2つ出ないようにする
+    if (!usedAnswers.has(ans)) {
+      usedAnswers.add(ans);
+      return { text: `${a} ${op} ${b}`, answer: ans };
+    }
+  }
+  // フェイルセーフ
+  return { text: `1 ＋ 0`, answer: 1 };
+}
+
+// 💡 木の板とネジを自動生成するロジック
+function generateStage() {
+  gameState = 'playing';
+  Composite.clear(engine.world);
+  screws = []; planks = []; questions = []; usedAnswers.clear();
+
+  document.getElementById('ui-stage').innerText = stage;
+  
+  // ステージに応じて板の数を増やす（最大6枚）
+  let numPlanks = Math.min(2 + Math.floor(stage / 2), 6);
+  
+  // 板の配置（ランダムに交差させる）
+  for (let i = 0; i < numPlanks; i++) {
+    let w = 160 + Math.random() * 100;
+    let h = 30;
+    let cx = 100 + Math.random() * (L_WIDTH - 200);
+    let cy = 150 + Math.random() * (L_HEIGHT - 350);
+    let angle = (Math.random() - 0.5) * Math.PI * 0.8; // 完全な縦は避ける
+
+    // 板同士はぶつかるが、摩擦を高めにして反発しすぎないようにする
+    let plank = Bodies.rectangle(cx, cy, w, h, {
+      angle: angle, friction: 0.8, restitution: 0.1, density: 0.005,
+      render: { visible: true },
+      // 物理エンジン上で爆発しないように、グループを分けて衝突させない手もあるが、
+      // 絡み合う挙動が面白いので衝突ONのまま、拘束（Constraint）でガッチリ固める
+    });
+    plank.customWidth = w; plank.customHeight = h;
+    planks.push(plank);
+    Composite.add(engine.world, plank);
+
+    // 板の両端にネジ（ピン）を生成
+    let offsets = [-w/2 + 20, w/2 - 20];
+    offsets.forEach(offset => {
+      // 板のローカル座標からワールド座標を計算
+      let worldPin = Vector.add(plank.position, Vector.rotate({ x: offset, y: 0 }, plank.angle));
+      
+      // ネジの当たり判定（プレイヤーがタップするための仮想円）
+      // isSensorで他の板とぶつからないようにする
+      let screwBody = Bodies.circle(worldPin.x, worldPin.y, 20, { isStatic: true, isSensor: true });
+      
+      // 板をワールドの空間（背景）にピン留めする拘束
+      let constraint = Constraint.create({
+        pointA: { x: worldPin.x, y: worldPin.y },
+        bodyB: plank,
+        pointB: { x: offset, y: 0 },
+        stiffness: 1.0, length: 0
+      });
+
+      Composite.add(engine.world, [screwBody, constraint]);
+
+      // 問題生成
+      let q = generateProblem();
+      questions.push(q);
+
+      screws.push({
+        id: screws.length, body: screwBody, constraint: constraint,
+        answer: q.answer, text: q.answer.toString(),
+        isRemoved: false, plank: plank
+      });
+    });
+  }
+
+  // 問題リストをシャッフル
+  questions.sort(() => Math.random() - 0.5);
+  updateQuestionUI();
+}
+
+function updateQuestionUI() {
+  let remain = screws.filter(s => !s.isRemoved).length;
+  document.getElementById('ui-remain').innerText = remain;
+
+  if (questions.length > 0) {
+    currentQ = questions[0];
+    let qBoard = document.getElementById('question-board');
+    document.getElementById('ui-question').innerText = currentQ.text + ' ＝ ？';
+    // ポップアニメーション
+    qBoard.classList.remove('pop');
+    void qBoard.offsetWidth; // リフロー強制
+    qBoard.classList.add('pop');
+  } else {
+    currentQ = null;
+  }
+}
+
+// 💡 タップによるネジ外し判定
+function handleTap(clientX, clientY) {
+  if (gameState !== 'playing' || !currentQ) return;
+  const rect = c.getBoundingClientRect();
+  let x = (clientX - rect.left) / displayScale;
+  let y = (clientY - rect.top) / displayScale;
+
+  let hitScrew = null;
+  for (let s of screws) {
+    if (s.isRemoved) continue;
+    let dx = s.body.position.x - x;
+    let dy = s.body.position.y - y;
+    if (dx*dx + dy*dy < 35 * 35) { // タップ判定は少し広め（半径35px）
+      hitScrew = s; break;
+    }
+  }
+
+  if (hitScrew) {
+    if (hitScrew.answer === currentQ.answer) {
+      // 大正解！ネジを外す
+      playSound('pop');
+      hitScrew.isRemoved = true;
+      Composite.remove(engine.world, [hitScrew.body, hitScrew.constraint]);
+      
+      // 問題リストから削除し、次へ
+      questions.shift();
+      updateQuestionUI();
+
+      // クリア判定
+      if (questions.length === 0) {
+        gameState = 'clear';
+        playSound('clear');
+        setTimeout(() => { document.getElementById('clear-screen').classList.add('show'); }, 1500);
+      }
+    } else {
+      // ブッブー！
+      playSound('wrong');
+      shakeTimer = 15; // 画面を少し揺らす演出
+    }
+  }
+}
+
+c.addEventListener('touchstart', (e) => { e.preventDefault(); initAudio(); if(e.touches.length > 0) handleTap(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+c.addEventListener('mousedown', (e) => { e.preventDefault(); initAudio(); handleTap(e.clientX, e.clientY); });
+
+// 描画系の安全関数
+function fillSafeRoundRect(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); } else { ctx.fillRect(x, y, w, h); }
+}
+function strokeSafeRoundRect(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.stroke(); } else { ctx.strokeRect(x, y, w, h); }
+}
+
+function drawWoodPlank(plank) {
+  ctx.translate(plank.position.x, plank.position.y);
+  ctx.rotate(plank.angle);
+  
+  let w = plank.customWidth, h = plank.customHeight;
+  
+  // 板の影
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  fillSafeRoundRect(ctx, -w/2 + 2, -h/2 + 5, w, h, 8);
+  
+  // 木の板本体
+  ctx.fillStyle = "#d35400";
+  fillSafeRoundRect(ctx, -w/2, -h/2, w, h, 8);
+  
+  // 木目風の線
+  ctx.strokeStyle = "#a04000"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-w/2 + 10, -h/4); ctx.lineTo(w/2 - 10, -h/4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-w/2 + 20, h/4); ctx.lineTo(w/2 - 20, h/4); ctx.stroke();
+
+  // 板の枠線
+  ctx.strokeStyle = "#873600"; ctx.lineWidth = 3;
+  strokeSafeRoundRect(ctx, -w/2, -h/2, w, h, 8);
+
+  ctx.rotate(-plank.angle);
+  ctx.translate(-plank.position.x, -plank.position.y);
+}
+
+function drawScrew(screw) {
+  if (screw.isRemoved) return;
+  let x = screw.body.position.x;
+  let y = screw.body.position.y;
+  let r = 16;
+
+  // ネジの影
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.beginPath(); ctx.arc(x + 2, y + 3, r, 0, Math.PI*2); ctx.fill();
+
+  // ネジの頭（シルバー）
+  ctx.fillStyle = "#bdc3c7";
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = "#7f8c8d"; ctx.stroke();
+
+  // ネジの十字溝
+  ctx.strokeStyle = "#95a5a6"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x + 8, y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x, y + 8); ctx.stroke();
+
+  // 💡 正解の数字を描画
+  ctx.fillStyle = "#2c3e50"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.font = "900 18px sans-serif";
+  
+  // 見やすいように白フチをつける
+  ctx.lineWidth = 3; ctx.strokeStyle = "white";
+  ctx.strokeText(screw.text, x, y);
+  ctx.fillText(screw.text, x, y);
+}
+
+function loop() {
+  ctx.clearRect(0, 0, L_WIDTH, L_HEIGHT);
+
+  if (gameState !== 'menu') {
+    Engine.update(engine, 1000 / 60);
+
+    // 画面外に落ちた板を削除して軽くする
+    for (let i = planks.length - 1; i >= 0; i--) {
+      if (planks[i].position.y > L_HEIGHT + 100) {
+        Composite.remove(engine.world, planks[i]);
+        planks.splice(i, 1);
+      }
+    }
+
+    // 不正解時のシェイク演出
+    if (shakeTimer > 0) {
+      ctx.save();
+      let sx = (Math.random() - 0.5) * 10;
+      let sy = (Math.random() - 0.5) * 10;
+      ctx.translate(sx, sy);
+      shakeTimer--;
+    }
+
+    // 描画（板が下、ネジが上になるように順番を分ける）
+    for (let p of planks) drawWoodPlank(p);
+    for (let s of screws) drawScrew(s);
+
+    if (shakeTimer > 0) ctx.restore();
+  }
+
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
