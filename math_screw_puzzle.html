@@ -187,8 +187,19 @@ function showMenu() {
   document.getElementById('game-over').classList.remove('show');
   document.getElementById('game-clear').classList.remove('show');
 }
-function startGame() { initAudio(); document.getElementById('start-screen').classList.remove('show'); currentLevel = 1; initLevel(currentLevel); }
-function nextLevel() { document.getElementById('game-clear').classList.remove('show'); currentLevel++; initLevel(currentLevel); }
+
+function startGame() { 
+  initAudio(); 
+  document.getElementById('start-screen').classList.remove('show'); 
+  currentLevel = 1; 
+  initLevel(currentLevel); 
+}
+
+function nextLevel() { 
+  document.getElementById('game-clear').classList.remove('show'); 
+  currentLevel++; 
+  initLevel(currentLevel); 
+}
 
 // --- ステージ自動生成 ---
 function initLevel(level) {
@@ -212,8 +223,8 @@ function initLevel(level) {
   // パターンをランダム選択
   let pattern = SHAPE_PATTERNS[Math.floor(Math.random() * SHAPE_PATTERNS.length)];
   
-  // コア（一番内側）を暗い色で描画
-  const coreMat = new THREE.MeshLambertMaterial({ color: 0x111111, transparent: true, opacity: 0.8 });
+  // コア（一番内側）を重厚感ある色で描画
+  const coreMat = new THREE.MeshLambertMaterial({ color: 0x34495e }); // 濃いブルーグレー
   pattern.forEach(prim => {
     let s = prim.s.map(v => v * 0.8);
     let p = new THREE.Vector3(...prim.p).multiplyScalar(0.8);
@@ -226,7 +237,7 @@ function initLevel(level) {
       if(prim.rotX) geo.rotateX(prim.rotX);
       let mesh = new THREE.Mesh(geo, coreMat);
       mesh.position.copy(p);
-      mesh.userData = { isCore: true }; // クリック判定から除外するため
+      mesh.userData = { isCore: true }; // クリック判定から除外
       scene.add(mesh);
     }
   });
@@ -254,6 +265,7 @@ function initLevel(level) {
       let sx = (Math.random()-0.5) * plateObj.w * 0.7;
       let sy = (Math.random()-0.5) * plateObj.h * 0.7;
       let sPosLocal = new THREE.Vector3(sx, sy, 0.15);
+      // ローカル座標からワールド座標へ変換
       let sPosWorld = sPosLocal.clone().applyMatrix4(plateObj.mesh.matrixWorld);
       createSingleScrew(sPosWorld, plateObj.mesh.rotation, availableColors[0], plateObj);
     }
@@ -420,7 +432,7 @@ container.addEventListener('pointerup', (e) => {
     if (hit.userData.isScrew) {
       handleScrewClick(hit.userData.obj);
     } else if (hit.userData.isPlate) {
-      // 💡 奥のネジをタップしようとして、手前の板に邪魔された場合
+      // 奥のネジをタップしようとして、手前の板に邪魔された場合
       playSound('error');
       document.getElementById('canvas-container').classList.add('shake');
       setTimeout(()=>document.getElementById('canvas-container').classList.remove('shake'), 200);
@@ -533,7 +545,7 @@ function loop() {
     p.mesh.rotation.x += 0.1; 
     p.mesh.rotation.z += 0.05;
     
-    // 透明度を下げて消す（マテリアルをクローンして透明化）
+    // 透明度を下げて消す
     if (!p.mesh.material.transparent) {
       p.mesh.material = p.mesh.material.clone();
       p.mesh.material.transparent = true;
@@ -549,9 +561,10 @@ function loop() {
   renderer.render(scene, camera);
 }
 
-buildHouseLevel(1);
-renderer.render(scene, camera);
-loop();
+// 💡 【修正点】初期化関数を正しく呼び出してゲーム画面を生成する
+initLevel(1);
+showMenu(); // メニュー状態にしてスタート画面を表示
+loop();     // 描画ループを開始
 </script>
 </body>
 </html>
