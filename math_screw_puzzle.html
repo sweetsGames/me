@@ -3,36 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>無限ネジ外しパズル</title>
+<title>3Dおうちネジ外しパズル</title>
+<!-- 💡 3D描画エンジン「Three.js」と「カメラ操作モジュール」を読み込み -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
-  
-  html, body { overscroll-behavior: none; touch-action: none; background: #e0eaff; margin: 0; padding: 0; }
+  html, body { overscroll-behavior: none; touch-action: none; background: #c8d6e5; margin: 0; padding: 0; }
   * { box-sizing: border-box; user-select: none; -webkit-user-select: none; font-family: 'Rounded M+ 1c', sans-serif; }
   
-  body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; justify-content: center; }
   
   #game-wrapper {
     position: relative; width: 100%; max-width: 450px; height: 100%; max-height: 850px;
-    background: linear-gradient(180deg, #d0e3ff 0%, #fbc2eb 100%);
-    display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    background: linear-gradient(180deg, #c8d6e5 0%, #a29bfe 100%);
+    display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.3);
   }
 
-  /* 上部ヘッダー（レベル表示） */
+  /* 上部ヘッダー */
   #header {
-    padding: max(15px, var(--sat)) 10px 5px; display: flex; justify-content: space-between; align-items: center; z-index: 50;
+    padding: max(15px, var(--sat)) 15px 5px; display: flex; justify-content: space-between; align-items: center; z-index: 50;
   }
-  .header-btn { background: rgba(0,0,0,0.2); border: none; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold; font-size: 14px; cursor: pointer; }
-  .level-text { font-size: 22px; font-weight: 900; color: #fff; text-shadow: 2px 2px 0 #34495e; letter-spacing: 1px; }
+  .header-btn { background: rgba(0,0,0,0.2); border: none; color: white; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; }
+  .level-text { font-size: 24px; font-weight: 900; color: #fff; text-shadow: 2px 2px 0 #2c3e50; letter-spacing: 2px; }
 
   /* ツールボックス（上部） */
   #ui-top {
     padding: 10px; display: flex; justify-content: center; gap: 8px; z-index: 50; min-height: 85px;
   }
   .toolbox {
-    width: 60px; height: 65px; background: #fdfdfd; border-radius: 12px; border-bottom: 6px solid #ccc;
+    width: 60px; height: 65px; background: #fff; border-radius: 12px; border-bottom: 6px solid #ccc;
     display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 4px; padding: 5px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; transition: transform 0.3s, opacity 0.3s;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15); position: relative; transition: transform 0.3s, opacity 0.3s;
   }
   .toolbox-top { position: absolute; top: -6px; width: 30px; height: 10px; border-radius: 4px 4px 0 0; }
   .hole { width: 14px; height: 14px; background: #333; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.6); }
@@ -40,59 +43,46 @@
 
   /* 待機スロット（下部） */
   #slots-container {
-    display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; z-index: 50;
+    display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; z-index: 50;
   }
   .slot {
-    width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.15); border: 2px solid rgba(255,255,255,0.6);
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+    width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.6);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center;
   }
+  .slot-screw {
+    width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(0,0,0,0.2);
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 3px 5px rgba(0,0,0,0.4); position: relative;
+  }
+  .slot-screw::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 10px; height: 3px; background: rgba(0,0,0,0.4); border-radius: 2px; }
 
-  /* 盤面エリア */
-  #board-container { flex: 1; position: relative; width: 100%; touch-action: none; perspective: 1000px; }
+  /* 3Dキャンバスエリア */
+  #canvas-container { flex: 1; position: relative; width: 100%; touch-action: none; cursor: grab; }
+  #canvas-container:active { cursor: grabbing; }
   
-  /* ブロックとネジのデザイン */
-  .plate {
-    position: absolute; border-radius: 8px; border: 3px solid rgba(0,0,0,0.2); pointer-events: auto;
-    box-shadow: 0 6px 10px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4);
-    display: flex; justify-content: center; align-items: center;
-    transition: top 0.6s cubic-bezier(0.5, 0, 1, 1), transform 0.6s, opacity 0.5s;
-    transform-origin: center;
+  /* UIヒント */
+  #rotate-hint {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.5); color: white; padding: 8px 16px; border-radius: 20px;
+    font-size: 13px; font-weight: bold; pointer-events: none; z-index: 10;
+    animation: pulse 2s infinite;
   }
-  .plate::after { /* ブロックの模様 */
-    content: ''; position: absolute; inset: 0; border-radius: 5px; pointer-events: none;
-    background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px);
-  }
-  
-  .screw {
-    position: absolute; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; pointer-events: auto;
-    border: 2px solid rgba(0,0,0,0.3); box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.4);
-    display: flex; justify-content: center; align-items: center; transform: translate(-50%, -50%);
-  }
-  .screw:active { transform: translate(-50%, -50%) scale(0.9); }
-  .screw::before { content: ''; position: absolute; width: 12px; height: 4px; background: rgba(0,0,0,0.4); border-radius: 2px; }
-  .screw::after { content: ''; position: absolute; width: 4px; height: 12px; background: rgba(0,0,0,0.4); border-radius: 2px; }
+  @keyframes pulse { 0%, 100% { opacity: 0.8; } 50% { opacity: 0.3; } }
 
-  /* エラー時の揺れアニメーション（上の板に邪魔されている時） */
-  @keyframes shake {
-    0%, 100% { transform: translateX(0) rotate(var(--rot)); } 
-    25% { transform: translateX(-4px) rotate(var(--rot)); } 
-    75% { transform: translateX(4px) rotate(var(--rot)); }
-  }
+  /* 画面揺れエフェクト */
+  @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
   .shake { animation: shake 0.2s; }
 
   /* オーバーレイ画面 */
   .overlay {
-    position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85);
+    position: absolute; inset: 0; background: rgba(44, 62, 80, 0.9);
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s;
   }
   .overlay.show { opacity: 1; pointer-events: auto; }
-  .title-logo { font-size: 32px; color: white; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #333; text-align: center; }
-  .btn { padding: 15px 40px; font-size: 20px; font-weight: bold; color: white; background: #3498db; border: none; border-radius: 30px; box-shadow: 0 6px 0 #2980b9; cursor: pointer; transition: 0.1s; }
+  .title-logo { font-size: 34px; color: #f1c40f; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #d35400, 4px 4px 0 #c0392b; text-align: center; }
+  .instruction { background: white; padding: 20px; border-radius: 15px; text-align: center; font-weight: bold; color: #333; margin-bottom: 30px; width: 85%; max-width: 320px; line-height: 1.6; border: 4px solid #3498db; }
+  .btn { padding: 15px 50px; font-size: 22px; font-weight: bold; color: white; background: #e67e22; border: none; border-radius: 40px; box-shadow: 0 6px 0 #d35400; cursor: pointer; transition: 0.1s; }
   .btn:active { transform: translateY(6px); box-shadow: none; }
-  
-  #clear-text { font-size: 40px; color: #2ecc71; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #fff; animation: floatUp 2s infinite ease-in-out; }
-  @keyframes floatUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 </style>
 </head>
 <body>
@@ -101,41 +91,40 @@
   <div id="header">
     <button class="header-btn" onclick="showMenu()">◀ メニュー</button>
     <div class="level-text">LEVEL <span id="ui-level">1</span></div>
-    <div style="width: 70px;"></div>
+    <div style="width: 80px;"></div>
   </div>
   
-  <!-- ツールボックス -->
   <div id="ui-top"></div>
   
-  <!-- 待機スロット（5つ） -->
   <div id="slots-container">
     <div class="slot" id="slot-0"></div><div class="slot" id="slot-1"></div><div class="slot" id="slot-2"></div>
     <div class="slot" id="slot-3"></div><div class="slot" id="slot-4"></div>
   </div>
 
-  <div id="board-container">
-    <!-- ここにブロックとネジが生成されます -->
+  <div id="canvas-container">
+    <div id="rotate-hint">👆 スワイプして家を回そう 🔄</div>
   </div>
 
   <!-- スタート画面 -->
   <div id="start-screen" class="overlay show">
-    <div class="title-logo">🏠<br>無限ネジ外しパズル</div>
-    <div style="background:white; padding:20px; border-radius:15px; text-align:center; font-weight:bold; color:#333; margin-bottom:30px; line-height:1.6;">
-      重なっているブロックの<br><span style="color:#e74c3c;">「一番上」のネジ</span>から外そう！<br><br>
-      同じ色のネジを3つ集めて<br>箱をいっぱいにしてね📦✨
+    <div class="title-logo">🏠 3D回転！<br>おうちネジ外し</div>
+    <div class="instruction">
+      画面をスワイプして<br><span style="color:#3498db;">家をくるくる回そう！</span><br><br>
+      手前の板が邪魔なときは<br>奥のネジは外せないよ。<br><br>
+      順番を考えてネジを外し<br><span style="color:#e74c3c;">家を解体しよう！</span>🛠️
     </div>
     <button class="btn" onclick="startGame()">スタート！</button>
   </div>
 
   <!-- ゲームオーバー画面 -->
   <div id="game-over" class="overlay">
-    <h1 style="color:#e74c3c; font-size:40px; margin-bottom:20px;">スロットがいっぱい！</h1>
+    <h1 style="color:#e74c3c; font-size:40px; margin-bottom:20px; text-shadow: 2px 2px 0 #fff;">スロットが満杯！</h1>
     <button class="btn" style="background:#e74c3c; box-shadow: 0 6px 0 #c0392b;" onclick="initLevel(currentLevel)">リトライ</button>
   </div>
 
   <!-- クリア画面 -->
   <div id="game-clear" class="overlay">
-    <div id="clear-text">ステージクリア！🎉</div>
+    <h1 style="color:#2ecc71; font-size:40px; margin-bottom:20px; text-shadow: 2px 2px 0 #fff;">ステージクリア🎉</h1>
     <button class="btn" style="background:#2ecc71; box-shadow: 0 6px 0 #27ae60;" onclick="nextLevel()">次のレベルへ</button>
   </div>
 </div>
@@ -161,21 +150,55 @@ function playSound(type) {
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
     osc.start(t); osc.stop(t + 0.4);
   } else if (type === 'error') { 
-    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t);
-    gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, t); gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
     osc.start(t); osc.stop(t + 0.2);
   }
 }
 
-// --- 色の定義 ---
-const COLORS = ['#ff4757', '#1e90ff', '#eccc68', '#2ed573', '#9b59b6', '#ffa502', '#00d2d3', '#ff9ff3'];
+// --- 3Dエンジンのセットアップ ---
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+// 背景を透明にしてCSSのグラデーションを見せる
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 軽くするため最大2
+container.appendChild(renderer.domElement);
 
+// 指でくるくる回すためのコントローラー
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.minDistance = 8;
+controls.maxDistance = 20;
+controls.enablePan = false; // 平行移動は禁止（回すだけ）
+
+// 光の設定
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+backLight.position.set(-10, 10, -10);
+scene.add(backLight);
+
+// --- ゲームステート ---
+const COLORS = [0xff4757, 0x1e90ff, 0xeccc68, 0x2ed573, 0x9b59b6, 0xffa502]; // Hex colors for 3D
 let currentLevel = 1;
 let state = {
   activeBoxes: [], queue: [], slots: [null, null, null, null, null],
-  screwsDict: {}, platesDict: {}, isAnimating: false
+  screws: [], plates: [], fallingPlates: [], isAnimating: false
 };
 
+// リサイズ対応
+window.addEventListener('resize', () => {
+  camera.aspect = container.clientWidth / container.clientHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(container.clientWidth, container.clientHeight);
+});
+
+// メニュー表示
 function showMenu() {
   document.getElementById('start-screen').classList.add('show');
   document.getElementById('game-over').classList.remove('show');
@@ -195,86 +218,153 @@ function nextLevel() {
   initLevel(currentLevel);
 }
 
-// 💡 【超重要】パズルを無限に自動生成する神ロジック
-function generateLevelData(level) {
-  // レベルが上がるごとに板の数が増える！
-  let numPlates = Math.min(15, 2 + Math.floor(level * 1.2)); 
-  let totalScrews = numPlates * 2;
-  
-  // ネジの総数を3の倍数に調整（箱をピッタリ空にするため）
-  let rem = totalScrews % 3;
-  if (rem !== 0) totalScrews += (3 - rem);
-  
-  // 使う色の種類を決定（難易度調整）
-  let numColors = Math.min(COLORS.length, 2 + Math.floor(level / 2));
-  let availableColors = COLORS.slice(0, numColors);
+// 💡 3Dの家と板を自動生成するロジック
+function buildHouseLevel(level) {
+  // 古いオブジェクトを削除
+  while(scene.children.length > 3){ scene.remove(scene.children[3]); }
+  state.screws = []; state.plates = []; state.fallingPlates = [];
 
-  // 全ネジの色を決定（各色3個ずつのセットを作る）
-  let boxColors = [];
-  for(let i = 0; i < totalScrews / 3; i++) {
-    boxColors.push(availableColors[Math.floor(Math.random() * availableColors.length)]);
-  }
+  // 1. 家の土台（コア）を作る
+  const coreGroup = new THREE.Group();
+  
+  // 1階部分（四角）
+  const baseGeo = new THREE.BoxGeometry(4, 3, 4);
+  const baseMat = new THREE.MeshLambertMaterial({ color: 0x34495e });
+  const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+  baseMesh.position.y = 1.5;
+  coreGroup.add(baseMesh);
 
+  // 屋根部分（三角錐）
+  const roofGeo = new THREE.ConeGeometry(3.5, 2, 4, 1, false, Math.PI/4);
+  const roofMat = new THREE.MeshLambertMaterial({ color: 0x8e44ad });
+  const roofMesh = new THREE.Mesh(roofGeo, roofMat);
+  roofMesh.position.y = 4;
+  coreGroup.add(roofMesh);
+  
+  scene.add(coreGroup);
+
+  // 2. 板（パネル）とネジを配置する
+  // 難易度に応じて面の数と重なりを増やす
+  let faces = [
+    { pos: [0, 1.5, 2.1], rot: [0, 0, 0] }, // 前
+    { pos: [0, 1.5, -2.1], rot: [0, Math.PI, 0] }, // 後ろ
+    { pos: [2.1, 1.5, 0], rot: [0, Math.PI/2, 0] }, // 右
+    { pos: [-2.1, 1.5, 0], rot: [0, -Math.PI/2, 0] } // 左
+  ];
+
+  let numScrews = 0;
   let screwColors = [];
-  boxColors.forEach(c => { screwColors.push(c, c, c); });
-  screwColors.sort(() => Math.random() - 0.5); // シャッフル
+  let availableColors = COLORS.slice(0, Math.min(COLORS.length, 2 + Math.floor(level/3)));
 
-  let plates = [];
-  let screws = [];
-  let sIdx = 0;
+  // レベルごとに、各面に「ベース板」と「重なる板」を生成
+  faces.forEach((face, index) => {
+    // 最初の数レベルは前面と右面だけ、徐々に全方向に拡張
+    if (index > level) return; 
 
-  // 板を生成（Z-indexを10ずつ上げて重ねていく）
-  for(let i = 0; i < numPlates; i++) {
-    let w = Math.floor(Math.random() * 80) + 120; // 幅 120〜200
-    let h = 45; // 高さ固定
-    
-    // 画面中央付近にランダム配置
-    let x = Math.floor(Math.random() * 180) + 100;
-    let y = Math.floor(Math.random() * 250) + 150;
-    
-    // 角度は綺麗に見えるように 0, 45, 90, -45 のいずれか
-    let angles = [0, 45, 90, -45];
-    let angle = angles[Math.floor(Math.random() * angles.length)];
-    let z = (i + 1) * 10; // 💡 これが重なり順！
-    let c = `hsl(${Math.random()*40 + 20}, 70%, 45%)`; // 木の色
+    // ベースの板（壁にベタ付け）
+    createPlateWithScrews(face.pos, face.rot, 3, 2, 0, availableColors);
 
-    let pid = 'p' + i;
-    plates.push({ id: pid, x: x, y: y, w: w, h: h, z: z, angle: angle, c: c });
+    // 重なる板（ベース板の少し手前に配置し、ベース板のネジを物理的に隠す！）
+    if (level >= 2 && Math.random() > 0.3) {
+      let offsetPos = [...face.pos];
+      offsetPos[0] += (Math.random()-0.5)*1; // 少しずらす
+      offsetPos[1] += (Math.random()-0.5)*1;
+      
+      // Z座標（壁からの距離）を少し浮かせることで、手前に来る
+      let pushOut = 0.3;
+      if (face.rot[1] === 0) offsetPos[2] += pushOut;
+      else if (face.rot[1] === Math.PI) offsetPos[2] -= pushOut;
+      else if (face.rot[1] === Math.PI/2) offsetPos[0] += pushOut;
+      else if (face.rot[1] === -Math.PI/2) offsetPos[0] -= pushOut;
 
-    // 板1枚につき2つのネジを配置（最後の板で端数を吸収）
-    let screwsOnThisPlate = (i === numPlates - 1) ? (totalScrews - sIdx) : 2;
-    for(let j = 0; j < screwsOnThisPlate; j++) {
-      let offset = (j === 0) ? (-w/2 + 25) : ((j === 1) ? (w/2 - 25) : 0);
-      let rad = angle * Math.PI / 180;
-      let sx = x + offset * Math.cos(rad);
-      let sy = y + offset * Math.sin(rad);
+      createPlateWithScrews(offsetPos, face.rot, 2, 1.5, 1, availableColors);
+    }
+  });
 
-      screws.push({
-        id: 's' + sIdx, x: sx, y: sy, color: screwColors[sIdx], plates: [pid]
-      });
-      sIdx++;
+  // 全ネジの数を3の倍数に調整する（色は後で上書き設定する）
+  let totalScrews = state.screws.length;
+  let rem = totalScrews % 3;
+  // もし3の倍数じゃなければ、無理やりダミーネジを追加してつじつまを合わせる
+  if (rem !== 0) {
+    let addCount = 3 - rem;
+    for(let i=0; i<addCount; i++) {
+      createSingleScrew([0, 5 + i*0.5, 0], [0,0,0], availableColors); // 屋根の上に適当に
     }
   }
 
-  // 💡 【重要】手前のネジ（高いZ）の色ほど、早く箱に出現するようにスマートソート
-  // これにより「最初から箱の色が合わなくて詰む」のを防ぎます
-  let sortedScrews = [...screws].sort((a, b) => {
-    let za = plates.find(p => p.id === a.plates[0]).z;
-    let zb = plates.find(p => p.id === b.plates[0]).z;
-    return zb - za; // Zが大きい順
-  });
+  // ネジの色を「必ず3つセット」になるように割り当てる
+  let colorPool = [];
+  for(let i=0; i<state.screws.length/3; i++) {
+    let c = availableColors[Math.floor(Math.random() * availableColors.length)];
+    colorPool.push(c, c, c);
+  }
+  colorPool.sort(() => Math.random() - 0.5);
   
-  let smartBoxQueue = [];
-  let colorCounts = {};
-  sortedScrews.forEach(s => {
-    colorCounts[s.color] = (colorCounts[s.color] || 0) + 1;
-    if (colorCounts[s.color] === 3) {
-      smartBoxQueue.push(s.color);
-      colorCounts[s.color] = 0;
-    }
+  state.screws.forEach((s, i) => {
+    s.colorVal = colorPool[i];
+    s.mesh.material.color.setHex(s.colorVal);
   });
 
-  return { plates: plates, screws: screws, queue: smartBoxQueue };
+  // ツールボックスのキューを生成
+  state.queue = [];
+  let counts = {};
+  colorPool.forEach(c => {
+    counts[c] = (counts[c] || 0) + 1;
+    if (counts[c] === 3) { state.queue.push(c); counts[c] = 0; }
+  });
+
+  camera.position.set(0, 5, 12);
+  controls.target.set(0, 2, 0);
+  controls.update();
+}
+
+// 💡 3Dの板とネジを生成する関数
+function createPlateWithScrews(pos, rot, w, h, layer, colors) {
+  // 板のメッシュ
+  const pGeo = new THREE.BoxGeometry(w, h, 0.2);
+  const pMat = new THREE.MeshLambertMaterial({ color: 0xe67e22 });
+  const plate = new THREE.Mesh(pGeo, pMat);
+  plate.position.set(...pos);
+  plate.rotation.set(...rot);
+  scene.add(plate);
+
+  let plateObj = { mesh: plate, screws: [] };
+  state.plates.push(plateObj);
+  plate.userData = { isPlate: true, obj: plateObj };
+
+  // この板の四隅にネジを配置
+  let screwOffsets = [
+    [-w/2 + 0.3, h/2 - 0.3], [w/2 - 0.3, h/2 - 0.3],
+    [-w/2 + 0.3, -h/2 + 0.3], [w/2 - 0.3, -h/2 + 0.3]
+  ];
+
+  screwOffsets.forEach(off => {
+    // ローカル座標からワールド座標へ
+    let sPos = new THREE.Vector3(off[0], off[1], 0.1); // 板の表面から少し飛び出す
+    sPos.applyEuler(new THREE.Euler(...rot));
+    sPos.add(new THREE.Vector3(...pos));
+
+    createSingleScrew([sPos.x, sPos.y, sPos.z], rot, colors, plateObj);
+  });
+}
+
+function createSingleScrew(pos, rot, colors, parentPlate = null) {
+  const sGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.4, 16);
+  // ネジの頭が外を向くように回転を調整
+  sGeo.rotateX(Math.PI/2); 
+  const sMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 });
+  const screw = new THREE.Mesh(sGeo, sMat);
+  screw.position.set(...pos);
+  screw.rotation.set(...rot);
+  scene.add(screw);
+
+  let screwObj = { mesh: screw, colorVal: 0, parentPlate: parentPlate };
+  state.screws.push(screwObj);
+  screw.userData = { isScrew: true, obj: screwObj };
+
+  if (parentPlate) {
+    parentPlate.screws.push(screwObj);
+  }
 }
 
 function initLevel(level) {
@@ -282,63 +372,13 @@ function initLevel(level) {
   document.getElementById('game-clear').classList.remove('show');
   document.getElementById('ui-level').innerText = level;
   
-  const board = document.getElementById('board-container');
-  board.innerHTML = '';
+  buildHouseLevel(level);
   
-  let levelData = generateLevelData(level);
-  
-  state.queue = [...levelData.queue];
   state.activeBoxes = [];
   state.slots = [null, null, null, null, null];
-  state.screwsDict = {};
-  state.platesDict = {};
   state.isAnimating = false;
 
   for(let i=0; i<5; i++) document.getElementById('slot-'+i).innerHTML = '';
-
-  // 板の描画
-  levelData.plates.forEach(p => {
-    let el = document.createElement('div');
-    el.className = 'plate';
-    el.style.left = (p.x - p.w/2) + 'px'; 
-    el.style.top = (p.y - p.h/2) + 'px';
-    el.style.width = p.w + 'px'; el.style.height = p.h + 'px';
-    el.style.zIndex = p.z; el.style.backgroundColor = p.c;
-    el.style.transform = `rotate(${p.angle}deg)`;
-    el.style.setProperty('--rot', `${p.angle}deg`); // エラー揺れ用
-    
-    // 💡 下のネジを押させない「ブロック」処理
-    el.onclick = (e) => { 
-      e.stopPropagation(); 
-      if(!state.isAnimating) { playSound('error'); el.classList.add('shake'); setTimeout(()=>el.classList.remove('shake'), 200); }
-    };
-    
-    board.appendChild(el);
-    state.platesDict[p.id] = { el: el, screwsCount: 0, x: p.x, y: p.y, angle: p.angle };
-  });
-
-  // ネジの描画
-  levelData.screws.forEach(s => {
-    let el = document.createElement('div');
-    el.className = 'screw';
-    el.style.left = s.x + 'px'; el.style.top = s.y + 'px';
-    el.style.backgroundColor = s.color;
-    
-    // ネジは、自分が留めている板より「1つだけ上」のZインデックスを持つ
-    let pz = levelData.plates.find(p => p.id === s.plates[0]).z;
-    el.style.zIndex = pz + 1;
-    state.platesDict[s.plates[0]].screwsCount++;
-    
-    // ネジクリック処理
-    el.onclick = (e) => {
-      e.stopPropagation(); // 板へのクリック貫通を防ぐ
-      handleScrewClick(s.id);
-    };
-
-    board.appendChild(el);
-    state.screwsDict[s.id] = { el: el, color: s.color, plates: s.plates, removed: false };
-  });
-
   renderBoxes();
 }
 
@@ -353,11 +393,13 @@ function renderBoxes() {
   state.activeBoxes.forEach((box) => {
     let el = document.createElement('div');
     el.className = 'toolbox';
-    el.style.borderColor = box.color;
+    // Hex色をCSS形式に
+    let cssColor = '#' + box.color.toString(16).padStart(6, '0');
+    el.style.borderColor = cssColor;
     
     let top = document.createElement('div');
     top.className = 'toolbox-top';
-    top.style.backgroundColor = box.color;
+    top.style.backgroundColor = cssColor;
     el.appendChild(top);
 
     for(let j=0; j<3; j++) {
@@ -365,7 +407,7 @@ function renderBoxes() {
       hole.className = 'hole';
       if (j < box.count) {
         hole.classList.add('filled');
-        hole.style.backgroundColor = box.color;
+        hole.style.backgroundColor = cssColor;
       }
       el.appendChild(hole);
     }
@@ -374,87 +416,98 @@ function renderBoxes() {
   });
 }
 
-function handleScrewClick(screwId) {
-  if (state.isAnimating) return;
-  let screw = state.screwsDict[screwId];
-  if (screw.removed) return;
+// 💡 【超重要】レイキャスター（指でタップした場所の3Dオブジェクト判定）
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let pointerDownPos = { x: 0, y: 0 };
 
-  let targetBox = state.activeBoxes.find(b => b.color === screw.color && b.count < 3);
+container.addEventListener('pointerdown', (e) => {
+  pointerDownPos = { x: e.clientX, y: e.clientY };
+});
+
+container.addEventListener('pointerup', (e) => {
+  if (gameState !== 'playing' || state.isAnimating) return;
+  
+  // ドラッグ（カメラ回転）とタップ（ネジ外し）を距離で判別！
+  let dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+  if (dist > 10) return; // スワイプした場合は処理しない
+
+  initAudio();
+  const rect = container.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  // クリックした直線上にあるすべてのオブジェクトを取得
+  const intersects = raycaster.intersectObjects(scene.children, true);
+
+  if (intersects.length > 0) {
+    // 💡 一番手前にあるオブジェクトを取得！
+    // もしネジの前に「板」があれば、板が先に判定される（＝奥のネジはクリックできない！）
+    let hit = intersects[0].object;
+    
+    if (hit.userData.isScrew) {
+      handleScrewClick(hit.userData.obj);
+    } else if (hit.userData.isPlate) {
+      // 邪魔な板をクリックしてしまった場合のエラー演出
+      playSound('error');
+      document.getElementById('canvas-container').classList.add('shake');
+      setTimeout(()=>document.getElementById('canvas-container').classList.remove('shake'), 200);
+    }
+  }
+});
+
+function handleScrewClick(screwObj) {
+  let targetBox = state.activeBoxes.find(b => b.color === screwObj.colorVal && b.count < 3);
   let targetSlotIndex = -1;
 
   if (!targetBox) {
     targetSlotIndex = state.slots.indexOf(null);
     if (targetSlotIndex === -1) {
       playSound('error'); 
-      let bContainer = document.getElementById('board-container');
-      bContainer.style.transform = 'translateX(5px)';
-      setTimeout(()=>bContainer.style.transform = 'none', 100);
+      document.getElementById('slots-container').classList.add('shake');
+      setTimeout(()=>document.getElementById('slots-container').classList.remove('shake'), 200);
       return;
     }
   }
 
-  initAudio(); playSound('tap');
-  screw.removed = true;
+  playSound('tap');
   state.isAnimating = true;
 
-  // アニメーション用クローン
-  let clone = screw.el.cloneNode(true);
-  let rect = screw.el.getBoundingClientRect();
-  clone.style.position = 'fixed'; clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
-  clone.style.zIndex = 1000; clone.style.transform = 'none';
-  document.body.appendChild(clone);
-  screw.el.style.display = 'none'; 
-
+  // 3D空間からネジを消す
+  scene.remove(screwObj.mesh);
+  
   // 板の落下判定
-  screw.plates.forEach(pid => {
-    let p = state.platesDict[pid];
-    p.screwsCount--;
-    if (p.screwsCount === 0) {
-      setTimeout(() => {
-        playSound('drop');
-        p.el.style.pointerEvents = 'none';
-        p.el.style.top = (p.y + 600) + 'px';
-        p.el.style.transform = `rotate(${p.angle + 45}deg)`;
-        p.el.style.opacity = '0';
-      }, 100);
+  if (screwObj.parentPlate) {
+    let p = screwObj.parentPlate;
+    p.screws = p.screws.filter(s => s !== screwObj);
+    if (p.screws.length === 0) {
+      // 板の固定が外れた！落下リストに追加
+      setTimeout(() => { playSound('drop'); }, 100);
+      state.fallingPlates.push(p);
     }
-  });
-
-  let destRect;
-  if (targetBox) destRect = targetBox.el.getBoundingClientRect();
-  else {
-    let slotEl = document.getElementById('slot-' + targetSlotIndex);
-    destRect = slotEl.getBoundingClientRect();
-    state.slots[targetSlotIndex] = { color: screw.color, id: screwId };
   }
 
-  setTimeout(() => {
-    clone.style.transition = 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
-    let dx = destRect.left + destRect.width/2 - (rect.left + rect.width/2);
-    let dy = destRect.top + destRect.height/2 - (rect.top + rect.height/2);
-    clone.style.transform = `translate(${dx}px, ${dy}px) scale(0.6)`;
-  }, 10);
+  // UI（2D）側でのアニメーション処理
+  let cssColor = '#' + screwObj.colorVal.toString(16).padStart(6, '0');
 
-  setTimeout(() => {
-    clone.remove();
-    if (targetBox) {
-      targetBox.count++;
-      checkBoxCompletion(targetBox);
-    } else {
-      let slotEl = document.getElementById('slot-' + targetSlotIndex);
-      let sIcon = document.createElement('div');
-      sIcon.className = 'screw';
-      sIcon.style.position = 'relative'; sIcon.style.left = '50%'; sIcon.style.top = '50%';
-      sIcon.style.transform = 'translate(-50%, -50%) scale(0.8)';
-      sIcon.style.backgroundColor = screw.color;
-      slotEl.appendChild(sIcon);
-      
-      if (state.slots.indexOf(null) === -1) {
-        setTimeout(() => { document.getElementById('game-over').classList.add('show'); }, 500);
-      }
+  if (targetBox) {
+    targetBox.count++;
+    setTimeout(() => { state.isAnimating = false; checkBoxCompletion(targetBox); }, 200);
+  } else {
+    let slotEl = document.getElementById('slot-' + targetSlotIndex);
+    let sIcon = document.createElement('div');
+    sIcon.className = 'slot-screw';
+    sIcon.style.backgroundColor = cssColor;
+    slotEl.appendChild(sIcon);
+    state.slots[targetSlotIndex] = { color: screwObj.colorVal, obj: screwObj };
+    
+    if (state.slots.indexOf(null) === -1) {
+      setTimeout(() => { document.getElementById('game-over').classList.add('show'); }, 500);
     }
     state.isAnimating = false;
-  }, 320);
+  }
 }
 
 function checkBoxCompletion(box) {
@@ -468,6 +521,7 @@ function checkBoxCompletion(box) {
       state.activeBoxes = state.activeBoxes.filter(b => b !== box);
       renderBoxes();
       
+      // クリア判定
       if (state.activeBoxes.length === 0 && state.queue.length === 0) {
         setTimeout(() => { document.getElementById('game-clear').classList.add('show'); }, 500);
         return;
@@ -485,35 +539,44 @@ function autoMatchFromSlots() {
       if (targetBox) {
         state.isAnimating = true;
         let slotEl = document.getElementById('slot-' + i);
-        let clone = slotEl.firstChild.cloneNode(true);
-        let rect = slotEl.getBoundingClientRect();
-        
-        clone.style.position = 'fixed'; clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
-        clone.style.zIndex = 1000; clone.style.transform = 'translate(18px, 18px) scale(0.8)';
-        document.body.appendChild(clone);
         slotEl.innerHTML = '';
         state.slots[i] = null; 
         
-        let destRect = targetBox.el.getBoundingClientRect();
-        setTimeout(() => {
-          clone.style.transition = 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
-          let dx = destRect.left + destRect.width/2 - (rect.left + 18);
-          let dy = destRect.top + destRect.height/2 - (rect.top + 18);
-          clone.style.transform = `translate(${dx}px, ${dy}px) scale(0.6)`;
-        }, 10);
-        
-        setTimeout(() => {
-          clone.remove();
-          playSound('tap');
-          targetBox.count++;
-          state.isAnimating = false;
-          checkBoxCompletion(targetBox); 
-        }, 320);
+        playSound('tap');
+        targetBox.count++;
+        setTimeout(() => { state.isAnimating = false; checkBoxCompletion(targetBox); }, 200);
         return; 
       }
     }
   }
 }
+
+// 💡 描画ループ（アニメーション処理）
+function loop() {
+  requestAnimationFrame(loop);
+  controls.update(); // カメラの回転を滑らかにする
+
+  // 板が落ちるアニメーション
+  for (let i = state.fallingPlates.length - 1; i >= 0; i--) {
+    let p = state.fallingPlates[i];
+    p.mesh.position.y -= 0.2; // 下に落ちる
+    p.mesh.rotation.x += 0.05; // 回転しながら落ちる
+    p.mesh.rotation.z += 0.02;
+    
+    // 画面外に落ちたら削除
+    if (p.mesh.position.y < -10) {
+      scene.remove(p.mesh);
+      state.fallingPlates.splice(i, 1);
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+// 初回起動時のダミー描画（真っ黒にならないように）
+buildHouseLevel(1);
+renderer.render(scene, camera);
+loop();
 </script>
 </body>
 </html>
