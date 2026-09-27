@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>3Dハウス解体・ネジ外しパズル</title>
+<title>3Dドールハウス解体パズル</title>
 <!-- 💡 3Dエンジンとカメラ制御 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -17,7 +17,7 @@
   
   #game-wrapper {
     position: relative; width: 100%; max-width: 450px; height: 100%; max-height: 850px;
-    background: linear-gradient(180deg, #2c3e50 0%, #bdc3c7 100%);
+    background: linear-gradient(180deg, #1e272e 0%, #485460 100%);
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
   }
 
@@ -94,11 +94,11 @@
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title-logo">🏠 立体ドールハウス<br>解体パズル</div>
+    <div class="title-logo">🏠 完全解体！<br>ドールハウスパズル</div>
     <div style="background:rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); padding:20px; border-radius:15px; text-align:center; font-weight:bold; color:#fff; margin-bottom:30px; width:85%; max-width:320px; line-height:1.6;">
-      <span style="color:#f1c40f;">360度</span> ぐるぐる回して<br>壁や屋根のネジを外そう！<br><br>
-      窓やドアを外さないと<br>壁のネジは外せないよ📦<br><br>
-      家を丸裸に解体しよう！
+      <span style="color:#f1c40f;">360度</span> ぐるぐる回そう！<br><br>
+      ハリボテは一切なし。<br>壁や屋根を解体すると…<br><span style="color:#e74c3c;">家の中の家具が現れる！</span><br><br>
+      外側から順番にネジを外し<br>家具まで全てバラバラにしよう！
     </div>
     <button class="btn" onclick="startGame()">スタート！</button>
   </div>
@@ -127,7 +127,6 @@ function playSound(type) {
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
     osc.start(t); osc.stop(t + 0.1);
   } else if (type === 'drop') { 
-    // 💡 ボンッ！と弾け飛ぶ軽快な音
     osc.type = 'triangle'; osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(100, t + 0.3);
     gain.gain.setValueAtTime(0.4, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
@@ -152,100 +151,13 @@ container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.05;
-controls.minDistance = 6; controls.maxDistance = 25; controls.enablePan = false; 
+controls.minDistance = 5; controls.maxDistance = 30; controls.enablePan = false; 
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.7); dirLight.position.set(10, 20, 10); scene.add(dirLight);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6); dirLight.position.set(10, 20, 10); scene.add(dirLight);
 const backLight = new THREE.DirectionalLight(0xffffff, 0.4); backLight.position.set(-10, -10, -10); scene.add(backLight);
 
-// --- 💡 7パターンの「意味のある」建築物構造（マトリョーシカ構造） ---
-const BUILDINGS = [
-  // 1: ベーシックな家
-  [
-    { id:'core', t:'box', p:[0,1.5,0], s:[2.8,2.8,2.8], c:0x2c3e50 }, // 中身（外れない）
-    { id:'w_f', t:'box', p:[0,1.5,1.5], s:[3,3,0.2], rot:[0,0,0], c:0xecf0f1, screws:4 },
-    { id:'w_b', t:'box', p:[0,1.5,-1.5], s:[3,3,0.2], rot:[0,Math.PI,0], c:0xecf0f1, screws:4 },
-    { id:'w_l', t:'box', p:[-1.5,1.5,0], s:[3,3,0.2], rot:[0,-Math.PI/2,0], c:0xbdc3c7, screws:4 },
-    { id:'w_r', t:'box', p:[1.5,1.5,0], s:[3,3,0.2], rot:[0,Math.PI/2,0], c:0xbdc3c7, screws:4 },
-    { id:'r_f', t:'box', p:[0,3.6,0.8], s:[3.4,2.5,0.2], rot:[-0.7,0,0], c:0xe74c3c, screws:2 },
-    { id:'r_b', t:'box', p:[0,3.6,-0.8], s:[3.4,2.5,0.2], rot:[0.7,Math.PI,0], c:0xe74c3c, screws:2 },
-    // 窓・ドア (さらに外側)
-    { id:'door', t:'box', p:[0,0.8,1.65], s:[1,1.5,0.1], rot:[0,0,0], c:0xd35400, screws:2 },
-    { id:'win1', t:'box', p:[-1.65,1.8,0], s:[1,1,0.1], rot:[0,-Math.PI/2,0], c:0x3498db, screws:2 },
-    { id:'win2', t:'box', p:[1.65,1.8,0], s:[1,1,0.1], rot:[0,Math.PI/2,0], c:0x3498db, screws:2 },
-  ],
-  // 2: 高層ビル
-  [
-    { id:'core', t:'box', p:[0,2.5,0], s:[2.8,4.8,2.8], c:0x2c3e50 },
-    { id:'w_f', t:'box', p:[0,2.5,1.5], s:[3,5,0.2], rot:[0,0,0], c:0x95a5a6, screws:4 },
-    { id:'w_b', t:'box', p:[0,2.5,-1.5], s:[3,5,0.2], rot:[0,Math.PI,0], c:0x95a5a6, screws:4 },
-    { id:'w_l', t:'box', p:[-1.5,2.5,0], s:[3,5,0.2], rot:[0,-Math.PI/2,0], c:0x7f8c8d, screws:4 },
-    { id:'w_r', t:'box', p:[1.5,2.5,0], s:[3,5,0.2], rot:[0,Math.PI/2,0], c:0x7f8c8d, screws:4 },
-    { id:'roof', t:'box', p:[0,5.1,0], s:[3,3,0.2], rot:[-Math.PI/2,0,0], c:0x34495e, screws:4 },
-    // 窓いっぱい
-    { id:'win_f1', t:'box', p:[-0.7,3.5,1.65], s:[0.8,1,0.1], rot:[0,0,0], c:0x3498db, screws:2 },
-    { id:'win_f2', t:'box', p:[0.7,3.5,1.65], s:[0.8,1,0.1], rot:[0,0,0], c:0x3498db, screws:2 },
-    { id:'win_f3', t:'box', p:[-0.7,1.5,1.65], s:[0.8,1,0.1], rot:[0,0,0], c:0x3498db, screws:2 },
-    { id:'win_f4', t:'box', p:[0.7,1.5,1.65], s:[0.8,1,0.1], rot:[0,0,0], c:0x3498db, screws:2 },
-  ],
-  // 3: ガレージ
-  [
-    { id:'core', t:'box', p:[0,1.5,0], s:[4.8,2.8,2.8], c:0x2c3e50 },
-    { id:'w_f', t:'box', p:[0,1.5,1.5], s:[5,3,0.2], rot:[0,0,0], c:0xf1c40f, screws:4 },
-    { id:'w_b', t:'box', p:[0,1.5,-1.5], s:[5,3,0.2], rot:[0,Math.PI,0], c:0xf1c40f, screws:4 },
-    { id:'w_l', t:'box', p:[-2.5,1.5,0], s:[3,3,0.2], rot:[0,-Math.PI/2,0], c:0xf39c12, screws:4 },
-    { id:'w_r', t:'box', p:[2.5,1.5,0], s:[3,3,0.2], rot:[0,Math.PI/2,0], c:0xf39c12, screws:4 },
-    { id:'roof', t:'box', p:[0,3.1,0], s:[5.2,3.2,0.2], rot:[-Math.PI/2,0,0], c:0x7f8c8d, screws:4 },
-    { id:'shutter', t:'box', p:[0,1.2,1.65], s:[2.5,2,0.1], rot:[0,0,0], c:0xbdc3c7, screws:4 },
-  ],
-  // 4: トラック
-  [
-    { id:'core', t:'box', p:[0,1.5,-0.5], s:[2.8,2.8,4.8], c:0x2c3e50 },
-    { id:'w_f', t:'box', p:[0,1.5,2.5], s:[3,3,0.2], rot:[0,0,0], c:0x3498db, screws:4 }, 
-    { id:'w_b', t:'box', p:[0,1.5,-3.5], s:[3,3,0.2], rot:[0,Math.PI,0], c:0xecf0f1, screws:4 }, 
-    { id:'w_l1', t:'box', p:[-1.5,1.5,1.5], s:[2,3,0.2], rot:[0,-Math.PI/2,0], c:0x3498db, screws:2 }, 
-    { id:'w_r1', t:'box', p:[1.5,1.5,1.5], s:[2,3,0.2], rot:[0,Math.PI/2,0], c:0x3498db, screws:2 }, 
-    { id:'w_l2', t:'box', p:[-1.5,1.5,-1.5], s:[4,3,0.2], rot:[0,-Math.PI/2,0], c:0xecf0f1, screws:4 }, 
-    { id:'w_r2', t:'box', p:[1.5,1.5,-1.5], s:[4,3,0.2], rot:[0,Math.PI/2,0], c:0xecf0f1, screws:4 }, 
-    { id:'wind', t:'box', p:[0,2,2.65], s:[2.5,1.2,0.1], rot:[0,0,0], c:0x85c1e9, screws:2 }, 
-  ],
-  // 5: ピラミッド
-  [
-    { id:'core', t:'box', p:[0,1,0], s:[3.8,1.8,3.8], c:0x2c3e50 },
-    { id:'base_f', t:'box', p:[0,1,2], s:[4,2,0.2], rot:[0,0,0], c:0xe67e22, screws:4 },
-    { id:'base_b', t:'box', p:[0,1,-2], s:[4,2,0.2], rot:[0,Math.PI,0], c:0xe67e22, screws:4 },
-    { id:'base_l', t:'box', p:[-2,1,0], s:[4,2,0.2], rot:[0,-Math.PI/2,0], c:0xd35400, screws:4 },
-    { id:'base_r', t:'box', p:[2,1,0], s:[4,2,0.2], rot:[0,Math.PI/2,0], c:0xd35400, screws:4 },
-    { id:'mid_f', t:'box', p:[0,3,1.5], s:[3,2,0.2], rot:[0,0,0], c:0xf1c40f, screws:2 },
-    { id:'mid_b', t:'box', p:[0,3,-1.5], s:[3,2,0.2], rot:[0,Math.PI,0], c:0xf1c40f, screws:2 },
-    { id:'mid_l', t:'box', p:[-1.5,3,0], s:[3,2,0.2], rot:[0,-Math.PI/2,0], c:0xf39c12, screws:2 },
-    { id:'mid_r', t:'box', p:[1.5,3,0], s:[3,2,0.2], rot:[0,Math.PI/2,0], c:0xf39c12, screws:2 },
-    { id:'top', t:'box', p:[0,4.1,0], s:[3,3,0.2], rot:[-Math.PI/2,0,0], c:0x9b59b6, screws:2 },
-  ],
-  // 6: 神殿
-  [
-    { id:'core', t:'box', p:[0,2,0], s:[1.8,3.8,1.8], c:0x2c3e50 },
-    { id:'roof', t:'box', p:[0,4.5,0], s:[5,5,0.3], rot:[-Math.PI/2,0,0], c:0xecf0f1, screws:4 },
-    { id:'base', t:'box', p:[0,-0.5,0], s:[5,5,0.3], rot:[Math.PI/2,0,0], c:0xecf0f1, screws:4 },
-    { id:'p1', t:'box', p:[-1.8,2,1.8], s:[0.8,4,0.8], rot:[0,0,0], c:0xbdc3c7, screws:2 },
-    { id:'p2', t:'box', p:[1.8,2,1.8], s:[0.8,4,0.8], rot:[0,0,0], c:0xbdc3c7, screws:2 },
-    { id:'p3', t:'box', p:[-1.8,2,-1.8], s:[0.8,4,0.8], rot:[0,0,0], c:0xbdc3c7, screws:2 },
-    { id:'p4', t:'box', p:[1.8,2,-1.8], s:[0.8,4,0.8], rot:[0,0,0], c:0xbdc3c7, screws:2 },
-  ],
-  // 7: 風車小屋
-  [
-    { id:'core', t:'box', p:[0,2,0], s:[2.8,3.8,2.8], c:0x2c3e50 },
-    { id:'w_f', t:'box', p:[0,2,1.5], s:[3,4,0.2], rot:[0,0,0], c:0xffffff, screws:4 },
-    { id:'w_b', t:'box', p:[0,2,-1.5], s:[3,4,0.2], rot:[0,Math.PI,0], c:0xffffff, screws:4 },
-    { id:'w_l', t:'box', p:[-1.5,2,0], s:[3,4,0.2], rot:[0,-Math.PI/2,0], c:0xecf0f1, screws:4 },
-    { id:'w_r', t:'box', p:[1.5,2,0], s:[3,4,0.2], rot:[0,Math.PI/2,0], c:0xecf0f1, screws:4 },
-    { id:'blade1', t:'box', p:[0,3,1.8], s:[1,5,0.1], rot:[0,0,0], c:0xc0392b, screws:2 },
-    { id:'blade2', t:'box', p:[0,3,1.9], s:[5,1,0.1], rot:[0,0,0], c:0xc0392b, screws:2 },
-    { id:'door', t:'box', p:[0,0.5,1.65], s:[1,1,0.1], rot:[0,0,0], c:0x8e44ad, screws:2 },
-  ]
-];
-
-const COLORS = [0xe74c3c, 0xf1c40f, 0x3498db, 0x2ecc71, 0x9b59b6, 0xe67e22, 0x1abc9c, 0xf368e0]; 
+const COLORS = [0xe74c3c, 0xf1c40f, 0x3498db, 0x2ecc71, 0x9b59b6, 0xe67e22, 0x1abc9c, 0xff9ff3]; 
 let currentLevel = 1;
 let gameState = 'menu';
 let state = { activeBoxes: [], queue: [], slots: [null, null, null, null, null], screws: [], plates: [], fallingPlates: [], clickTargets: [], isAnimating: false };
@@ -255,6 +167,119 @@ window.addEventListener('resize', () => {
   renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
+// --- 💡 部品作成の神ツール群（黒いコアは一切なし！） ---
+function localToWorld(pos, rot, lx, ly, lz) {
+  let v = new THREE.Vector3(lx, ly, lz);
+  v.applyEuler(new THREE.Euler(rot[0], rot[1], rot[2], 'XYZ'));
+  v.add(new THREE.Vector3(pos[0], pos[1], pos[2]));
+  return [v.x, v.y, v.z];
+}
+
+function addPlate(pos, rot, size, colorHex) {
+  const geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
+  const mat = new THREE.MeshLambertMaterial({ color: colorHex });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(...pos); mesh.rotation.set(...rot);
+  scene.add(mesh);
+
+  let normal = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(...rot));
+  let plateObj = { mesh, screws: [], normal, pos, rot, size };
+  state.plates.push(plateObj);
+  state.clickTargets.push(mesh);
+  mesh.userData = { isPlate: true, obj: plateObj };
+  return plateObj;
+}
+
+function addScrew(pos, rot, attachedPlates) {
+  const sGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16);
+  sGeo.rotateX(Math.PI/2);
+  const sMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 });
+  const mesh = new THREE.Mesh(sGeo, sMat);
+  mesh.position.set(...pos); mesh.rotation.set(...rot);
+  scene.add(mesh);
+
+  let screwObj = { mesh, colorVal: 0, attachedPlates };
+  state.screws.push(screwObj);
+  state.clickTargets.push(mesh);
+  mesh.userData = { isScrew: true, obj: screwObj };
+  attachedPlates.forEach(p => p.screws.push(screwObj));
+  return screwObj;
+}
+
+// 💡 リアルな家具の組み立て（すべて板とネジで構成！）
+function buildTable(cx, cy, cz) {
+  let top = addPlate([cx, cy+1.5, cz], [0,0,0], [3, 0.2, 2], 0x8B4513);
+  let offsets = [[-1.2, -0.8], [1.2, -0.8], [-1.2, 0.8], [1.2, 0.8]];
+  offsets.forEach(off => {
+    let leg = addPlate([cx+off[0], cy+0.75, cz+off[1]], [0,0,0], [0.2, 1.5, 0.2], 0xA0522D);
+    // 天板から脚に刺さるネジ！
+    addScrew([cx+off[0], cy+1.6, cz+off[1]], [Math.PI/2, 0, 0], [top, leg]);
+  });
+}
+
+function buildChair(cx, cy, cz, rotY) {
+  let seatPos = localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.8, 0);
+  let seat = addPlate(seatPos, [0,rotY,0], [1.2, 0.2, 1.2], 0x2ECC71);
+  
+  let backPos = localToWorld([cx,cy,cz], [0,rotY,0], 0, 1.5, -0.5);
+  let back = addPlate(backPos, [0,rotY,0], [1.2, 1.2, 0.2], 0x27AE60);
+  // 背もたれと座面をつなぐネジ
+  addScrew(localToWorld([cx,cy,cz], [0,rotY,0], -0.4, 0.8, -0.5), [0,rotY,0], [seat, back]);
+  addScrew(localToWorld([cx,cy,cz], [0,rotY,0], 0.4, 0.8, -0.5), [0,rotY,0], [seat, back]);
+
+  let offsets = [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]];
+  offsets.forEach(off => {
+    let legPos = localToWorld([cx,cy,cz], [0,rotY,0], off[0], 0.4, off[1]);
+    let leg = addPlate(legPos, [0,rotY,0], [0.2, 0.8, 0.2], 0xA0522D);
+    // 座面から脚に刺さるネジ
+    addScrew(localToWorld([cx,cy,cz], [0,rotY,0], off[0], 0.9, off[1]), [Math.PI/2, 0, 0], [seat, leg]);
+  });
+}
+
+function buildBed(cx, cy, cz, rotY) {
+  let matPos = localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.6, 0);
+  let mat = addPlate(matPos, [0,rotY,0], [2, 0.4, 3.5], 0x3498DB);
+  
+  let headPos = localToWorld([cx,cy,cz], [0,rotY,0], 0, 1.0, -1.8);
+  let head = addPlate(headPos, [0,rotY,0], [2.2, 1.5, 0.2], 0x8B4513);
+  addScrew(localToWorld([cx,cy,cz], [0,rotY,0], -0.8, 0.6, -1.8), [0,rotY,0], [mat, head]);
+  addScrew(localToWorld([cx,cy,cz], [0,rotY,0], 0.8, 0.6, -1.8), [0,rotY,0], [mat, head]);
+
+  let footPos = localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.8, 1.8);
+  let foot = addPlate(footPos, [0,rotY,0], [2.2, 0.8, 0.2], 0x8B4513);
+  addScrew(localToWorld([cx,cy,cz], [0,rotY,0], -0.8, 0.6, 1.8), [0,rotY,0], [mat, foot]);
+  addScrew(localToWorld([cx,cy,cz], [0,rotY,0], 0.8, 0.6, 1.8), [0,rotY,0], [mat, foot]);
+}
+
+// 💡 リアルな家の外壁
+function buildWall(cx, cy, cz, rotY, w, h, color) {
+  let wall = addPlate([cx, cy+h/2, cz], [0, rotY, 0], [w, h, 0.2], color);
+  let offsets = [[-w/2+0.5, h/2-0.5], [w/2-0.5, h/2-0.5], [-w/2+0.5, -h/2+0.5], [w/2-0.5, -h/2+0.5]];
+  offsets.forEach(off => {
+    let sPos = localToWorld([cx, cy+h/2, cz], [0, rotY, 0], off[0], off[1], 0.15);
+    addScrew(sPos, [0, rotY, 0], [wall]);
+  });
+}
+
+function buildRoof(cx, cy, cz, rotY, w, h, color) {
+  let roof = addPlate([cx, cy, cz], [0, rotY, 0], [w, h, 0.2], color);
+  // 屋根は斜めになるのでローカル座標でネジを配置
+  let offsets = [[-w/2+0.5, h/2-0.5], [w/2-0.5, h/2-0.5], [-w/2+0.5, -h/2+0.5], [w/2-0.5, -h/2+0.5]];
+  offsets.forEach(off => {
+    let sPos = localToWorld([cx, cy, cz], [0, rotY, 0], off[0], off[1], 0.15);
+    addScrew(sPos, [0, rotY, 0], [roof]);
+  });
+}
+
+function buildFloor(w, d) {
+  let floor = addPlate([0, -0.1, 0], [Math.PI/2, 0, 0], [w, d, 0.2], 0x95A5A6);
+  let offsets = [[-w/2+0.5, -d/2+0.5], [w/2-0.5, -d/2+0.5], [-w/2+0.5, d/2-0.5], [w/2-0.5, d/2-0.5]];
+  offsets.forEach(off => {
+    addScrew([off[0], 0, off[1]], [-Math.PI/2, 0, 0], [floor]);
+  });
+}
+
+// --- 進行管理 ---
 function showMenu() {
   gameState = 'menu'; document.getElementById('start-screen').classList.add('show');
   document.getElementById('game-over').classList.remove('show'); document.getElementById('game-clear').classList.remove('show');
@@ -262,6 +287,7 @@ function showMenu() {
 function startGame() { initAudio(); document.getElementById('start-screen').classList.remove('show'); currentLevel = 1; initLevel(currentLevel); }
 function nextLevel() { document.getElementById('game-clear').classList.remove('show'); currentLevel++; initLevel(currentLevel); }
 
+// 💡 難易度に応じた動的なレベル生成
 function initLevel(level) {
   gameState = 'playing';
   document.getElementById('game-over').classList.remove('show'); document.getElementById('game-clear').classList.remove('show');
@@ -275,56 +301,68 @@ function initLevel(level) {
   state = { activeBoxes: [], queue: [], slots: [null, null, null, null, null], screws: [], plates: [], fallingPlates: [], clickTargets: [], isAnimating: false };
   for(let i=0; i<5; i++) document.getElementById('slot-'+i).innerHTML = '';
 
-  let bType = BUILDINGS[Math.floor(Math.random() * BUILDINGS.length)];
   let availableColors = COLORS.slice(0, Math.min(COLORS.length, 2 + Math.floor(level/2)));
 
-  bType.forEach(part => {
-    const geo = new THREE.BoxGeometry(...part.s);
-    const mat = new THREE.MeshLambertMaterial({ color: part.c });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(...part.p);
-    if(part.rot) mesh.rotation.set(...part.rot);
-    scene.add(mesh);
+  // 💡 レベル設計（徐々に外壁が作られていく）
+  if (level === 1) {
+    // チュートリアル：家具だけ
+    buildFloor(8, 8);
+    buildTable(0, 0, 0);
+    buildChair(0, 0, 1.8, 0);
+  } else if (level === 2) {
+    // 家具がいっぱい
+    buildFloor(10, 10);
+    buildTable(1.5, 0, 0);
+    buildChair(1.5, 0, 1.8, 0);
+    buildChair(1.5, 0, -1.8, Math.PI);
+    buildBed(-2, 0, 0, Math.PI/2);
+  } else if (level === 3) {
+    // 壁が2枚登場（裏側から覗き込む）
+    buildFloor(10, 10);
+    buildWall(0, 0, -5, 0, 10, 5, 0xECF0F1);
+    buildWall(-5, 0, 0, Math.PI/2, 10, 5, 0xECF0F1);
+    buildTable(1.5, 0, 1);
+    buildChair(1.5, 0, 2.8, 0);
+    buildBed(-2, 0, -1, 0);
+  } else {
+    // 完全に閉じた家（外壁と屋根を壊さないと家具に触れない！）
+    let s = Math.min(14, 8 + Math.floor(level/2));
+    buildFloor(s, s);
+    buildWall(0, 0, -s/2, 0, s, 5, 0xECF0F1);
+    buildWall(0, 0, s/2, Math.PI, s, 5, 0xECF0F1);
+    buildWall(-s/2, 0, 0, -Math.PI/2, s, 5, 0xECF0F1);
+    buildWall(s/2, 0, 0, Math.PI/2, s, 5, 0xECF0F1);
+    
+    // 屋根
+    buildRoof(0, 6.5, -s/4, -Math.PI/4, s, s*0.75, 0xE74C3C);
+    buildRoof(0, 6.5, s/4, Math.PI/4, s, s*0.75, 0xE74C3C);
 
-    if (part.id === 'core') {
-      mesh.userData = { isCore: true }; 
-    } else {
-      mesh.updateMatrixWorld();
-      let plateObj = { mesh: mesh, screws: [], w: part.s[0], h: part.s[1], d: part.s[2] };
-      state.plates.push(plateObj);
-      state.clickTargets.push(mesh);
-      mesh.userData = { isPlate: true, obj: plateObj };
-
-      // ネジの配置（常にZの表面）
-      let numScrews = part.screws || 2;
-      let w = part.s[0], h = part.s[1], d = part.s[2];
-      let offsets = [];
-      if(numScrews===2){ offsets = [[-w/4, 0], [w/4, 0]]; if(h>w) offsets = [[0, -h/4], [0, h/4]]; }
-      else { offsets = [[-w/4, -h/4], [w/4, -h/4], [-w/4, h/4], [w/4, h/4]]; }
-
-      offsets.forEach(off => {
-        let loc = new THREE.Vector3(off[0], off[1], d/2 + 0.1);
-        let worldPos = loc.applyMatrix4(mesh.matrixWorld);
-        createSingleScrew(worldPos, mesh.rotation, availableColors[0], plateObj);
-      });
+    // 中の家具をランダム配置
+    let numFurniture = Math.min(6, level);
+    for(let i=0; i<numFurniture; i++) {
+      let fx = (Math.random()-0.5)*(s-4);
+      let fz = (Math.random()-0.5)*(s-4);
+      let type = Math.floor(Math.random()*3);
+      if(type===0) buildTable(fx, 0, fz);
+      else if(type===1) buildChair(fx, 0, fz, Math.random()*Math.PI*2);
+      else buildBed(fx, 0, fz, Math.random()*Math.PI*2);
     }
-  });
+  }
 
-  // ダミーネジ追加
+  // ネジ総数を3の倍数に調整
   let rem = state.screws.length % 3;
   if (rem !== 0) {
     let addCount = 3 - rem;
     for (let i = 0; i < addCount; i++) {
-      let plateObj = state.plates[Math.floor(Math.random() * state.plates.length)];
-      let sx = (Math.random()-0.5) * plateObj.w * 0.5;
-      let sy = (Math.random()-0.5) * plateObj.h * 0.5;
-      let sPosLocal = new THREE.Vector3(sx, sy, plateObj.d/2 + 0.1);
-      let sPosWorld = sPosLocal.applyMatrix4(plateObj.mesh.matrixWorld);
-      createSingleScrew(sPosWorld, plateObj.mesh.rotation, availableColors[0], plateObj);
+      let p = state.plates[Math.floor(Math.random() * state.plates.length)];
+      let sx = (Math.random()-0.5) * p.size[0] * 0.7;
+      let sy = (Math.random()-0.5) * p.size[1] * 0.7;
+      let sPos = localToWorld(p.pos, p.rot, sx, sy, p.size[2]/2 + 0.1);
+      addScrew(sPos, p.rot, [p]);
     }
   }
 
-  // ネジの色割り当て
+  // 色割り当て
   let colorPool = [];
   for(let i=0; i<state.screws.length/3; i++) {
     let c = availableColors[Math.floor(Math.random() * availableColors.length)];
@@ -343,26 +381,13 @@ function initLevel(level) {
     if (counts[c] === 3) { state.queue.push(c); counts[c] = 0; }
   });
 
-  camera.position.set(0, 6, 12);
+  // カメラを引く
+  let dist = 14 + level;
+  camera.position.set(0, dist*0.6, dist);
   controls.target.set(0, 2, 0);
   controls.update();
+
   renderBoxes();
-}
-
-function createSingleScrew(pos, rot, colorVal, parentPlate) {
-  const sGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.3, 16);
-  sGeo.rotateX(Math.PI/2); 
-  const sMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 });
-  const screw = new THREE.Mesh(sGeo, sMat);
-  screw.position.copy(pos);
-  screw.rotation.copy(rot);
-  scene.add(screw);
-
-  let screwObj = { mesh: screw, colorVal: colorVal, parentPlate: parentPlate };
-  state.screws.push(screwObj);
-  state.clickTargets.push(screw);
-  screw.userData = { isScrew: true, obj: screwObj };
-  parentPlate.screws.push(screwObj);
 }
 
 function renderBoxes() {
@@ -431,19 +456,15 @@ function handleScrewClick(screwObj) {
   scene.remove(screwObj.mesh);
   state.clickTargets = state.clickTargets.filter(m => m !== screwObj.mesh);
   
-  if (screwObj.parentPlate) {
-    let p = screwObj.parentPlate;
+  // 💡 複数の板を貫通している場合、それぞれの落下判定を行う
+  screwObj.attachedPlates.forEach(p => {
     p.screws = p.screws.filter(s => s !== screwObj);
     if (p.screws.length === 0) {
       setTimeout(() => { playSound('drop'); }, 100);
       state.clickTargets = state.clickTargets.filter(m => m !== p.mesh);
-      
-      // 💡 板が「向いている方向（法線）」を取得して飛ばす準備
-      let normal = new THREE.Vector3(0, 0, 1).applyEuler(p.mesh.rotation);
-      p.normal = normal;
       state.fallingPlates.push(p);
     }
-  }
+  });
 
   let cssColor = '#' + screwObj.colorVal.toString(16).padStart(6, '0');
 
@@ -505,13 +526,13 @@ function loop() {
   requestAnimationFrame(loop);
   controls.update();
 
-  // 💡 壁や屋根が「外側に向かって弾け飛ぶ」アニメーション！
+  // 💡 外れた家具や壁がパァーン！と弾け飛ぶアニメーション！
   for (let i = state.fallingPlates.length - 1; i >= 0; i--) {
     let p = state.fallingPlates[i];
     
-    // 法線方向（外側）へ飛ばしつつ、上にフワッと浮かせる
-    p.mesh.position.addScaledVector(p.normal, 0.2); 
-    p.mesh.position.y += 0.1; 
+    // 法線方向（外側）へ飛び出し、上にもフワッと浮かぶ
+    p.mesh.position.addScaledVector(p.normal, 0.3); 
+    p.mesh.position.y += 0.2; 
     
     p.mesh.rotation.x += 0.05; 
     p.mesh.rotation.z += 0.05;
