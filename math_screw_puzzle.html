@@ -52,6 +52,7 @@
   .slot-screw {
     width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(0,0,0,0.2);
     box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2), 0 3px 5px rgba(0,0,0,0.4); position: relative;
+    transition: transform 0.2s;
   }
   .slot-screw::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 10px; height: 3px; background: rgba(0,0,0,0.4); border-radius: 2px; }
 
@@ -158,48 +159,47 @@ function playSound(type) {
 // --- 3Dエンジンのセットアップ ---
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
-// 背景を透明にしてCSSのグラデーションを見せる
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 軽くするため最大2
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
 container.appendChild(renderer.domElement);
 
-// 指でくるくる回すためのコントローラー
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.minDistance = 8;
-controls.maxDistance = 20;
-controls.enablePan = false; // 平行移動は禁止（回すだけ）
+controls.maxDistance = 25;
+controls.enablePan = false; 
 
-// 光の設定
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
 scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
 dirLight.position.set(10, 20, 10);
 scene.add(dirLight);
 const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
 backLight.position.set(-10, 10, -10);
 scene.add(backLight);
 
-// --- ゲームステート ---
-const COLORS = [0xff4757, 0x1e90ff, 0xeccc68, 0x2ed573, 0x9b59b6, 0xffa502]; // Hex colors for 3D
+// --- ゲームステート（💡 バグ修正：gameStateを明確に定義！） ---
+const COLORS = [0xff4757, 0x1e90ff, 0xeccc68, 0x2ed573, 0x9b59b6, 0xffa502]; 
 let currentLevel = 1;
+let gameState = 'menu'; // 'menu', 'playing', 'clear', 'gameover'
+
 let state = {
   activeBoxes: [], queue: [], slots: [null, null, null, null, null],
   screws: [], plates: [], fallingPlates: [], isAnimating: false
 };
 
-// リサイズ対応
 window.addEventListener('resize', () => {
   camera.aspect = container.clientWidth / container.clientHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
-// メニュー表示
+// メニュー・進行管理
 function showMenu() {
+  gameState = 'menu';
   document.getElementById('start-screen').classList.add('show');
   document.getElementById('game-over').classList.remove('show');
   document.getElementById('game-clear').classList.remove('show');
@@ -218,23 +218,19 @@ function nextLevel() {
   initLevel(currentLevel);
 }
 
-// 💡 3Dの家と板を自動生成するロジック
+// 3Dの家と板を自動生成
 function buildHouseLevel(level) {
-  // 古いオブジェクトを削除
   while(scene.children.length > 3){ scene.remove(scene.children[3]); }
   state.screws = []; state.plates = []; state.fallingPlates = [];
 
-  // 1. 家の土台（コア）を作る
   const coreGroup = new THREE.Group();
   
-  // 1階部分（四角）
   const baseGeo = new THREE.BoxGeometry(4, 3, 4);
   const baseMat = new THREE.MeshLambertMaterial({ color: 0x34495e });
   const baseMesh = new THREE.Mesh(baseGeo, baseMat);
   baseMesh.position.y = 1.5;
   coreGroup.add(baseMesh);
 
-  // 屋根部分（三角錐）
   const roofGeo = new THREE.ConeGeometry(3.5, 2, 4, 1, false, Math.PI/4);
   const roofMat = new THREE.MeshLambertMaterial({ color: 0x8e44ad });
   const roofMesh = new THREE.Mesh(roofGeo, roofMat);
@@ -243,8 +239,6 @@ function buildHouseLevel(level) {
   
   scene.add(coreGroup);
 
-  // 2. 板（パネル）とネジを配置する
-  // 難易度に応じて面の数と重なりを増やす
   let faces = [
     { pos: [0, 1.5, 2.1], rot: [0, 0, 0] }, // 前
     { pos: [0, 1.5, -2.1], rot: [0, Math.PI, 0] }, // 後ろ
@@ -252,47 +246,40 @@ function buildHouseLevel(level) {
     { pos: [-2.1, 1.5, 0], rot: [0, -Math.PI/2, 0] } // 左
   ];
 
-  let numScrews = 0;
-  let screwColors = [];
   let availableColors = COLORS.slice(0, Math.min(COLORS.length, 2 + Math.floor(level/3)));
 
-  // レベルごとに、各面に「ベース板」と「重なる板」を生成
   faces.forEach((face, index) => {
-    // 最初の数レベルは前面と右面だけ、徐々に全方向に拡張
-    if (index > level) return; 
+    if (index > level) return; // レベルに応じて拡張
 
-    // ベースの板（壁にベタ付け）
-    createPlateWithScrews(face.pos, face.rot, 3, 2, 0, availableColors);
+    createPlateWithScrews(face.pos, face.rot, 3, 2, availableColors);
 
-    // 重なる板（ベース板の少し手前に配置し、ベース板のネジを物理的に隠す！）
+    // 重なる板（手前に配置）
     if (level >= 2 && Math.random() > 0.3) {
       let offsetPos = [...face.pos];
-      offsetPos[0] += (Math.random()-0.5)*1; // 少しずらす
+      offsetPos[0] += (Math.random()-0.5)*1;
       offsetPos[1] += (Math.random()-0.5)*1;
       
-      // Z座標（壁からの距離）を少し浮かせることで、手前に来る
-      let pushOut = 0.3;
+      let pushOut = 0.35; // 少し浮かせる
       if (face.rot[1] === 0) offsetPos[2] += pushOut;
       else if (face.rot[1] === Math.PI) offsetPos[2] -= pushOut;
       else if (face.rot[1] === Math.PI/2) offsetPos[0] += pushOut;
       else if (face.rot[1] === -Math.PI/2) offsetPos[0] -= pushOut;
 
-      createPlateWithScrews(offsetPos, face.rot, 2, 1.5, 1, availableColors);
+      createPlateWithScrews(offsetPos, face.rot, 2, 1.5, availableColors);
     }
   });
 
-  // 全ネジの数を3の倍数に調整する（色は後で上書き設定する）
+  // 全ネジの数を3の倍数に調整
   let totalScrews = state.screws.length;
   let rem = totalScrews % 3;
-  // もし3の倍数じゃなければ、無理やりダミーネジを追加してつじつまを合わせる
   if (rem !== 0) {
     let addCount = 3 - rem;
     for(let i=0; i<addCount; i++) {
-      createSingleScrew([0, 5 + i*0.5, 0], [0,0,0], availableColors); // 屋根の上に適当に
+      createSingleScrew([0, 5.2 + i*0.5, 0], [0,0,0], availableColors); 
     }
   }
 
-  // ネジの色を「必ず3つセット」になるように割り当てる
+  // ネジ色割り当て
   let colorPool = [];
   for(let i=0; i<state.screws.length/3; i++) {
     let c = availableColors[Math.floor(Math.random() * availableColors.length)];
@@ -305,7 +292,6 @@ function buildHouseLevel(level) {
     s.mesh.material.color.setHex(s.colorVal);
   });
 
-  // ツールボックスのキューを生成
   state.queue = [];
   let counts = {};
   colorPool.forEach(c => {
@@ -313,14 +299,12 @@ function buildHouseLevel(level) {
     if (counts[c] === 3) { state.queue.push(c); counts[c] = 0; }
   });
 
-  camera.position.set(0, 5, 12);
+  camera.position.set(0, 5, 13);
   controls.target.set(0, 2, 0);
   controls.update();
 }
 
-// 💡 3Dの板とネジを生成する関数
-function createPlateWithScrews(pos, rot, w, h, layer, colors) {
-  // 板のメッシュ
+function createPlateWithScrews(pos, rot, w, h, colors) {
   const pGeo = new THREE.BoxGeometry(w, h, 0.2);
   const pMat = new THREE.MeshLambertMaterial({ color: 0xe67e22 });
   const plate = new THREE.Mesh(pGeo, pMat);
@@ -332,25 +316,21 @@ function createPlateWithScrews(pos, rot, w, h, layer, colors) {
   state.plates.push(plateObj);
   plate.userData = { isPlate: true, obj: plateObj };
 
-  // この板の四隅にネジを配置
   let screwOffsets = [
     [-w/2 + 0.3, h/2 - 0.3], [w/2 - 0.3, h/2 - 0.3],
     [-w/2 + 0.3, -h/2 + 0.3], [w/2 - 0.3, -h/2 + 0.3]
   ];
 
   screwOffsets.forEach(off => {
-    // ローカル座標からワールド座標へ
-    let sPos = new THREE.Vector3(off[0], off[1], 0.1); // 板の表面から少し飛び出す
+    let sPos = new THREE.Vector3(off[0], off[1], 0.1);
     sPos.applyEuler(new THREE.Euler(...rot));
     sPos.add(new THREE.Vector3(...pos));
-
     createSingleScrew([sPos.x, sPos.y, sPos.z], rot, colors, plateObj);
   });
 }
 
 function createSingleScrew(pos, rot, colors, parentPlate = null) {
-  const sGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.4, 16);
-  // ネジの頭が外を向くように回転を調整
+  const sGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.4, 16); // タップしやすいよう少し太めに
   sGeo.rotateX(Math.PI/2); 
   const sMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 100 });
   const screw = new THREE.Mesh(sGeo, sMat);
@@ -362,12 +342,11 @@ function createSingleScrew(pos, rot, colors, parentPlate = null) {
   state.screws.push(screwObj);
   screw.userData = { isScrew: true, obj: screwObj };
 
-  if (parentPlate) {
-    parentPlate.screws.push(screwObj);
-  }
+  if (parentPlate) parentPlate.screws.push(screwObj);
 }
 
 function initLevel(level) {
+  gameState = 'playing'; // 💡 ここで確実にプレイ状態にする
   document.getElementById('game-over').classList.remove('show');
   document.getElementById('game-clear').classList.remove('show');
   document.getElementById('ui-level').innerText = level;
@@ -393,7 +372,6 @@ function renderBoxes() {
   state.activeBoxes.forEach((box) => {
     let el = document.createElement('div');
     el.className = 'toolbox';
-    // Hex色をCSS形式に
     let cssColor = '#' + box.color.toString(16).padStart(6, '0');
     el.style.borderColor = cssColor;
     
@@ -416,21 +394,22 @@ function renderBoxes() {
   });
 }
 
-// 💡 【超重要】レイキャスター（指でタップした場所の3Dオブジェクト判定）
+// 💡 レイキャスター（タップ判定）
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerDownPos = { x: 0, y: 0 };
 
 container.addEventListener('pointerdown', (e) => {
+  if (gameState !== 'playing') return;
   pointerDownPos = { x: e.clientX, y: e.clientY };
 });
 
 container.addEventListener('pointerup', (e) => {
+  // 💡 バグ修正：gameState によるガードを正しく機能させる
   if (gameState !== 'playing' || state.isAnimating) return;
   
-  // ドラッグ（カメラ回転）とタップ（ネジ外し）を距離で判別！
   let dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
-  if (dist > 10) return; // スワイプした場合は処理しない
+  if (dist > 10) return; // スワイプ（カメラ回転）と判別
 
   initAudio();
   const rect = container.getBoundingClientRect();
@@ -439,18 +418,16 @@ container.addEventListener('pointerup', (e) => {
 
   raycaster.setFromCamera(mouse, camera);
 
-  // クリックした直線上にあるすべてのオブジェクトを取得
+  // カメラから見て重なっているオブジェクトを全て取得
   const intersects = raycaster.intersectObjects(scene.children, true);
 
   if (intersects.length > 0) {
-    // 💡 一番手前にあるオブジェクトを取得！
-    // もしネジの前に「板」があれば、板が先に判定される（＝奥のネジはクリックできない！）
-    let hit = intersects[0].object;
+    let hit = intersects[0].object; // 一番手前にあるものを取得
     
     if (hit.userData.isScrew) {
       handleScrewClick(hit.userData.obj);
     } else if (hit.userData.isPlate) {
-      // 邪魔な板をクリックしてしまった場合のエラー演出
+      // 💡 奥のネジをタップしようとして、手前の板に邪魔された場合
       playSound('error');
       document.getElementById('canvas-container').classList.add('shake');
       setTimeout(()=>document.getElementById('canvas-container').classList.remove('shake'), 200);
@@ -474,26 +451,22 @@ function handleScrewClick(screwObj) {
 
   playSound('tap');
   state.isAnimating = true;
-
-  // 3D空間からネジを消す
-  scene.remove(screwObj.mesh);
+  scene.remove(screwObj.mesh); // 3Dから消す
   
-  // 板の落下判定
   if (screwObj.parentPlate) {
     let p = screwObj.parentPlate;
     p.screws = p.screws.filter(s => s !== screwObj);
     if (p.screws.length === 0) {
-      // 板の固定が外れた！落下リストに追加
       setTimeout(() => { playSound('drop'); }, 100);
       state.fallingPlates.push(p);
     }
   }
 
-  // UI（2D）側でのアニメーション処理
   let cssColor = '#' + screwObj.colorVal.toString(16).padStart(6, '0');
 
   if (targetBox) {
     targetBox.count++;
+    // 少し待ってからUIを更新（ネジが飛んだような感覚）
     setTimeout(() => { state.isAnimating = false; checkBoxCompletion(targetBox); }, 200);
   } else {
     let slotEl = document.getElementById('slot-' + targetSlotIndex);
@@ -504,6 +477,7 @@ function handleScrewClick(screwObj) {
     state.slots[targetSlotIndex] = { color: screwObj.colorVal, obj: screwObj };
     
     if (state.slots.indexOf(null) === -1) {
+      gameState = 'gameover'; // 💡 状態を更新
       setTimeout(() => { document.getElementById('game-over').classList.add('show'); }, 500);
     }
     state.isAnimating = false;
@@ -523,6 +497,7 @@ function checkBoxCompletion(box) {
       
       // クリア判定
       if (state.activeBoxes.length === 0 && state.queue.length === 0) {
+        gameState = 'clear'; // 💡 状態を更新
         setTimeout(() => { document.getElementById('game-clear').classList.add('show'); }, 500);
         return;
       }
@@ -551,19 +526,17 @@ function autoMatchFromSlots() {
   }
 }
 
-// 💡 描画ループ（アニメーション処理）
+// 描画ループ
 function loop() {
   requestAnimationFrame(loop);
-  controls.update(); // カメラの回転を滑らかにする
+  controls.update();
 
-  // 板が落ちるアニメーション
   for (let i = state.fallingPlates.length - 1; i >= 0; i--) {
     let p = state.fallingPlates[i];
-    p.mesh.position.y -= 0.2; // 下に落ちる
-    p.mesh.rotation.x += 0.05; // 回転しながら落ちる
+    p.mesh.position.y -= 0.3; // 早めに落とす
+    p.mesh.rotation.x += 0.05; 
     p.mesh.rotation.z += 0.02;
     
-    // 画面外に落ちたら削除
     if (p.mesh.position.y < -10) {
       scene.remove(p.mesh);
       state.fallingPlates.splice(i, 1);
@@ -573,7 +546,6 @@ function loop() {
   renderer.render(scene, camera);
 }
 
-// 初回起動時のダミー描画（真っ黒にならないように）
 buildHouseLevel(1);
 renderer.render(scene, camera);
 loop();
