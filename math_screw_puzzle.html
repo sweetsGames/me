@@ -17,7 +17,7 @@
   
   #game-wrapper {
     position: relative; width: 100%; max-width: 450px; height: 100%; max-height: 850px;
-    background: linear-gradient(180deg, #34495e 0%, #7f8c8d 100%);
+    background: linear-gradient(180deg, #2c3e50 0%, #bdc3c7 100%);
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
   }
 
@@ -89,11 +89,11 @@
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title-logo">🏠 板張りハウス<br>解体パズル</div>
+    <div class="title-logo">🏠 ドールハウス<br>完全解体パズル</div>
     <div style="background:rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); padding:20px; border-radius:15px; text-align:center; font-weight:bold; color:#fff; margin-bottom:30px; width:85%; max-width:320px; line-height:1.6;">
       <span style="color:#f1c40f;">360度</span> ぐるぐる回そう！<br><br>
-      壁も屋根も、全部バラバラの<br>木の板でできているよ。<br><br>
-      ※ネジは「表側」からしか<br>外せないので注意してね！
+      看板やドアを外さないと<br>壁のネジは外せないよ📦<br><br>
+      家を丸裸に解体しよう！
     </div>
     <button class="btn" onclick="startGame()">スタート！</button>
   </div>
@@ -122,7 +122,6 @@ function playSound(type) {
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
     osc.start(t); osc.stop(t + 0.1);
   } else if (type === 'drop') { 
-    // フワッと外れる音
     osc.type = 'triangle'; osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(100, t + 0.3);
     gain.gain.setValueAtTime(0.4, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
@@ -186,11 +185,22 @@ function addPlate(pos, rot, size, colorHex) {
   return plateObj;
 }
 
-// リアルなネジ
+// 💡 四隅にネジを一括配置
+function addScrewsToPlate(plate, numScrews) {
+  let w = plate.size[0], h = plate.size[1], d = plate.size[2];
+  let offsets = [[-w/2+0.6, h/2-0.6], [w/2-0.6, h/2-0.6], [-w/2+0.6, -h/2+0.6], [w/2-0.6, -h/2+0.6]];
+  for(let i=0; i<Math.min(numScrews, offsets.length); i++) {
+    let off = offsets[i];
+    let sPos = localToWorld(plate.pos, plate.rot, off[0], off[1], d/2 + 0.15);
+    addScrew(sPos, plate.rot, [plate]);
+  }
+}
+
+// 💡 立体的なネジ
 function addScrew(pos, rot, attachedPlates) {
   const group = new THREE.Group();
   
-  const headGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.15, 16);
+  const headGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.15, 16);
   headGeo.rotateX(Math.PI/2);
   const headMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 });
   const head = new THREE.Mesh(headGeo, headMat);
@@ -208,65 +218,56 @@ function addScrew(pos, rot, attachedPlates) {
 
   let screwObj = { mesh: group, headMesh: head, colorVal: 0, attachedPlates: attachedPlates };
   state.screws.push(screwObj);
-  state.clickTargets.push(head); // タップ判定は頭だけ
+  state.clickTargets.push(head); 
   head.userData = { isScrew: true, obj: screwObj };
   attachedPlates.forEach(p => p.screws.push(screwObj));
   return screwObj;
 }
 
-// --- 💡 複数枚の板で構成された壁を作る ---
+// --- 💡 複数枚の板で構成された壁 ---
 function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks) {
   let plankH = h / numPlanks;
   for(let i=0; i<numPlanks; i++) {
     let py = cy - h/2 + plankH/2 + i * plankH;
-    
-    // 板の境界が分かるように色を少しずつずらす
     let color = new THREE.Color(baseColor);
     color.offsetHSL(0, 0, (i%2===0)?0.05:-0.05); 
     
-    // 隙間を開けるために高さを -0.1
-    let plank = addPlate([cx, py, cz], [0, rotY, 0], [w - 0.1, plankH - 0.1, 0.2], color.getHex());
-    
-    // 板の両端にネジを配置
-    let sPos1 = localToWorld([cx, py, cz], [0, rotY, 0], -w/2 + 0.4, 0, 0.15);
-    let sPos2 = localToWorld([cx, py, cz], [0, rotY, 0], w/2 - 0.4, 0, 0.15);
+    let plank = addPlate([cx, py, cz], [0, rotY, 0], [w - 0.1, plankH - 0.05, 0.2], color.getHex());
+    let sPos1 = localToWorld([cx, py, cz], [0, rotY, 0], -w/2 + 0.5, 0, 0.15);
+    let sPos2 = localToWorld([cx, py, cz], [0, rotY, 0], w/2 - 0.5, 0, 0.15);
     addScrew(sPos1, [0, rotY, 0], [plank]);
     addScrew(sPos2, [0, rotY, 0], [plank]);
   }
 }
 
-// --- 💡 複数枚の板で構成された正しい三角屋根を作る ---
+// --- 💡 正しい斜面の三角屋根 ---
 function buildDividedRoof(cx, cy, cz, roofW, roofD, angle, baseColor, numPlanks, isRightSide) {
-  let plankW = roofW / numPlanks; // 斜面方向の板の幅
-  
+  let plankW = roofW / numPlanks;
   for(let i=0; i<numPlanks; i++) {
-    let offsetW = -roofW/2 + plankW/2 + i * plankW; 
+    let offset = -roofW/2 + plankW/2 + i * plankW;
     let sign = isRightSide ? 1 : -1;
     
-    // 斜面に沿った板の中心座標
-    let px = cx - sign * offsetW * Math.cos(angle);
-    let py = cy + offsetW * Math.sin(angle);
+    // 屋根の中心から斜面に沿って座標を計算
+    let px = cx + sign * offset * Math.cos(angle);
+    let py = cy - offset * Math.sin(angle);
     let pz = cz;
     
     let color = new THREE.Color(baseColor);
     color.offsetHSL(0, 0, (i%2===0)?0.05:-0.05);
     
-    // 正面が上を向くように回転を計算
     let rotY = isRightSide ? Math.PI/2 : -Math.PI/2;
     let rotX = -angle; 
     
-    // 板はZ方向（奥行き）に長い
-    let plank = addPlate([px, py, pz], [rotX, rotY, 0], [roofD - 0.1, plankW - 0.1, 0.2], color.getHex());
+    let plank = addPlate([px, py, pz], [rotX, rotY, 0], [roofD - 0.1, plankW - 0.05, 0.2], color.getHex());
     
-    // 両端にネジ
-    let sPos1 = localToWorld([px, py, pz], [rotX, rotY, 0], -roofD/2 + 0.4, 0, 0.15);
-    let sPos2 = localToWorld([px, py, pz], [rotX, rotY, 0], roofD/2 - 0.4, 0, 0.15);
+    let sPos1 = localToWorld([px, py, pz], [rotX, rotY, 0], -roofD/2 + 0.6, 0, 0.15);
+    let sPos2 = localToWorld([px, py, pz], [rotX, rotY, 0], roofD/2 - 0.6, 0, 0.15);
     addScrew(sPos1, [rotX, rotY, 0], [plank]);
     addScrew(sPos2, [rotX, rotY, 0], [plank]);
   }
 }
 
-// --- 💡 切妻（三角）部分の壁 ---
+// --- 💡 切妻（三角の壁） ---
 function buildTriangleWall(cx, cy, cz, rotY, w, h, baseColor) {
   const shape = new THREE.Shape();
   shape.moveTo(-w/2, -h/2);
@@ -276,7 +277,7 @@ function buildTriangleWall(cx, cy, cz, rotY, w, h, baseColor) {
   
   const extrudeSettings = { depth: 0.2, bevelEnabled: false };
   const geoExt = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-  geoExt.translate(0, 0, -0.1); // 中心調整
+  geoExt.translate(0, 0, -0.1); 
   
   const mat = new THREE.MeshLambertMaterial({ color: baseColor });
   const mesh = new THREE.Mesh(geoExt, mat);
@@ -290,7 +291,6 @@ function buildTriangleWall(cx, cy, cz, rotY, w, h, baseColor) {
   state.clickTargets.push(mesh);
   mesh.userData = { isPlate: true, obj: plateObj };
   
-  // ネジ（3箇所）
   let sPos1 = localToWorld([cx, cy, cz], [0, rotY, 0], -w/4, -h/2 + 0.4, 0.15);
   let sPos2 = localToWorld([cx, cy, cz], [0, rotY, 0], w/4, -h/2 + 0.4, 0.15);
   let sPos3 = localToWorld([cx, cy, cz], [0, rotY, 0], 0, h/4, 0.15);
@@ -334,7 +334,7 @@ function buildBed(cx, cy, cz, rotY) {
 }
 
 function buildFloor(w, d) {
-  let floor = addPlate([0, -0.1, 0], [Math.PI/2, 0, 0], [w, d, 0.2], 0x95A5A6);
+  let floor = addPlate([0, -0.1, 0], [Math.PI/2, 0, 0], [w, d, 0.2], 0xBDC3C7);
   let offsets = [[-w/2+0.8, -d/2+0.8], [w/2-0.8, -d/2+0.8], [-w/2+0.8, d/2-0.8], [w/2-0.8, d/2-0.8]];
   offsets.forEach(off => { addScrew([off[0], 0, off[1]], [-Math.PI/2, 0, 0], [floor]); });
 }
@@ -360,44 +360,60 @@ function initLevel(level) {
   state = { activeBoxes: [], queue: [], slots: [null, null, null, null, null], screws: [], plates: [], fallingPlates: [], clickTargets: [], isAnimating: false };
   for(let i=0; i<5; i++) document.getElementById('slot-'+i).innerHTML = '';
 
-  // 💡 レベル設計（家がどんどん大きくなる）
+  // 💡 レベルごとの構成
   if (level === 1) {
     buildFloor(6, 6); buildTable(0, 0, 0); buildChair(0, 0, 1.8, 0);
   } else if (level === 2) {
     buildFloor(8, 8); buildTable(0, 0, 0); buildChair(0, 0, 1.8, 0); buildChair(0, 0, -1.8, Math.PI); buildBed(-2, 0, 0, Math.PI/2);
   } else if (level === 3) {
     buildFloor(8, 8);
-    // レベル3は一部屋壁があるだけ
     buildDividedWall(0, 2, -4, 0, 8, 4, 0xECF0F1, 3);
     buildDividedWall(-4, 2, 0, -Math.PI/2, 8, 4, 0xECF0F1, 3);
     buildTable(1.5, 0, 1); buildChair(1.5, 0, 2.8, 0); buildBed(-1.5, 0, -1, 0);
   } else {
-    // 💡 レベル4以降：ちゃんとした三角屋根の家！（板張り仕様）
+    // 💡 レベル4以降：完全な家（ドア、窓、看板のレイヤー構造付き！）
     let s = Math.min(10, 6 + Math.floor(level/2));
-    let h = 4; // 壁の高さ
+    let h = 4; 
     buildFloor(s, s);
     
-    // 4面の壁（分割された板）
-    let numWallPlanks = Math.min(6, 3 + Math.floor(level/2));
-    buildDividedWall(0, h/2, s/2, 0, s, h, 0xECF0F1, numWallPlanks); // 前
-    buildDividedWall(0, h/2, -s/2, Math.PI, s, h, 0xECF0F1, numWallPlanks); // 後
-    buildDividedWall(-s/2, h/2, 0, -Math.PI/2, s, h, 0xECF0F1, numWallPlanks); // 左
-    buildDividedWall(s/2, h/2, 0, Math.PI/2, s, h, 0xECF0F1, numWallPlanks); // 右
+    let numWallPlanks = Math.min(5, 2 + Math.floor(level/2));
+    buildDividedWall(0, h/2, -s/2, Math.PI, s, h, 0xECF0F1, numWallPlanks); 
+    buildDividedWall(-s/2, h/2, 0, -Math.PI/2, s, h, 0xECF0F1, numWallPlanks); 
+    buildDividedWall(s/2, h/2, 0, Math.PI/2, s, h, 0xECF0F1, numWallPlanks); 
     
-    // 屋根の計算
+    // 前面壁（Zがプラスの面）
+    buildDividedWall(0, h/2, s/2, 0, s, h, 0xECF0F1, numWallPlanks);
+    
+    // 💡 ドアと看板（レイヤー構造：看板を外さないとドアを外せない）
+    let door = addPlate([0, 1.3, s/2 + 0.15], [0, 0, 0], [1.8, 2.6, 0.1], 0x8E44AD); // 壁の手前
+    addScrew(localToWorld(door.pos, door.rot, -0.6, 1.0, 0.15), door.rot, [door]);
+    addScrew(localToWorld(door.pos, door.rot, 0.6, -1.0, 0.15), door.rot, [door]);
+
+    let sign = addPlate([0, 2.0, s/2 + 0.3], [0, 0, 0], [2.2, 0.8, 0.1], 0xF1C40F); // ドアのさらに手前！
+    addScrew(localToWorld(sign.pos, sign.rot, -0.8, 0, 0.15), sign.rot, [sign]);
+    addScrew(localToWorld(sign.pos, sign.rot, 0.8, 0, 0.15), sign.rot, [sign]);
+
+    // 窓
+    let winL = addPlate([-s/4, 2.5, s/2 + 0.15], [0, 0, 0], [1.2, 1.2, 0.1], 0x3498DB);
+    addScrew(localToWorld(winL.pos, winL.rot, -0.4, 0.4, 0.15), winL.rot, [winL]);
+    addScrew(localToWorld(winL.pos, winL.rot, 0.4, -0.4, 0.15), winL.rot, [winL]);
+    
+    let winR = addPlate([s/4, 2.5, s/2 + 0.15], [0, 0, 0], [1.2, 1.2, 0.1], 0x3498DB);
+    addScrew(localToWorld(winR.pos, winR.rot, -0.4, 0.4, 0.15), winR.rot, [winR]);
+    addScrew(localToWorld(winR.pos, winR.rot, 0.4, -0.4, 0.15), winR.rot, [winR]);
+
+    // 屋根
     let roofH = 2.5; 
     let angle = Math.atan2(roofH, s/2);
-    let roofW = Math.hypot(s/2, roofH); // 斜面の長さ
-    let roofD = s + 1; // 前後に少しはみ出す
+    let roofW = Math.hypot(s/2, roofH); 
+    let roofD = s + 0.5; 
     
-    // 切妻壁（前後の三角形の壁）
     buildTriangleWall(0, h + roofH/2, s/2, 0, s, roofH, 0xECF0F1);
     buildTriangleWall(0, h + roofH/2, -s/2, Math.PI, s, roofH, 0xECF0F1);
 
-    // 左右の屋根（分割された板）
     let numRoofPlanks = Math.min(5, 2 + Math.floor(level/2));
-    buildDividedRoof(s/4, h + roofH/2, 0, roofW, roofD, angle, 0xE74C3C, numRoofPlanks, true);
-    buildDividedRoof(-s/4, h + roofH/2, 0, roofW, roofD, angle, 0xE74C3C, numRoofPlanks, false);
+    buildDividedRoof(s/4, h + roofH/2, 0, roofW, roofD, angle, 0xE74C3C, numRoofPlanks, true); // 右屋根
+    buildDividedRoof(-s/4, h + roofH/2, 0, roofW, roofD, angle, 0xE74C3C, numRoofPlanks, false); // 左屋根
 
     // 中の家具
     let numFurniture = Math.min(6, level);
@@ -418,12 +434,11 @@ function initLevel(level) {
     for (let i = 0; i < addCount; i++) {
       let sx = (Math.random()-0.5) * floorPlate.size[0] * 0.8;
       let sy = (Math.random()-0.5) * floorPlate.size[1] * 0.8;
-      let sPos = localToWorld(floorPlate.pos, floorPlate.rot, sx, sy, floorPlate.size[2]/2 + 0.1);
+      let sPos = localToWorld(floorPlate.pos, floorPlate.rot, sx, sy, floorPlate.size[2]/2 + 0.15);
       addScrew(sPos, floorPlate.rot, [floorPlate]);
     }
   }
 
-  // 色割り当て
   let availableColors = COLORS.slice(0, Math.min(COLORS.length, 2 + Math.floor(level/2)));
   let colorPool = [];
   for(let i=0; i<state.screws.length/3; i++) {
@@ -443,7 +458,7 @@ function initLevel(level) {
     if (counts[c] === 3) { state.queue.push(c); counts[c] = 0; }
   });
 
-  let dist = 14 + level;
+  let dist = 16 + level;
   camera.position.set(0, dist*0.6, dist);
   controls.target.set(0, 2, 0);
   controls.update();
@@ -468,7 +483,7 @@ function renderBoxes() {
   });
 }
 
-// 💡 レイキャスター（タップ判定）
+// 💡 レイキャスター
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerDownPos = { x: 0, y: 0 };
@@ -492,14 +507,13 @@ container.addEventListener('pointerup', (e) => {
     if (hit.userData.isScrew) {
       let screwObj = hit.userData.obj;
       
-      // 💡 【重要】裏面からのタップを防止する計算
+      // 💡 ズル防止：カメラがネジの頭（表側）を向いているか判定！
       let screwNormal = new THREE.Vector3(0, 0, 1).applyEuler(screwObj.mesh.rotation);
       let camDir = new THREE.Vector3().subVectors(camera.position, screwObj.mesh.position).normalize();
       
       if (screwNormal.dot(camDir) > 0.1) {
         handleScrewClick(screwObj);
       } else {
-        // 裏から押そうとした場合
         playSound('error');
         screwObj.mesh.position.y += 0.1; 
         setTimeout(() => screwObj.mesh.position.y -= 0.1, 100);
@@ -599,11 +613,10 @@ function loop() {
   requestAnimationFrame(loop);
   controls.update();
 
-  // 💡 フワッと上に弾け飛ぶアニメーション！
   for (let i = state.fallingPlates.length - 1; i >= 0; i--) {
     let p = state.fallingPlates[i];
     
-    p.mesh.position.addScaledVector(p.normal, 0.3); 
+    p.mesh.position.addScaledVector(p.normal, 0.4); 
     p.mesh.position.y += 0.2; 
     
     p.mesh.rotation.x += 0.05; 
