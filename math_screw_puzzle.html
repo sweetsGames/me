@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>3D Dollhouse Demolition Puzzle</title>
-<!-- Three.js and OrbitControls -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
@@ -115,7 +114,7 @@
     <div class="title-logo">🏠 Master Builder<br>Teardown</div>
     <div class="instruction-box">
       <span style="color:#f1c40f;">Rotate 360°</span> to find screws!<br><br>
-      <b>Layer Rule:</b> You cannot remove parts that are blocked by items in front of them!<br><br>
+      <b>Cascade Rule:</b> You can remove any visible screw. However, a wall or door won't fall until ALL items in front of it are also removed!<br><br>
       <div class="slider-container">
         <label class="slider-label">Select Starting Level: <span id="slider-val" style="color:white; font-size:24px;">1</span></label>
         <input type="range" id="level-slider" min="1" max="10" value="1" oninput="document.getElementById('slider-val').innerText = this.value">
@@ -164,7 +163,6 @@ function playSound(type) {
   }
 }
 
-// --- 3D Scene Setup ---
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
@@ -198,17 +196,17 @@ function localToWorld(pos, rot, lx, ly, lz) {
   return [v.x, v.y, v.z];
 }
 
-// Add Plate with logical dependency array `blockedBy`
+// Add Plate with logical dependency array `blockers`
 function addPlate(pos, rot, size, colorHex) {
   const geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
-  const mat = new THREE.MeshLambertMaterial({ color: colorHex }); // New instance every time allows independent emissive flashing
+  const mat = new THREE.MeshLambertMaterial({ color: colorHex }); 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(...pos); mesh.rotation.set(...rot);
   scene.add(mesh);
 
   let normal = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(...rot));
-  // blockedBy array holds references to other plateObjs that MUST be removed before this one.
-  let plateObj = { mesh, screws: [], normal, pos, rot, size, blockedBy: [], isFlashing: false };
+  // blockers array holds references to other plateObjs that MUST fall before this one can fall.
+  let plateObj = { mesh, screws: [], normal, pos, rot, size, blockers: [], isFalling: false };
   
   state.plates.push(plateObj);
   state.clickTargets.push(mesh);
@@ -216,6 +214,7 @@ function addPlate(pos, rot, size, colorHex) {
   return plateObj;
 }
 
+// Create the 3D Screw mesh
 function addScrew(pos, rot, attachedPlates) {
   const group = new THREE.Group();
   
@@ -244,23 +243,9 @@ function addScrew(pos, rot, attachedPlates) {
   return screwObj;
 }
 
-// Visual feedback for blocked plates
-function flashPlate(plateObj) {
-  if (plateObj.isFlashing || !plateObj.mesh || !plateObj.mesh.material) return;
-  plateObj.isFlashing = true;
-  let originalEmissive = plateObj.mesh.material.emissive.getHex();
-  plateObj.mesh.material.emissive.setHex(0xff3333); // Flash Red!
-  
-  setTimeout(() => {
-    if (plateObj.mesh && plateObj.mesh.material) {
-      plateObj.mesh.material.emissive.setHex(originalEmissive);
-      plateObj.isFlashing = false;
-    }
-  }, 250);
-}
-
-// Build Wall with Randomized Screw Placements & Logic Dependencies
-function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, blockers = []) {
+// Build Wall with Randomized Screw Placements
+function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, externalBlockers = []) {
+  let planks = [];
   let plankH = h / numPlanks;
   for(let i=0; i<numPlanks; i++) {
     let py = cy - h/2 + plankH/2 + i * plankH;
@@ -269,22 +254,26 @@ function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, blockers
     
     let plank = addPlate([cx, py, cz], [0, rotY, 0], [w - 0.1, plankH - 0.05, 0.2], color.getHex());
     
-    // Assign structural blockers (like a window in front of this wall)
-    plank.blockedBy = [...blockers];
+    // Add external blockers (e.g. windows attached to this wall)
+    externalBlockers.forEach(b => plank.blockers.push(b));
 
-    // Randomize screw positions along the plank!
-    let randOffset1 = -w/2 + 0.4 + (Math.random() * (w/4 - 0.4));
-    let randOffset2 = w/2 - 0.4 - (Math.random() * (w/4 - 0.4));
+    // Randomize screw positions along the plank! (Left and Right sides)
+    let randOffset1 = -w/2 + 0.6 + (Math.random() * (w/4 - 0.6));
+    let randOffset2 = w/2 - 0.6 - (Math.random() * (w/4 - 0.6));
     
     let sPos1 = localToWorld([cx, py, cz], [0, rotY, 0], randOffset1, 0, 0.15);
     let sPos2 = localToWorld([cx, py, cz], [0, rotY, 0], randOffset2, 0, 0.15);
     addScrew(sPos1, [0, rotY, 0], [plank]);
     addScrew(sPos2, [0, rotY, 0], [plank]);
+    
+    planks.push(plank);
   }
+  return planks;
 }
 
-// Build Flat Roof with Randomized Screws & Dependencies
-function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, blockers = []) {
+// Build Flat Roof with Randomized Screws
+function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, externalBlockers = []) {
+  let planks = [];
   let plankD = d / numPlanks;
   for(let i=0; i<numPlanks; i++) {
     let pz = cz - d/2 + plankD/2 + i * plankD;
@@ -292,22 +281,24 @@ function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, blockers =
     color.offsetHSL(0, 0, (i%2===0) ? 0.04 : -0.04); 
     
     let plank = addPlate([cx, cy, pz], [-Math.PI/2, 0, 0], [w - 0.1, plankD - 0.05, 0.2], color.getHex());
-    plank.blockedBy = [...blockers];
+    externalBlockers.forEach(b => plank.blockers.push(b));
 
-    let randOffset1 = -w/2 + 0.6 + (Math.random() * (w/4 - 0.4));
-    let randOffset2 = w/2 - 0.6 - (Math.random() * (w/4 - 0.4));
+    let randOffset1 = -w/2 + 0.6 + (Math.random() * (w/4 - 0.6));
+    let randOffset2 = w/2 - 0.6 - (Math.random() * (w/4 - 0.6));
 
     let sPos1 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], randOffset1, 0, 0.15);
     let sPos2 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], randOffset2, 0, 0.15);
     addScrew(sPos1, [-Math.PI/2, 0, 0], [plank]);
     addScrew(sPos2, [-Math.PI/2, 0, 0], [plank]);
+    
+    planks.push(plank);
   }
+  return planks;
 }
 
 // Structural Add-ons (Chimney & Windows)
 function buildChimney(cx, cy, cz) {
   let chimney = addPlate([cx, cy + 0.8, cz], [0, 0, 0], [1.2, 1.6, 1.2], 0xC0392B);
-  // Add a couple of screws to hold the chimney
   addScrew(localToWorld(chimney.pos, chimney.rot, -0.4, 0, 0.65), chimney.rot, [chimney]);
   addScrew(localToWorld(chimney.pos, chimney.rot, 0.4, 0, 0.65), chimney.rot, [chimney]);
   return chimney;
@@ -383,6 +374,7 @@ window.initLevel = function(level) {
   document.getElementById('game-clear').classList.remove('show');
   document.getElementById('ui-level').innerText = level;
   
+  // Clear scene of old objects
   while(scene.children.length > 3) {
     let obj = scene.children[3];
     if(obj.geometry) obj.geometry.dispose(); 
@@ -409,10 +401,9 @@ window.initLevel = function(level) {
     buildFloor(s + 2, s + 2); 
     let numWallPlanks = Math.min(5, 2 + Math.floor(level/2));
 
-    // Optional Procedural Elements Arrays
+    // Structural Blockers (Randomized Windows & Chimney)
     let leftBlockers = []; let rightBlockers = []; let backBlockers = []; let roofBlockers = [];
 
-    // Random Windows on Walls
     if (Math.random() > 0.4) {
       let winL = buildWindow(-s/2 - 0.1, h/2, 0, -Math.PI/2);
       leftBlockers.push(winL);
@@ -426,33 +417,34 @@ window.initLevel = function(level) {
       backBlockers.push(winB);
     }
 
-    // Random Chimney on Roof
     if (Math.random() > 0.3) {
       let randX = (Math.random() > 0.5 ? 1 : -1) * (s/4);
       let chimney = buildChimney(randX, h + 0.1, -s/4);
       roofBlockers.push(chimney);
     }
     
-    // --- STRICT LAYERED DEPENDENCY: DOOR & SIGN ---
+    // --- STRICT CASCADE DEPENDENCY: SIGN -> DOOR -> FRONT WALL ---
     let wallSurfaceZ = s/2 + 0.1;
-    let doorDepth = 0.1;
+    let doorDepth = 0.15;
     let signDepth = 0.1;
     let doorZ = wallSurfaceZ + doorDepth/2; 
-    let signZ = (doorZ + doorDepth/2) + signDepth/2; 
+    let signZ = doorZ + doorDepth/2 + signDepth/2; 
     
+    // 1. Sign (Top Layer)
     let sign = addPlate([-0.4, 2.7, signZ], [0, 0, 0], [2.8, 1.4, signDepth], 0xF1C40F);
     addScrew(localToWorld(sign.pos, sign.rot, -1.0, 0, 0.15), sign.rot, [sign]);
     addScrew(localToWorld(sign.pos, sign.rot, 1.0, 0, 0.15), sign.rot, [sign]);
 
+    // 2. Door (Middle Layer)
     let door = addPlate([0, 1.6, doorZ], [0, 0, 0], [2.2, 3.2, doorDepth], 0x8E44AD); 
-    // DOOR IS STRICTLY BLOCKED BY SIGN
-    door.blockedBy.push(sign); 
+    // Logic: Sign blocks the door. Door cannot fall until Sign falls.
+    door.blockers.push(sign); 
     
     addScrew(localToWorld(door.pos, door.rot, -0.6, 1.2, 0.15), door.rot, [door]);
     addScrew(localToWorld(door.pos, door.rot, 0.6, -1.2, 0.15), door.rot, [door]);
     
-    // The front wall is completely blocked by the door
-    let frontBlockers = [door, sign]; 
+    // 3. Front Wall (Base Layer)
+    let frontBlockers = [door]; // Logic: Door blocks the front wall.
 
     // Build the 4 Walls & Roof using the procedural blockers
     buildDividedWall(0, h/2, -s/2, Math.PI, s, h, 0xECF0F1, numWallPlanks, backBlockers); 
@@ -473,7 +465,7 @@ window.initLevel = function(level) {
     }
   }
 
-  // Ensure screws % 3 === 0
+  // Ensure screws count is a multiple of 3 (for toolbox logic)
   let rem = state.screws.length % 3;
   if (rem !== 0) {
     let addCount = 3 - rem;
@@ -486,6 +478,7 @@ window.initLevel = function(level) {
     }
   }
 
+  // Assign random colors
   let availableColors = COLORS.slice(0, Math.min(COLORS.length, 3 + Math.floor(level/2)));
   let colorPool = [];
   for(let i=0; i<state.screws.length/3; i++) {
@@ -505,6 +498,7 @@ window.initLevel = function(level) {
     if (counts[c] === 3) { state.queue.push(c); counts[c] = 0; }
   });
 
+  // Adjust camera distance based on level/house size
   let dist = 14 + (level * 1.5);
   camera.position.set(0, dist * 0.6, dist);
   controls.target.set(0, 2, 0);
@@ -534,6 +528,7 @@ function renderBoxes() {
   });
 }
 
+// Raycaster and Click Logic
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerDownPos = { x: 0, y: 0 };
@@ -560,36 +555,21 @@ container.addEventListener('pointerup', (e) => {
     if (hit.userData.isScrew) {
       let screwObj = hit.userData.obj;
       
-      // 1. Check Logical Layer Dependency!
-      let blockingPlates = [];
-      screwObj.attachedPlates.forEach(p => {
-        p.blockedBy.forEach(blocker => {
-          // If the blocker is still in the active plates array, it's blocking!
-          if (state.plates.includes(blocker)) {
-            blockingPlates.push(blocker);
-          }
-        });
-      });
-
-      if (blockingPlates.length > 0) {
-        playSound('error');
-        // Visually flash the plates that are blocking you!
-        blockingPlates.forEach(bp => flashPlate(bp));
-        return;
-      }
-
-      // 2. Strict Normal Check (Prevent tapping from behind)
+      // Strict Normal Check (Prevent tapping through walls from behind)
       let screwNormal = new THREE.Vector3(0, 0, 1).applyEuler(screwObj.mesh.rotation);
       let camDir = new THREE.Vector3().subVectors(camera.position, screwObj.mesh.position).normalize();
       
       if (screwNormal.dot(camDir) > 0.05) {
+        // WE CAN SEE THE SCREW. UNLOCK IT REGARDLESS OF LAYER.
         handleScrewClick(screwObj);
       } else {
+        // User clicked the backside of a screw. Reject.
         playSound('error');
         screwObj.mesh.position.y += 0.1; 
         setTimeout(() => screwObj.mesh.position.y -= 0.1, 100);
       }
     } else if (hit.userData.isPlate) {
+      // Clicked a plank directly
       playSound('error');
       document.getElementById('canvas-container').classList.add('shake');
       setTimeout(()=>document.getElementById('canvas-container').classList.remove('shake'), 200);
@@ -601,6 +581,7 @@ function handleScrewClick(screwObj) {
   let targetBox = state.activeBoxes.find(b => b.color === screwObj.colorVal && b.count < 3);
   let targetSlotIndex = -1;
 
+  // Check if we have space for the screw
   if (!targetBox) {
     targetSlotIndex = state.slots.indexOf(null);
     if (targetSlotIndex === -1) {
@@ -614,25 +595,20 @@ function handleScrewClick(screwObj) {
   playSound('tap');
   state.isAnimating = true;
   
+  // Physically remove the screw
   scene.remove(screwObj.mesh);
   state.clickTargets = state.clickTargets.filter(m => m !== screwObj.headMesh);
   
+  // Check attached plates for CASCADE fall logic
   screwObj.attachedPlates.forEach(p => {
+    // Remove this screw from the plate's list
     p.screws = p.screws.filter(s => s !== screwObj);
-    if (p.screws.length === 0) {
-      setTimeout(() => { playSound('drop'); }, 150);
-      state.clickTargets = state.clickTargets.filter(m => m !== p.mesh);
-      
-      // IMPORTANT: Remove the falling plate from active state.plates 
-      // so it no longer blocks underlying layers!
-      state.plates = state.plates.filter(activePlate => activePlate !== p);
-      
-      state.fallingPlates.push(p);
-    }
+    // Trigger the fall check for this plate
+    checkPlateFall(p);
   });
 
+  // UI Updates for Toolbox / Slots
   let cssColor = '#' + screwObj.colorVal.toString(16).padStart(6, '0');
-
   if (targetBox) {
     targetBox.count++;
     setTimeout(() => { state.isAnimating = false; checkBoxCompletion(targetBox); }, 200);
@@ -648,6 +624,35 @@ function handleScrewClick(screwObj) {
       setTimeout(() => { document.getElementById('game-over').classList.add('show'); }, 500);
     }
     state.isAnimating = false;
+  }
+}
+
+// 💡 The Core Cascade Function: Checks if a plate should fall.
+function checkPlateFall(plate) {
+  if (plate.isFalling) return; // Prevent double firing
+  
+  // Rule 1: Are all screws removed?
+  if (plate.screws.length > 0) return;
+  
+  // Rule 2: Are all blocking plates (dependencies) removed?
+  // Filter out blockers that have already fallen
+  plate.blockers = plate.blockers.filter(blocker => !blocker.isFalling);
+  
+  if (plate.blockers.length === 0) {
+    // Initiate Fall!
+    plate.isFalling = true;
+    setTimeout(() => { playSound('drop'); }, 50);
+    state.clickTargets = state.clickTargets.filter(m => m !== plate.mesh);
+    state.fallingPlates.push(plate);
+    
+    // 💡 CASCADE TRIGGER: Since THIS plate has fallen, 
+    // it might have freed up other plates waiting behind it.
+    state.plates.forEach(otherPlate => {
+      if (otherPlate.blockers.includes(plate)) {
+        // Recursive check!
+        checkPlateFall(otherPlate);
+      }
+    });
   }
 }
 
@@ -690,6 +695,7 @@ function loop() {
   requestAnimationFrame(loop);
   controls.update();
 
+  // Handle physically falling animations
   for (let i = state.fallingPlates.length - 1; i >= 0; i--) {
     let p = state.fallingPlates[i];
     
