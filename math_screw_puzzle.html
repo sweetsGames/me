@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -111,7 +110,7 @@
 </div>
 
 <script>
-//let actx;
+let actx;
 function initAudio() { if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); } if (actx.state === 'suspended') actx.resume(); }
 function playSound(type) {
   if (!actx) return;
@@ -135,7 +134,7 @@ function playSound(type) {
   }
 }
 
-//const container = document.getElementById('canvas-container');
+const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -161,7 +160,7 @@ window.addEventListener('resize', () => {
   renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
-//function localToWorld(pos, rot, lx, ly, lz) {
+function localToWorld(pos, rot, lx, ly, lz) {
   let v = new THREE.Vector3(lx, ly, lz);
   v.applyEuler(new THREE.Euler(rot[0], rot[1], rot[2], 'XYZ'));
   v.add(new THREE.Vector3(pos[0], pos[1], pos[2]));
@@ -227,23 +226,50 @@ function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks) {
   }
 }
 
-// 💡 複数枚の板で構成された平坦な屋根
-function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks) {
-  let plankD = d / numPlanks;
+// 💡 複数枚の板で構成された正しい三角屋根
+function buildDividedRoof(cx, cy, cz, roofW, roofD, angle, baseColor, numPlanks, isRightSide) {
+  let plankW = roofW / numPlanks;
   for(let i=0; i<numPlanks; i++) {
-    let pz = cz - d/2 + plankD/2 + i * plankD;
-    let color = new THREE.Color(baseColor);
-    color.offsetHSL(0, 0, (i%2===0)?0.05:-0.05); 
+    let offset = -roofW/2 + plankW/2 + i * plankW;
+    let sign = isRightSide ? 1 : -1;
     
-    let plank = addPlate([cx, cy, pz], [-Math.PI/2, 0, 0], [w - 0.1, plankD - 0.05, 0.2], color.getHex());
-    let sPos1 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], -w/2 + 0.6, 0, 0.1);
-    let sPos2 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], w/2 - 0.6, 0, 0.1);
-    addScrew(sPos1, [-Math.PI/2, 0, 0], [plank]);
-    addScrew(sPos2, [-Math.PI/2, 0, 0], [plank]);
+    let px = cx + sign * offset * Math.cos(angle);
+    let py = cy - offset * Math.sin(angle);
+    let pz = cz;
+    
+    let color = new THREE.Color(baseColor);
+    color.offsetHSL(0, 0, (i%2===0)?0.05:-0.05);
+    
+    let rotY = isRightSide ? Math.PI/2 : -Math.PI/2;
+    let rotX = -angle; 
+    
+    let plank = addPlate([px, py, pz], [rotX, rotY, 0], [roofD - 0.1, plankW - 0.05, 0.2], color.getHex());
+    let sPos1 = localToWorld([px, py, pz], [rotX, rotY, 0], -roofD/2 + 0.6, 0, 0.1);
+    let sPos2 = localToWorld([px, py, pz], [rotX, rotY, 0], roofD/2 - 0.6, 0, 0.1);
+    addScrew(sPos1, [rotX, rotY, 0], [plank]);
+    addScrew(sPos2, [rotX, rotY, 0], [plank]);
   }
 }
 
-//function buildTable(cx, cy, cz) {
+function buildTriangleWall(cx, cy, cz, rotY, w, h, baseColor) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-w/2, -h/2); shape.lineTo(w/2, -h/2); shape.lineTo(0, h/2); shape.lineTo(-w/2, -h/2);
+  const extrudeSettings = { depth: 0.2, bevelEnabled: false };
+  const geoExt = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  geoExt.translate(0, 0, -0.1); 
+  const mat = new THREE.MeshLambertMaterial({ color: baseColor });
+  const mesh = new THREE.Mesh(geoExt, mat);
+  mesh.position.set(cx, cy, cz); mesh.rotation.set(0, rotY, 0); scene.add(mesh);
+  
+  let plateObj = { mesh, screws: [], normal: new THREE.Vector3(0,0,1).applyEuler(new THREE.Euler(0,rotY,0)), pos: [cx,cy,cz], rot: [0,rotY,0], size: [w, h, 0.2] };
+  state.plates.push(plateObj); state.clickTargets.push(mesh); mesh.userData = { isPlate: true, obj: plateObj };
+  
+  addScrew(localToWorld([cx, cy, cz], [0, rotY, 0], -w/4, -h/2 + 0.4, 0.1), [0, rotY, 0], [plateObj]);
+  addScrew(localToWorld([cx, cy, cz], [0, rotY, 0], w/4, -h/2 + 0.4, 0.1), [0, rotY, 0], [plateObj]);
+  addScrew(localToWorld([cx, cy, cz], [0, rotY, 0], 0, h/4, 0.1), [0, rotY, 0], [plateObj]);
+}
+
+function buildTable(cx, cy, cz) {
   let top = addPlate([cx, cy+1.5, cz], [-Math.PI/2, 0, 0], [3, 2, 0.2], 0x8B4513);
   let offsets = [[-1.1, -0.7], [1.1, -0.7], [-1.1, 0.7], [1.1, 0.7]];
   offsets.forEach(off => {
@@ -282,7 +308,7 @@ function buildFloor(w, d) {
   offsets.forEach(off => { addScrew([off[0], 0, off[1]], [-Math.PI/2, 0, 0], [floor]); });
 }
 
-//function showMenu() {
+function showMenu() {
   gameState = 'menu'; document.getElementById('start-screen').classList.add('show');
   document.getElementById('game-over').classList.remove('show'); document.getElementById('game-clear').classList.remove('show');
 }
@@ -312,7 +338,7 @@ function initLevel(level) {
     buildDividedWall(-4, 2, 0, -Math.PI/2, 8, 4, 0xECF0F1, 3);
     buildTable(1.5, 0, 1); buildChair(1.5, 0, 2.8, 0); buildBed(-1.5, 0, -1, 0);
   } else {
-    // 💡 レベル4以降：平屋根の家と、隙間ゼロの鉄壁レイヤー構造！
+    // 💡 レベル4以降：正しい三角屋根と、隙間ゼロの鉄壁レイヤー構造！
     let s = Math.min(10, 6 + Math.floor(level/2));
     let h = 4; 
     buildFloor(s, s);
@@ -323,27 +349,38 @@ function initLevel(level) {
     buildDividedWall(s/2, h/2, 0, Math.PI/2, s, h, 0xECF0F1, numWallPlanks); // 右
     buildDividedWall(0, h/2, s/2, 0, s, h, 0xECF0F1, numWallPlanks); // 前
     
-    buildDividedRoofFlat(0, h + 0.1, 0, s + 0.5, s + 0.5, 0xE74C3C, numWallPlanks);
+    // 正しい三角屋根
+    let roofH = 3.0; 
+    let angle = Math.atan2(roofH, s/2);
+    let roofW = Math.hypot(s/2, roofH); 
+    let roofD = s + 1; 
+    
+    buildTriangleWall(0, h + roofH/2, s/2, 0, s, roofH, 0xECF0F1);
+    buildTriangleWall(0, h + roofH/2, -s/2, Math.PI, s, roofH, 0xECF0F1);
+
+    let numRoofPlanks = Math.min(5, 2 + Math.floor(level/2));
+    buildDividedRoof(s/4, h + roofH/2, 0, roofW, roofD, angle, 0xE74C3C, numRoofPlanks, true);
+    buildDividedRoof(-s/4, h + roofH/2, 0, roofW, roofD, angle, 0xE74C3C, numRoofPlanks, false);
 
     // 💡 【重要修正】ドアと看板の隙間をゼロにして密着させる
     let door = addPlate([0, 1.3, s/2 + 0.15], [0, 0, 0], [2.0, 2.6, 0.1], 0x8E44AD); 
     // ドアのネジ（緑相当）
-    addScrew(localToWorld(door.pos, door.rot, -0.6, 0.8, 0.1), door.rot, [door]); 
-    addScrew(localToWorld(door.pos, door.rot, 0.6, -0.8, 0.1), door.rot, [door]);
+    addScrew(localToWorld(door.pos, door.rot, -0.6, 0.8, 0.05), door.rot, [door]); 
+    addScrew(localToWorld(door.pos, door.rot, 0.6, -0.8, 0.05), door.rot, [door]);
 
     // 看板：ドアの表面に密着 (Z = doorのZ + 0.1)
     // 左上のネジを完全に覆い隠す位置とサイズに設定
     let sign = addPlate([-0.6, 2.1, s/2 + 0.25], [0, 0, 0], [2.8, 1.0, 0.1], 0xF1C40F); 
-    addScrew(localToWorld(sign.pos, sign.rot, -1.0, 0, 0.1), sign.rot, [sign]); 
-    addScrew(localToWorld(sign.pos, sign.rot, 1.0, 0, 0.1), sign.rot, [sign]);  
+    addScrew(localToWorld(sign.pos, sign.rot, -1.0, 0, 0.05), sign.rot, [sign]); 
+    addScrew(localToWorld(sign.pos, sign.rot, 1.0, 0, 0.05), sign.rot, [sign]);  
 
     let winL = addPlate([-s/4, 2.5, s/2 + 0.15], [0, 0, 0], [1.2, 1.2, 0.1], 0x3498DB);
-    addScrew(localToWorld(winL.pos, winL.rot, -0.4, 0.4, 0.1), winL.rot, [winL]);
-    addScrew(localToWorld(winL.pos, winL.rot, 0.4, -0.4, 0.1), winL.rot, [winL]);
+    addScrew(localToWorld(winL.pos, winL.rot, -0.4, 0.4, 0.05), winL.rot, [winL]);
+    addScrew(localToWorld(winL.pos, winL.rot, 0.4, -0.4, 0.05), winL.rot, [winL]);
     
     let winR = addPlate([s/4, 2.5, s/2 + 0.15], [0, 0, 0], [1.2, 1.2, 0.1], 0x3498DB);
-    addScrew(localToWorld(winR.pos, winR.rot, -0.4, 0.4, 0.1), winR.rot, [winR]);
-    addScrew(localToWorld(winR.pos, winR.rot, 0.4, -0.4, 0.1), winR.rot, [winR]);
+    addScrew(localToWorld(winR.pos, winR.rot, -0.4, 0.4, 0.05), winR.rot, [winR]);
+    addScrew(localToWorld(winR.pos, winR.rot, 0.4, -0.4, 0.05), winR.rot, [winR]);
 
     let numFurniture = Math.min(6, level);
     for(let i=0; i<numFurniture; i++) {
@@ -412,7 +449,7 @@ function renderBoxes() {
   });
 }
 
-//const raycaster = new THREE.Raycaster();
+const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerDownPos = { x: 0, y: 0 };
 
@@ -435,7 +472,7 @@ container.addEventListener('pointerup', (e) => {
     if (hit.userData.isScrew) {
       let screwObj = hit.userData.obj;
       
-      // ズル防止：カメラがネジの頭を向いているか
+      // 💡 ズル防止：カメラがネジの頭を向いているか
       let screwNormal = new THREE.Vector3(0, 0, 1).applyEuler(screwObj.mesh.rotation);
       let camDir = new THREE.Vector3().subVectors(camera.position, screwObj.mesh.position).normalize();
       
@@ -536,7 +573,7 @@ function autoMatchFromSlots() {
   }
 }
 
-//function loop() {
+function loop() {
   requestAnimationFrame(loop);
   controls.update();
 
@@ -570,4 +607,3 @@ loop();
 </script>
 </body>
 </html>
-```
