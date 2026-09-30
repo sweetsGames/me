@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>3D Dollhouse Demolition Puzzle</title>
+<title>3D Dollhouse Teardown</title>
+<!-- Load Three.js and OrbitControls -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
@@ -18,16 +19,17 @@
   body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; justify-content: center; }
   
   #game-wrapper {
-    position: relative; width: 100%; max-width: 500px; height: 100%; max-height: 900px;
+    position: relative; width: 100%; max-width: 600px; height: 100%; max-height: 1000px;
     background: linear-gradient(180deg, #1e272e 0%, #485460 100%);
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
   }
 
-  /* Header & UI */
+  /* Header */
   #header { padding: max(15px, var(--sat)) 15px 5px; display: flex; justify-content: space-between; align-items: center; z-index: 50; }
   .level-text { font-size: 24px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); letter-spacing: 2px; }
   .header-btn { background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); color: white; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; cursor: pointer; }
   
+  /* Toolbox UI */
   #ui-top { padding: 10px; display: flex; justify-content: center; gap: 10px; z-index: 50; min-height: 85px; }
   .toolbox {
     width: 65px; height: 70px; background: #ecf0f1; border-radius: 12px; border-bottom: 6px solid #bdc3c7;
@@ -38,7 +40,7 @@
   .hole { width: 16px; height: 16px; background: #2c3e50; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); }
   .hole.filled { box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3), 0 2px 2px rgba(0,0,0,0.4); }
 
-  /* Wait Slots */
+  /* Wait Slots (The 5 limit slots) */
   #slots-container { display: flex; justify-content: center; gap: 12px; margin-bottom: 15px; z-index: 50; }
   .slot {
     width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.2);
@@ -50,7 +52,7 @@
   }
   .slot-screw::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 12px; height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px; }
 
-  /* 3D Canvas Area */
+  /* 3D Canvas */
   #canvas-container { flex: 1; position: relative; width: 100%; touch-action: none; cursor: grab; }
   #canvas-container:active { cursor: grabbing; }
   
@@ -63,7 +65,7 @@
   @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
   .shake { animation: shake 0.2s; }
 
-  /* Overlays & UI Controls */
+  /* Overlays */
   .overlay {
     position: absolute; inset: 0; background: rgba(15, 25, 35, 0.95);
     display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -80,10 +82,10 @@
   
   .instruction-box {
     background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); padding: 25px; border-radius: 15px; 
-    text-align: center; font-weight: bold; color: #fff; margin-bottom: 25px; width: 85%; max-width: 340px; line-height: 1.6; font-size: 15px;
+    text-align: center; font-weight: bold; color: #fff; margin-bottom: 25px; width: 85%; max-width: 340px; line-height: 1.6; font-size: 14px;
   }
 
-  /* Custom Slider Styling */
+  /* Level Slider */
   .slider-container { width: 100%; margin: 15px 0; text-align: center; }
   .slider-label { font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; display: block; }
   input[type=range] { -webkit-appearance: none; width: 90%; background: transparent; }
@@ -107,16 +109,17 @@
   </div>
 
   <div id="canvas-container">
-    <div id="rotate-hint">👆 Swipe to Rotate 🔄</div>
+    <div id="rotate-hint">👆 Swipe & Zoom 🔄</div>
   </div>
 
   <div id="start-screen" class="overlay show">
     <div class="title-logo">🏠 Master Builder<br>Teardown</div>
     <div class="instruction-box">
-      <span style="color:#f1c40f;">Rotate 360°</span> to find screws!<br><br>
-      <b>Cascade Rule:</b> You can remove any visible screw. However, a wall or door won't fall until ALL items in front of it are also removed!<br><br>
+      <span style="color:#f1c40f;">Rotate & Zoom</span> to find screws!<br><br>
+      <b>Ultimate Cascade Rule:</b> Plates fall ONLY when everything in front of them is removed. <br><br>
+      <span style="color:#ff9ff3;">Hint:</span> High levels have screws on the INSIDE of the house. You must look inside!<br>
       <div class="slider-container">
-        <label class="slider-label">Select Starting Level: <span id="slider-val" style="color:white; font-size:24px;">1</span></label>
+        <label class="slider-label">Select Level: <span id="slider-val" style="color:white; font-size:24px;">1</span></label>
         <input type="range" id="level-slider" min="1" max="10" value="1" oninput="document.getElementById('slider-val').innerText = this.value">
       </div>
     </div>
@@ -173,13 +176,14 @@ container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.05;
-controls.minDistance = 5; controls.maxDistance = 45; controls.enablePan = false; 
+// Allow zooming very close so players can go INSIDE the house
+controls.minDistance = 1; controls.maxDistance = 45; controls.enablePan = false; 
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.65); scene.add(ambientLight);
 const dirLight = new THREE.DirectionalLight(0xffffff, 0.7); dirLight.position.set(10, 20, 15); scene.add(dirLight);
 const backLight = new THREE.DirectionalLight(0xffffff, 0.3); backLight.position.set(-10, -10, -10); scene.add(backLight);
 
-const COLORS = [0xe74c3c, 0xf1c40f, 0x3498db, 0x2ecc71, 0x9b59b6, 0xe67e22, 0x1abc9c, 0xff9f43, 0x00d2d3]; 
+const COLORS = [0xe74c3c, 0xf1c40f, 0x3498db, 0x2ecc71, 0x9b59b6, 0xe67e22, 0x1abc9c, 0xff9f43, 0x00d2d3, 0xff6b81, 0x5f27cd]; 
 let currentLevel = 1;
 let gameState = 'menu';
 let state = { activeBoxes: [], queue: [], slots: [null, null, null, null, null], screws: [], plates: [], fallingPlates: [], clickTargets: [], isAnimating: false };
@@ -196,17 +200,16 @@ function localToWorld(pos, rot, lx, ly, lz) {
   return [v.x, v.y, v.z];
 }
 
-// Add Plate with logical dependency array `blockers`
 function addPlate(pos, rot, size, colorHex) {
   const geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
-  const mat = new THREE.MeshLambertMaterial({ color: colorHex }); 
+  // CRITICAL: DoubleSide allows the raycaster to hit the wall from the inside, naturally blocking inside screws from outside view!
+  const mat = new THREE.MeshLambertMaterial({ color: colorHex, side: THREE.DoubleSide }); 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(...pos); mesh.rotation.set(...rot);
   scene.add(mesh);
 
   let normal = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(...rot));
-  // blockers array holds references to other plateObjs that MUST fall before this one can fall.
-  let plateObj = { mesh, screws: [], normal, pos, rot, size, blockers: [], isFalling: false };
+  let plateObj = { mesh, screws: [], normal, pos, rot, size, blockers: [], isFalling: false, depth: 0 };
   
   state.plates.push(plateObj);
   state.clickTargets.push(mesh);
@@ -214,7 +217,6 @@ function addPlate(pos, rot, size, colorHex) {
   return plateObj;
 }
 
-// Create the 3D Screw mesh
 function addScrew(pos, rot, attachedPlates) {
   const group = new THREE.Group();
   
@@ -234,7 +236,7 @@ function addScrew(pos, rot, attachedPlates) {
   group.position.set(...pos); group.rotation.set(...rot);
   scene.add(group);
 
-  let screwObj = { mesh: group, headMesh: head, colorVal: 0, attachedPlates: attachedPlates };
+  let screwObj = { mesh: group, headMesh: head, colorVal: 0, attachedPlates: attachedPlates, depth: 0 };
   state.screws.push(screwObj);
   state.clickTargets.push(head); 
   head.userData = { isScrew: true, obj: screwObj };
@@ -243,8 +245,7 @@ function addScrew(pos, rot, attachedPlates) {
   return screwObj;
 }
 
-// Build Wall with Randomized Screw Placements
-function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, externalBlockers = []) {
+function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, externalBlockers, insideProb) {
   let planks = [];
   let plankH = h / numPlanks;
   for(let i=0; i<numPlanks; i++) {
@@ -253,26 +254,33 @@ function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, external
     color.offsetHSL(0, 0, (i%2===0) ? 0.04 : -0.04); 
     
     let plank = addPlate([cx, py, cz], [0, rotY, 0], [w - 0.1, plankH - 0.05, 0.2], color.getHex());
-    
-    // Add external blockers (e.g. windows attached to this wall)
     externalBlockers.forEach(b => plank.blockers.push(b));
 
-    // Randomize screw positions along the plank! (Left and Right sides)
+    // Randomized horizontal position
     let randOffset1 = -w/2 + 0.6 + (Math.random() * (w/4 - 0.6));
     let randOffset2 = w/2 - 0.6 - (Math.random() * (w/4 - 0.6));
     
-    let sPos1 = localToWorld([cx, py, cz], [0, rotY, 0], randOffset1, 0, 0.15);
-    let sPos2 = localToWorld([cx, py, cz], [0, rotY, 0], randOffset2, 0, 0.15);
-    addScrew(sPos1, [0, rotY, 0], [plank]);
-    addScrew(sPos2, [0, rotY, 0], [plank]);
+    // Check if screw goes on the INSIDE
+    let isInside1 = Math.random() < insideProb;
+    let isInside2 = Math.random() < insideProb;
+
+    let z1 = isInside1 ? -0.15 : 0.15;
+    let z2 = isInside2 ? -0.15 : 0.15;
+    let rot1 = isInside1 ? [0, rotY + Math.PI, 0] : [0, rotY, 0];
+    let rot2 = isInside2 ? [0, rotY + Math.PI, 0] : [0, rotY, 0];
+
+    let sPos1 = localToWorld([cx, py, cz], [0, rotY, 0], randOffset1, 0, z1);
+    let sPos2 = localToWorld([cx, py, cz], [0, rotY, 0], randOffset2, 0, z2);
+    
+    addScrew(sPos1, rot1, [plank]);
+    addScrew(sPos2, rot2, [plank]);
     
     planks.push(plank);
   }
   return planks;
 }
 
-// Build Flat Roof with Randomized Screws
-function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, externalBlockers = []) {
+function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, externalBlockers, insideProb) {
   let planks = [];
   let plankD = d / numPlanks;
   for(let i=0; i<numPlanks; i++) {
@@ -286,17 +294,25 @@ function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, externalBl
     let randOffset1 = -w/2 + 0.6 + (Math.random() * (w/4 - 0.6));
     let randOffset2 = w/2 - 0.6 - (Math.random() * (w/4 - 0.6));
 
-    let sPos1 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], randOffset1, 0, 0.15);
-    let sPos2 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], randOffset2, 0, 0.15);
-    addScrew(sPos1, [-Math.PI/2, 0, 0], [plank]);
-    addScrew(sPos2, [-Math.PI/2, 0, 0], [plank]);
+    let isInside1 = Math.random() < insideProb;
+    let isInside2 = Math.random() < insideProb;
+
+    let z1 = isInside1 ? -0.15 : 0.15;
+    let z2 = isInside2 ? -0.15 : 0.15;
+    let rot1 = isInside1 ? [-Math.PI/2 + Math.PI, 0, 0] : [-Math.PI/2, 0, 0]; // inside means facing down
+    let rot2 = isInside2 ? [-Math.PI/2 + Math.PI, 0, 0] : [-Math.PI/2, 0, 0];
+
+    let sPos1 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], randOffset1, 0, z1);
+    let sPos2 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], randOffset2, 0, z2);
+    
+    addScrew(sPos1, rot1, [plank]);
+    addScrew(sPos2, rot2, [plank]);
     
     planks.push(plank);
   }
   return planks;
 }
 
-// Structural Add-ons (Chimney & Windows)
 function buildChimney(cx, cy, cz) {
   let chimney = addPlate([cx, cy + 0.8, cz], [0, 0, 0], [1.2, 1.6, 1.2], 0xC0392B);
   addScrew(localToWorld(chimney.pos, chimney.rot, -0.4, 0, 0.65), chimney.rot, [chimney]);
@@ -321,29 +337,6 @@ function buildTable(cx, cy, cz) {
   });
 }
 
-function buildChair(cx, cy, cz, rotY) {
-  let seat = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.8, 0), [-Math.PI/2, 0, rotY], [1.2, 1.2, 0.2], 0x2ECC71);
-  let back = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 1.4, -0.5), [0, rotY, 0], [1.2, 1.2, 0.2], 0x27AE60);
-  addScrew(localToWorld(back.pos, back.rot, -0.4, -0.4, 0.15), back.rot, [seat, back]);
-  addScrew(localToWorld(back.pos, back.rot, 0.4, -0.4, 0.15), back.rot, [seat, back]);
-  let offsets = [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]];
-  offsets.forEach(off => {
-    let leg = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], off[0], 0.4, off[1]), [0,rotY,0], [0.15, 0.8, 0.15], 0xA0522D);
-    let sPos = localToWorld(seat.pos, seat.rot, off[0], off[1], 0.15);
-    addScrew(sPos, seat.rot, [seat, leg]);
-  });
-}
-
-function buildBed(cx, cy, cz, rotY) {
-  let mat = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.5, 0), [-Math.PI/2, 0, rotY], [2.2, 3.5, 0.2], 0x3498DB);
-  let head = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.9, -1.6), [0, rotY, 0], [2.2, 1.2, 0.2], 0x8B4513);
-  let foot = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.7, 1.6), [0, Math.PI+rotY, 0], [2.2, 0.8, 0.2], 0x8B4513); 
-  addScrew(localToWorld(head.pos, head.rot, -0.8, -0.3, 0.15), head.rot, [mat, head]);
-  addScrew(localToWorld(head.pos, head.rot, 0.8, -0.3, 0.15), head.rot, [mat, head]);
-  addScrew(localToWorld(foot.pos, foot.rot, -0.8, -0.2, 0.15), foot.rot, [mat, foot]);
-  addScrew(localToWorld(foot.pos, foot.rot, 0.8, -0.2, 0.15), foot.rot, [mat, foot]);
-}
-
 function buildFloor(w, d) {
   let floor = addPlate([0, -0.1, 0], [Math.PI/2, 0, 0], [w, d, 0.2], 0xBDC3C7);
   let offsets = [[-w/2+0.8, -d/2+0.8], [w/2-0.8, -d/2+0.8], [-w/2+0.8, d/2-0.8], [w/2-0.8, d/2-0.8]];
@@ -354,17 +347,14 @@ window.showMenu = function() {
   gameState = 'menu'; document.getElementById('start-screen').classList.add('show');
   document.getElementById('game-over').classList.remove('show'); document.getElementById('game-clear').classList.remove('show');
 }
-
 window.startGame = function() {
-  initAudio();
-  document.getElementById('start-screen').classList.remove('show');
+  initAudio(); document.getElementById('start-screen').classList.remove('show');
   currentLevel = parseInt(document.getElementById('level-slider').value);
   initLevel(currentLevel);
 }
-
 window.nextLevel = function() {
   document.getElementById('game-clear').classList.remove('show');
-  currentLevel++;
+  currentLevel = Math.min(10, currentLevel + 1);
   initLevel(currentLevel);
 }
 
@@ -374,98 +364,75 @@ window.initLevel = function(level) {
   document.getElementById('game-clear').classList.remove('show');
   document.getElementById('ui-level').innerText = level;
   
-  // Clear scene of old objects
   while(scene.children.length > 3) {
     let obj = scene.children[3];
-    if(obj.geometry) obj.geometry.dispose(); 
-    if(obj.material) obj.material.dispose();
+    if(obj.geometry) obj.geometry.dispose(); if(obj.material) obj.material.dispose();
     scene.remove(obj);
   }
   
   state = { activeBoxes: [], queue: [], slots: [null, null, null, null, null], screws: [], plates: [], fallingPlates: [], clickTargets: [], isAnimating: false };
   for(let i=0; i<5; i++) document.getElementById('slot-'+i).innerHTML = '';
 
-  if (level === 1) {
-    buildFloor(6, 6); buildTable(0, 0, 0); buildChair(0, 0, 1.8, 0);
-  } else if (level === 2) {
-    buildFloor(8, 8); buildTable(0, 0, 0); buildChair(0, 0, 1.8, 0); buildChair(0, 0, -1.8, Math.PI); buildBed(-2, 0, 0, Math.PI/2);
-  } else if (level === 3) {
-    buildFloor(10, 10);
-    buildDividedWall(0, 2, -4, 0, 8, 4, 0xECF0F1, 3);
-    buildDividedWall(-4, 2, 0, -Math.PI/2, 8, 4, 0xECF0F1, 3);
-    buildTable(1.5, 0, 1); buildChair(1.5, 0, 2.8, 0); buildBed(-1.5, 0, -1, 0);
-  } else {
-    // --- PROCEDURAL HOUSE (Level 4+) ---
-    let s = Math.min(10, 6 + Math.floor(level/2));
-    let h = 4.5; 
-    buildFloor(s + 2, s + 2); 
-    let numWallPlanks = Math.min(5, 2 + Math.floor(level/2));
+  let insideProb = Math.min(0.5, (level - 2) * 0.1); // Levels 1-2 have 0% inside screws. Level 7+ has 50%.
 
-    // Structural Blockers (Randomized Windows & Chimney)
-    let leftBlockers = []; let rightBlockers = []; let backBlockers = []; let roofBlockers = [];
+  let s = Math.min(10, 6 + Math.floor(level/2));
+  let h = 4.5; 
+  buildFloor(s + 2, s + 2); 
+  let numWallPlanks = Math.min(5, 2 + Math.floor(level/2));
 
-    if (Math.random() > 0.4) {
-      let winL = buildWindow(-s/2 - 0.1, h/2, 0, -Math.PI/2);
-      leftBlockers.push(winL);
-    }
-    if (Math.random() > 0.4) {
-      let winR = buildWindow(s/2 + 0.1, h/2, 0, Math.PI/2);
-      rightBlockers.push(winR);
-    }
-    if (Math.random() > 0.5) {
-      let winB = buildWindow(0, h/2, -s/2 - 0.1, Math.PI);
-      backBlockers.push(winB);
-    }
+  let leftBlockers = []; let rightBlockers = []; let backBlockers = []; let roofBlockers = [];
 
-    if (Math.random() > 0.3) {
-      let randX = (Math.random() > 0.5 ? 1 : -1) * (s/4);
-      let chimney = buildChimney(randX, h + 0.1, -s/4);
-      roofBlockers.push(chimney);
-    }
-    
-    // --- STRICT CASCADE DEPENDENCY: SIGN -> DOOR -> FRONT WALL ---
+  if (level >= 3 && Math.random() > 0.3) {
+    let winL = buildWindow(-s/2 - 0.1, h/2, 0, -Math.PI/2); leftBlockers.push(winL);
+  }
+  if (level >= 3 && Math.random() > 0.3) {
+    let winR = buildWindow(s/2 + 0.1, h/2, 0, Math.PI/2); rightBlockers.push(winR);
+  }
+  if (level >= 4 && Math.random() > 0.4) {
+    let winB = buildWindow(0, h/2, -s/2 - 0.1, Math.PI); backBlockers.push(winB);
+  }
+  if (level >= 2 && Math.random() > 0.2) {
+    let randX = (Math.random() > 0.5 ? 1 : -1) * (s/4);
+    let chimney = buildChimney(randX, h + 0.1, -s/4); roofBlockers.push(chimney);
+  }
+  
+  let frontBlockers = [];
+  if (level >= 2) {
+    let doorDepth = 0.15; let signDepth = 0.1;
     let wallSurfaceZ = s/2 + 0.1;
-    let doorDepth = 0.15;
-    let signDepth = 0.1;
     let doorZ = wallSurfaceZ + doorDepth/2; 
     let signZ = doorZ + doorDepth/2 + signDepth/2; 
     
-    // 1. Sign (Top Layer)
+    // Sign Layer
     let sign = addPlate([-0.4, 2.7, signZ], [0, 0, 0], [2.8, 1.4, signDepth], 0xF1C40F);
     addScrew(localToWorld(sign.pos, sign.rot, -1.0, 0, 0.15), sign.rot, [sign]);
     addScrew(localToWorld(sign.pos, sign.rot, 1.0, 0, 0.15), sign.rot, [sign]);
 
-    // 2. Door (Middle Layer)
+    // Door Layer
     let door = addPlate([0, 1.6, doorZ], [0, 0, 0], [2.2, 3.2, doorDepth], 0x8E44AD); 
-    // Logic: Sign blocks the door. Door cannot fall until Sign falls.
     door.blockers.push(sign); 
-    
     addScrew(localToWorld(door.pos, door.rot, -0.6, 1.2, 0.15), door.rot, [door]);
     addScrew(localToWorld(door.pos, door.rot, 0.6, -1.2, 0.15), door.rot, [door]);
     
-    // 3. Front Wall (Base Layer)
-    let frontBlockers = [door]; // Logic: Door blocks the front wall.
-
-    // Build the 4 Walls & Roof using the procedural blockers
-    buildDividedWall(0, h/2, -s/2, Math.PI, s, h, 0xECF0F1, numWallPlanks, backBlockers); 
-    buildDividedWall(-s/2, h/2, 0, -Math.PI/2, s, h, 0xECF0F1, numWallPlanks, leftBlockers); 
-    buildDividedWall(s/2, h/2, 0, Math.PI/2, s, h, 0xECF0F1, numWallPlanks, rightBlockers); 
-    buildDividedWall(0, h/2, s/2, 0, s, h, 0xECF0F1, numWallPlanks, frontBlockers); 
-    
-    buildDividedRoofFlat(0, h + 0.1, 0, s + 1, s + 1, 0xE74C3C, numWallPlanks + 1, roofBlockers);
-
-    // Inside Furniture
-    let numFurniture = Math.min(6, level);
-    for(let i=0; i<numFurniture; i++) {
-      let fx = (Math.random()-0.5)*(s-3); let fz = (Math.random()-0.5)*(s-3);
-      let type = Math.floor(Math.random()*3);
-      if(type===0) buildTable(fx, 0, fz);
-      else if(type===1) buildChair(fx, 0, fz, Math.random()*Math.PI*2);
-      else buildBed(fx, 0, fz, Math.random()*Math.PI*2);
-    }
+    frontBlockers.push(door);
   }
 
-  // Ensure screws count is a multiple of 3 (for toolbox logic)
+  // Build Walls
+  buildDividedWall(0, h/2, -s/2, Math.PI, s, h, 0xECF0F1, numWallPlanks, backBlockers, insideProb); 
+  buildDividedWall(-s/2, h/2, 0, -Math.PI/2, s, h, 0xECF0F1, numWallPlanks, leftBlockers, insideProb); 
+  buildDividedWall(s/2, h/2, 0, Math.PI/2, s, h, 0xECF0F1, numWallPlanks, rightBlockers, insideProb); 
+  buildDividedWall(0, h/2, s/2, 0, s, h, 0xECF0F1, numWallPlanks, frontBlockers, insideProb); 
+  
+  buildDividedRoofFlat(0, h + 0.1, 0, s + 1, s + 1, 0xE74C3C, numWallPlanks + 1, roofBlockers, insideProb);
+
+  // Furniture
+  let numFurniture = Math.min(6, level);
+  for(let i=0; i<numFurniture; i++) {
+    let fx = (Math.random()-0.5)*(s-3); let fz = (Math.random()-0.5)*(s-3);
+    buildTable(fx, 0, fz);
+  }
+
+  // Pad screws to multiple of 3
   let rem = state.screws.length % 3;
   if (rem !== 0) {
     let addCount = 3 - rem;
@@ -478,29 +445,58 @@ window.initLevel = function(level) {
     }
   }
 
-  // Assign random colors
-  let availableColors = COLORS.slice(0, Math.min(COLORS.length, 3 + Math.floor(level/2)));
-  let colorPool = [];
-  for(let i=0; i<state.screws.length/3; i++) {
-    let c = availableColors[Math.floor(Math.random() * availableColors.length)];
-    colorPool.push(c, c, c);
+  // --- DEPTH CALCULATION & STRICT PUZZLE SORTING ---
+  // 1. Calculate Plate Depths recursively
+  let changed = true; let iter = 0;
+  while(changed && iter < 100) {
+    changed = false; iter++;
+    state.plates.forEach(p => {
+      let maxBlockerDepth = -1;
+      p.blockers.forEach(b => maxBlockerDepth = Math.max(maxBlockerDepth, b.depth));
+      if (p.depth < maxBlockerDepth + 1) {
+        p.depth = maxBlockerDepth + 1;
+        changed = true;
+      }
+    });
   }
-  colorPool.sort(() => Math.random() - 0.5); 
-  
-  state.screws.forEach((s, i) => {
-    s.colorVal = colorPool[i];
+
+  // 2. Assign Screw Depths based on the plates they attach to
+  state.screws.forEach(s => {
+    s.depth = Math.min(...s.attachedPlates.map(p => p.depth));
+    // PUZZLE MAGIC: Add procedural chaos based on level.
+    // Higher levels mix colors across deep layers, forcing the user to use slots carefully!
+    s.depth += Math.random() * (level * 0.4); 
+  });
+
+  // 3. Sort screws by depth
+  state.screws.sort((a, b) => a.depth - b.depth);
+
+  // 4. Assign Colors strictly in chunks of 3 from the sorted array
+  let availableColors = COLORS.slice(0, Math.min(COLORS.length, 3 + Math.floor(level/1.5)));
+  let colorIndex = 0;
+  for(let i = 0; i < state.screws.length; i += 3) {
+    let c = availableColors[colorIndex % availableColors.length];
+    if (Math.random() > 0.5) c = availableColors[Math.floor(Math.random() * availableColors.length)]; // randomize sequence
+    
+    state.screws[i].colorVal = c;
+    if(state.screws[i+1]) state.screws[i+1].colorVal = c;
+    if(state.screws[i+2]) state.screws[i+2].colorVal = c;
+    colorIndex++;
+    
+    // Add to color counts for queue
+    let counts = state.queue.filter(qc => qc === c).length;
+    if (counts === 0) state.queue.push(c);
+  }
+
+  // Shuffle queue so they don't appear exactly in depth order
+  state.queue.sort(() => Math.random() - 0.5);
+
+  state.screws.forEach(s => {
     s.headMesh.material.color.setHex(s.colorVal); 
   });
 
-  let counts = {};
-  colorPool.forEach(c => {
-    counts[c] = (counts[c] || 0) + 1;
-    if (counts[c] === 3) { state.queue.push(c); counts[c] = 0; }
-  });
-
-  // Adjust camera distance based on level/house size
   let dist = 14 + (level * 1.5);
-  camera.position.set(0, dist * 0.6, dist);
+  camera.position.set(0, dist * 0.7, dist);
   controls.target.set(0, 2, 0);
   controls.update();
   
@@ -528,7 +524,6 @@ function renderBoxes() {
   });
 }
 
-// Raycaster and Click Logic
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerDownPos = { x: 0, y: 0 };
@@ -555,21 +550,18 @@ container.addEventListener('pointerup', (e) => {
     if (hit.userData.isScrew) {
       let screwObj = hit.userData.obj;
       
-      // Strict Normal Check (Prevent tapping through walls from behind)
+      // Strict Normal Check to prevent clicking the back of a screw or through walls
       let screwNormal = new THREE.Vector3(0, 0, 1).applyEuler(screwObj.mesh.rotation);
       let camDir = new THREE.Vector3().subVectors(camera.position, screwObj.mesh.position).normalize();
       
       if (screwNormal.dot(camDir) > 0.05) {
-        // WE CAN SEE THE SCREW. UNLOCK IT REGARDLESS OF LAYER.
         handleScrewClick(screwObj);
       } else {
-        // User clicked the backside of a screw. Reject.
         playSound('error');
         screwObj.mesh.position.y += 0.1; 
         setTimeout(() => screwObj.mesh.position.y -= 0.1, 100);
       }
     } else if (hit.userData.isPlate) {
-      // Clicked a plank directly
       playSound('error');
       document.getElementById('canvas-container').classList.add('shake');
       setTimeout(()=>document.getElementById('canvas-container').classList.remove('shake'), 200);
@@ -581,7 +573,6 @@ function handleScrewClick(screwObj) {
   let targetBox = state.activeBoxes.find(b => b.color === screwObj.colorVal && b.count < 3);
   let targetSlotIndex = -1;
 
-  // Check if we have space for the screw
   if (!targetBox) {
     targetSlotIndex = state.slots.indexOf(null);
     if (targetSlotIndex === -1) {
@@ -595,19 +586,15 @@ function handleScrewClick(screwObj) {
   playSound('tap');
   state.isAnimating = true;
   
-  // Physically remove the screw
   scene.remove(screwObj.mesh);
   state.clickTargets = state.clickTargets.filter(m => m !== screwObj.headMesh);
   
-  // Check attached plates for CASCADE fall logic
+  // Trigger Cascade checks
   screwObj.attachedPlates.forEach(p => {
-    // Remove this screw from the plate's list
     p.screws = p.screws.filter(s => s !== screwObj);
-    // Trigger the fall check for this plate
     checkPlateFall(p);
   });
 
-  // UI Updates for Toolbox / Slots
   let cssColor = '#' + screwObj.colorVal.toString(16).padStart(6, '0');
   if (targetBox) {
     targetBox.count++;
@@ -627,31 +614,22 @@ function handleScrewClick(screwObj) {
   }
 }
 
-// 💡 The Core Cascade Function: Checks if a plate should fall.
 function checkPlateFall(plate) {
-  if (plate.isFalling) return; // Prevent double firing
-  
-  // Rule 1: Are all screws removed?
+  if (plate.isFalling) return; 
   if (plate.screws.length > 0) return;
   
-  // Rule 2: Are all blocking plates (dependencies) removed?
-  // Filter out blockers that have already fallen
+  // Cascade Dependency Check
   plate.blockers = plate.blockers.filter(blocker => !blocker.isFalling);
   
   if (plate.blockers.length === 0) {
-    // Initiate Fall!
     plate.isFalling = true;
     setTimeout(() => { playSound('drop'); }, 50);
     state.clickTargets = state.clickTargets.filter(m => m !== plate.mesh);
     state.fallingPlates.push(plate);
     
-    // 💡 CASCADE TRIGGER: Since THIS plate has fallen, 
-    // it might have freed up other plates waiting behind it.
+    // Check if this unlocks other plates immediately!
     state.plates.forEach(otherPlate => {
-      if (otherPlate.blockers.includes(plate)) {
-        // Recursive check!
-        checkPlateFall(otherPlate);
-      }
+      if (otherPlate.blockers.includes(plate)) checkPlateFall(otherPlate);
     });
   }
 }
@@ -695,7 +673,6 @@ function loop() {
   requestAnimationFrame(loop);
   controls.update();
 
-  // Handle physically falling animations
   for (let i = state.fallingPlates.length - 1; i >= 0; i--) {
     let p = state.fallingPlates[i];
     
