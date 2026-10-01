@@ -3,101 +3,92 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>3D Dollhouse Teardown</title>
-<!-- Load Three.js and OrbitControls -->
+<title>3Dドールハウス解体パズル - 究極版</title>
+<!-- 💡 3Dエンジンとカメラ制御 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
-  html, body { 
-    overscroll-behavior: none; touch-action: none; background: #c8d6e5; margin: 0; padding: 0; 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
-  * { box-sizing: border-box; user-select: none; }
+  html, body { overscroll-behavior: none; touch-action: none; background: #c8d6e5; margin: 0; padding: 0; }
+  * { box-sizing: border-box; user-select: none; font-family: 'Rounded M+ 1c', sans-serif; }
   
   body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; justify-content: center; }
   
   #game-wrapper {
-    position: relative; width: 100%; max-width: 600px; height: 100%; max-height: 1000px;
-    background: linear-gradient(180deg, #1e272e 0%, #485460 100%);
+    position: relative; width: 100%; max-width: 450px; height: 100%; max-height: 850px;
+    background: linear-gradient(180deg, #2c3e50 0%, #bdc3c7 100%);
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
   }
 
-  /* Header */
+  /* 上部ヘッダー */
   #header { padding: max(15px, var(--sat)) 15px 5px; display: flex; justify-content: space-between; align-items: center; z-index: 50; }
-  .level-text { font-size: 24px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); letter-spacing: 2px; }
   .header-btn { background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); color: white; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; cursor: pointer; }
-  
-  /* Toolbox UI */
-  #ui-top { padding: 10px; display: flex; justify-content: center; gap: 10px; z-index: 50; min-height: 85px; }
+  .level-text { font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px #000; letter-spacing: 2px; }
+
+  /* ツールボックス */
+  #ui-top { padding: 10px; display: flex; justify-content: center; gap: 8px; z-index: 50; min-height: 85px; }
   .toolbox {
-    width: 65px; height: 70px; background: #ecf0f1; border-radius: 12px; border-bottom: 6px solid #bdc3c7;
-    display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 5px; padding: 5px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.3); position: relative; transition: transform 0.3s, opacity 0.3s;
+    width: 60px; height: 65px; background: #ecf0f1; border-radius: 12px; border-bottom: 6px solid #bdc3c7;
+    display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 4px; padding: 5px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3); position: relative; transition: 0.3s;
   }
-  .toolbox-top { position: absolute; top: -6px; width: 34px; height: 10px; border-radius: 4px 4px 0 0; }
-  .hole { width: 16px; height: 16px; background: #2c3e50; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); }
+  .toolbox-top { position: absolute; top: -6px; width: 30px; height: 10px; border-radius: 4px 4px 0 0; }
+  .hole { width: 14px; height: 14px; background: #2c3e50; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); }
   .hole.filled { box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3), 0 2px 2px rgba(0,0,0,0.4); }
 
-  /* Wait Slots (The 5 limit slots) */
-  #slots-container { display: flex; justify-content: center; gap: 12px; margin-bottom: 15px; z-index: 50; }
+  /* 待機スロット */
+  #slots-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; z-index: 50; }
   .slot {
-    width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.2);
+    width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.3);
     box-shadow: inset 0 2px 5px rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center;
   }
   .slot-screw {
-    width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3);
+    width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3);
     box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3), 0 3px 5px rgba(0,0,0,0.6); position: relative;
   }
-  .slot-screw::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 12px; height: 4px; background: rgba(0,0,0,0.5); border-radius: 2px; }
+  .slot-screw::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 10px; height: 3px; background: rgba(0,0,0,0.5); border-radius: 2px; }
 
-  /* 3D Canvas */
+  /* 3Dキャンバス */
   #canvas-container { flex: 1; position: relative; width: 100%; touch-action: none; cursor: grab; }
   #canvas-container:active { cursor: grabbing; }
   
   #rotate-hint {
-    position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
-    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 8px 20px; border-radius: 20px;
-    font-size: 14px; font-weight: bold; pointer-events: none; z-index: 10; animation: pulse 2s infinite; backdrop-filter: blur(4px);
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 20px;
+    font-size: 13px; font-weight: bold; pointer-events: none; z-index: 10; animation: pulse 2s infinite; backdrop-filter: blur(4px);
   }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
   @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
   .shake { animation: shake 0.2s; }
 
-  /* Overlays */
+  /* オーバーレイ画面 */
   .overlay {
-    position: absolute; inset: 0; background: rgba(15, 25, 35, 0.95);
+    position: absolute; inset: 0; background: rgba(10, 20, 30, 0.9);
     display: flex; flex-direction: column; justify-content: center; align-items: center;
-    z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s;
   }
   .overlay.show { opacity: 1; pointer-events: auto; }
+  .title-logo { font-size: 34px; color: #f1c40f; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #d35400, 4px 4px 0 #c0392b; text-align: center; }
   
-  .title-logo { font-size: 38px; color: #f1c40f; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #d35400, 4px 4px 0 #c0392b; text-align: center; line-height: 1.2; }
-  .btn { 
-    padding: 16px 50px; font-size: 24px; font-weight: bold; color: white; background: #e67e22; 
-    border: none; border-radius: 40px; box-shadow: 0 6px 0 #d35400; cursor: pointer; transition: transform 0.1s; 
+  /* スライダーUI */
+  .slider-container {
+    background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); 
+    padding: 20px; border-radius: 15px; margin-bottom: 30px; width: 85%; max-width: 320px; text-align: center;
   }
+  .slider-container label { color: white; font-weight: bold; font-size: 18px; display: block; margin-bottom: 15px; }
+  .level-val { color: #f1c40f; font-size: 24px; font-weight: 900; }
+  input[type=range] { width: 100%; accent-color: #e67e22; }
+  
+  .btn { padding: 15px 50px; font-size: 22px; font-weight: bold; color: white; background: #e67e22; border: none; border-radius: 40px; box-shadow: 0 6px 0 #d35400; cursor: pointer; transition: 0.1s; }
   .btn:active { transform: translateY(6px); box-shadow: none; }
-  
-  .instruction-box {
-    background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); padding: 25px; border-radius: 15px; 
-    text-align: center; font-weight: bold; color: #fff; margin-bottom: 25px; width: 85%; max-width: 340px; line-height: 1.6; font-size: 14px;
-  }
-
-  /* Level Slider */
-  .slider-container { width: 100%; margin: 15px 0; text-align: center; }
-  .slider-label { font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; display: block; }
-  input[type=range] { -webkit-appearance: none; width: 90%; background: transparent; }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 28px; width: 28px; border-radius: 50%; background: #e67e22; cursor: pointer; margin-top: -10px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); border: 2px solid #fff; }
-  input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; cursor: pointer; background: rgba(255,255,255,0.3); border-radius: 4px; }
 </style>
 </head>
 <body>
 
 <div id="game-wrapper">
   <div id="header">
-    <button class="header-btn" onclick="showMenu()">◀ MENU</button>
+    <button class="header-btn" onclick="showMenu()">◀ メニュー</button>
     <div class="level-text">LEVEL <span id="ui-level">1</span></div>
     <div style="width: 80px;"></div>
   </div>
@@ -109,41 +100,38 @@
   </div>
 
   <div id="canvas-container">
-    <div id="rotate-hint">👆 Swipe & Zoom 🔄</div>
+    <div id="rotate-hint">👆 スワイプで回す 🔄</div>
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title-logo">🏠 Master Builder<br>Teardown</div>
-    <div class="instruction-box">
-      <span style="color:#f1c40f;">Rotate & Zoom</span> to find screws!<br><br>
-      <b>Ultimate Cascade Rule:</b> Plates fall ONLY when everything in front of them is removed. <br><br>
-      <span style="color:#ff9ff3;">Hint:</span> High levels have screws on the INSIDE of the house. You must look inside!<br>
-      <div class="slider-container">
-        <label class="slider-label">Select Level: <span id="slider-val" style="color:white; font-size:24px;">1</span></label>
-        <input type="range" id="level-slider" min="1" max="10" value="1" oninput="document.getElementById('slider-val').innerText = this.value">
+    <div class="title-logo">🏠 連鎖解体！<br>ドールハウスパズル</div>
+    
+    <div class="slider-container">
+      <label>開始レベル: <span class="level-val" id="level-display">1</span></label>
+      <input type="range" id="level-slider" min="1" max="10" value="1" oninput="document.getElementById('level-display').innerText = this.value">
+      <div style="margin-top:15px; font-size:13px; color:#bdc3c7;">
+        手前の板を外さないと奥の壁は落ちないよ！<br>家の中（裏側）にもネジが隠れているかも…？
       </div>
     </div>
-    <button class="btn" onclick="startGame()">START</button>
+
+    <button class="btn" onclick="startGame()">スタート！</button>
   </div>
 
   <div id="game-over" class="overlay">
-    <h1 style="color:#e74c3c; font-size:45px; margin-bottom:20px; text-shadow: 2px 2px 0 #000;">NO SPACE!</h1>
-    <button class="btn" style="background:#e74c3c; box-shadow: 0 6px 0 #c0392b;" onclick="initLevel(currentLevel)">RETRY</button>
+    <h1 style="color:#e74c3c; font-size:40px; margin-bottom:20px;">いっぱい！</h1>
+    <button class="btn" style="background:#e74c3c; box-shadow: 0 6px 0 #c0392b;" onclick="initLevel(currentLevel)">リトライ</button>
   </div>
 
   <div id="game-clear" class="overlay">
-    <h1 style="color:#2ecc71; font-size:45px; margin-bottom:20px; text-shadow: 2px 2px 0 #000;">CLEARED! 🎉</h1>
-    <button class="btn" style="background:#2ecc71; box-shadow: 0 6px 0 #27ae60;" onclick="nextLevel()">NEXT LEVEL</button>
+    <h1 style="color:#2ecc71; font-size:40px; margin-bottom:20px;">全 解 体 🎉</h1>
+    <button class="btn" style="background:#2ecc71; box-shadow: 0 6px 0 #27ae60;" onclick="nextLevel()">次のレベルへ</button>
   </div>
 </div>
 
 <script>
+// --- 音声 ---
 let actx;
-function initAudio() { 
-  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); 
-  if (actx.state === 'suspended') actx.resume(); 
-}
-
+function initAudio() { if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); } if (actx.state === 'suspended') actx.resume(); }
 function playSound(type) {
   if (!actx) return;
   const t = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
@@ -157,18 +145,19 @@ function playSound(type) {
     gain.gain.setValueAtTime(0.4, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
   } else if (type === 'box') { 
-    osc.type = 'square'; osc.frequency.setValueAtTime(400, t); osc.frequency.setValueAtTime(600, t+0.1); osc.frequency.setValueAtTime(800, t+0.2);
-    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(400, t); osc.frequency.setValueAtTime(600, t+0.1); osc.frequency.setValueAtTime(800, t+0.2);
+    gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
     osc.start(t); osc.stop(t + 0.4);
   } else if (type === 'error') { 
-    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, t); gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
     osc.start(t); osc.stop(t + 0.2);
   }
 }
 
+// --- 3Dセットアップ ---
 const container = document.getElementById('canvas-container');
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
@@ -176,14 +165,13 @@ container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.05;
-// Allow zooming very close so players can go INSIDE the house
-controls.minDistance = 1; controls.maxDistance = 45; controls.enablePan = false; 
+controls.minDistance = 5; controls.maxDistance = 35; controls.enablePan = false; 
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.65); scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.7); dirLight.position.set(10, 20, 15); scene.add(dirLight);
-const backLight = new THREE.DirectionalLight(0xffffff, 0.3); backLight.position.set(-10, -10, -10); scene.add(backLight);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6); dirLight.position.set(10, 20, 10); scene.add(dirLight);
+const backLight = new THREE.DirectionalLight(0xffffff, 0.4); backLight.position.set(-10, -10, -10); scene.add(backLight);
 
-const COLORS = [0xe74c3c, 0xf1c40f, 0x3498db, 0x2ecc71, 0x9b59b6, 0xe67e22, 0x1abc9c, 0xff9f43, 0x00d2d3, 0xff6b81, 0x5f27cd]; 
+const COLORS = [0xe74c3c, 0xf1c40f, 0x3498db, 0x2ecc71, 0x9b59b6, 0xe67e22, 0x1abc9c]; 
 let currentLevel = 1;
 let gameState = 'menu';
 let state = { activeBoxes: [], queue: [], slots: [null, null, null, null, null], screws: [], plates: [], fallingPlates: [], clickTargets: [], isAnimating: false };
@@ -193,6 +181,7 @@ window.addEventListener('resize', () => {
   renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
+// --- 💡 構築用ヘルパー関数 ---
 function localToWorld(pos, rot, lx, ly, lz) {
   let v = new THREE.Vector3(lx, ly, lz);
   v.applyEuler(new THREE.Euler(rot[0], rot[1], rot[2], 'XYZ'));
@@ -200,23 +189,24 @@ function localToWorld(pos, rot, lx, ly, lz) {
   return [v.x, v.y, v.z];
 }
 
+// 板はDoubleSideにして内側からも見えるようにする
 function addPlate(pos, rot, size, colorHex) {
   const geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
-  // CRITICAL: DoubleSide allows the raycaster to hit the wall from the inside, naturally blocking inside screws from outside view!
-  const mat = new THREE.MeshLambertMaterial({ color: colorHex, side: THREE.DoubleSide }); 
+  const mat = new THREE.MeshLambertMaterial({ color: colorHex, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.position.set(...pos); mesh.rotation.set(...rot);
   scene.add(mesh);
 
   let normal = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(...rot));
-  let plateObj = { mesh, screws: [], normal, pos, rot, size, blockers: [], isFalling: false, depth: 0 };
-  
+  // 💡 依存関係（ブロック）を記録する配列を追加！
+  let plateObj = { mesh, screws: [], normal, pos, rot, size, blockedBy: [], hasFallen: false, depth: 0 };
   state.plates.push(plateObj);
   state.clickTargets.push(mesh);
   mesh.userData = { isPlate: true, obj: plateObj };
   return plateObj;
 }
 
+// 立体的なネジ
 function addScrew(pos, rot, attachedPlates) {
   const group = new THREE.Group();
   
@@ -240,128 +230,105 @@ function addScrew(pos, rot, attachedPlates) {
   state.screws.push(screwObj);
   state.clickTargets.push(head); 
   head.userData = { isScrew: true, obj: screwObj };
-  
   attachedPlates.forEach(p => p.screws.push(screwObj));
   return screwObj;
 }
 
-function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, externalBlockers, insideProb) {
-  let planks = [];
+// 💡 連鎖落下（カスケード）をチェックするコア関数
+function checkCascades() {
+  let changed = true;
+  while(changed) {
+    changed = false;
+    for(let p of state.plates) {
+      if(!p.hasFallen && p.screws.length === 0) {
+        // 自分をブロックしている手前の板が【すべて】落ちているか確認
+        let isBlocked = p.blockedBy.some(b => !b.hasFallen);
+        if(!isBlocked) {
+          p.hasFallen = true;
+          state.fallingPlates.push(p);
+          // 連鎖感を出すために少しランダムに遅延させて音を鳴らす
+          setTimeout(() => { playSound('drop'); }, Math.random() * 150);
+          changed = true; // 新たに板が落ちたので、それに依存していた奥の板も落ちるか再評価！
+        }
+      }
+    }
+  }
+}
+
+// --- 💡 板張り壁の生成（ランダム位置＆裏側ネジ対応） ---
+function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, blockers = []) {
   let plankH = h / numPlanks;
   for(let i=0; i<numPlanks; i++) {
     let py = cy - h/2 + plankH/2 + i * plankH;
     let color = new THREE.Color(baseColor);
-    color.offsetHSL(0, 0, (i%2===0) ? 0.04 : -0.04); 
+    color.offsetHSL(0, 0, (i%2===0)?0.05:-0.05); 
     
     let plank = addPlate([cx, py, cz], [0, rotY, 0], [w - 0.1, plankH - 0.05, 0.2], color.getHex());
-    externalBlockers.forEach(b => plank.blockers.push(b));
-
-    // Randomized horizontal position
-    let randOffset1 = -w/2 + 0.6 + (Math.random() * (w/4 - 0.6));
-    let randOffset2 = w/2 - 0.6 - (Math.random() * (w/4 - 0.6));
     
-    // Check if screw goes on the INSIDE
-    let isInside1 = Math.random() < insideProb;
-    let isInside2 = Math.random() < insideProb;
-
-    let z1 = isInside1 ? -0.15 : 0.15;
-    let z2 = isInside2 ? -0.15 : 0.15;
-    let rot1 = isInside1 ? [0, rotY + Math.PI, 0] : [0, rotY, 0];
-    let rot2 = isInside2 ? [0, rotY + Math.PI, 0] : [0, rotY, 0];
-
-    let sPos1 = localToWorld([cx, py, cz], [0, rotY, 0], randOffset1, 0, z1);
-    let sPos2 = localToWorld([cx, py, cz], [0, rotY, 0], randOffset2, 0, z2);
+    // この板は、指定されたブロッカー（窓やドア）にブロックされる
+    blockers.forEach(b => plank.blockedBy.push(b));
     
-    addScrew(sPos1, rot1, [plank]);
-    addScrew(sPos2, rot2, [plank]);
-    
-    planks.push(plank);
+    // ランダムなネジ配置（2〜3個）
+    let numScrews = Math.floor(Math.random() * 2) + 2; 
+    for(let j=0; j<numScrews; j++) {
+      let sx = (Math.random() - 0.5) * (w - 1.0); // 端すぎないように
+      
+      // レベルが上がると裏側（家の中）にネジが隠れる確率UP！
+      let isBack = Math.random() < (currentLevel * 0.05); // MAX 50%
+      let sz = isBack ? -0.15 : 0.15;
+      let sPos = localToWorld([cx, py, cz], [0, rotY, 0], sx, 0, sz);
+      
+      let rot = [0, rotY, 0];
+      if (isBack) rot[1] += Math.PI; // 裏側の場合はネジを180度反転させる
+      
+      addScrew(sPos, rot, [plank]);
+    }
   }
-  return planks;
 }
 
-function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, externalBlockers, insideProb) {
-  let planks = [];
+// --- 💡 平坦な屋根の生成（ランダム位置＆裏側ネジ） ---
+function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, blockers = []) {
   let plankD = d / numPlanks;
   for(let i=0; i<numPlanks; i++) {
     let pz = cz - d/2 + plankD/2 + i * plankD;
     let color = new THREE.Color(baseColor);
-    color.offsetHSL(0, 0, (i%2===0) ? 0.04 : -0.04); 
+    color.offsetHSL(0, 0, (i%2===0)?0.05:-0.05); 
     
     let plank = addPlate([cx, cy, pz], [-Math.PI/2, 0, 0], [w - 0.1, plankD - 0.05, 0.2], color.getHex());
-    externalBlockers.forEach(b => plank.blockers.push(b));
+    blockers.forEach(b => plank.blockedBy.push(b));
 
-    let randOffset1 = -w/2 + 0.6 + (Math.random() * (w/4 - 0.6));
-    let randOffset2 = w/2 - 0.6 - (Math.random() * (w/4 - 0.6));
-
-    let isInside1 = Math.random() < insideProb;
-    let isInside2 = Math.random() < insideProb;
-
-    let z1 = isInside1 ? -0.15 : 0.15;
-    let z2 = isInside2 ? -0.15 : 0.15;
-    let rot1 = isInside1 ? [-Math.PI/2 + Math.PI, 0, 0] : [-Math.PI/2, 0, 0]; // inside means facing down
-    let rot2 = isInside2 ? [-Math.PI/2 + Math.PI, 0, 0] : [-Math.PI/2, 0, 0];
-
-    let sPos1 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], randOffset1, 0, z1);
-    let sPos2 = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], randOffset2, 0, z2);
-    
-    addScrew(sPos1, rot1, [plank]);
-    addScrew(sPos2, rot2, [plank]);
-    
-    planks.push(plank);
+    let numScrews = Math.floor(Math.random() * 2) + 2;
+    for(let j=0; j<numScrews; j++) {
+      let sx = (Math.random() - 0.5) * (w - 1.0);
+      let isBack = Math.random() < (currentLevel * 0.05); 
+      let sz = isBack ? -0.15 : 0.15;
+      let sPos = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], sx, 0, sz);
+      
+      let rot = [-Math.PI/2, 0, 0];
+      if (isBack) rot[0] += Math.PI; // 裏側
+      
+      addScrew(sPos, rot, [plank]);
+    }
   }
-  return planks;
 }
 
-function buildChimney(cx, cy, cz) {
-  let chimney = addPlate([cx, cy + 0.8, cz], [0, 0, 0], [1.2, 1.6, 1.2], 0xC0392B);
-  addScrew(localToWorld(chimney.pos, chimney.rot, -0.4, 0, 0.65), chimney.rot, [chimney]);
-  addScrew(localToWorld(chimney.pos, chimney.rot, 0.4, 0, 0.65), chimney.rot, [chimney]);
-  return chimney;
-}
-
-function buildWindow(cx, cy, cz, rotY) {
-  let win = addPlate([cx, cy, cz], [0, rotY, 0], [1.4, 1.4, 0.15], 0x3498DB);
-  addScrew(localToWorld(win.pos, win.rot, -0.45, 0.45, 0.12), win.rot, [win]);
-  addScrew(localToWorld(win.pos, win.rot, 0.45, -0.45, 0.12), win.rot, [win]);
-  return win;
-}
-
-function buildTable(cx, cy, cz) {
-  let top = addPlate([cx, cy+1.5, cz], [-Math.PI/2, 0, 0], [3, 2, 0.2], 0x8B4513);
-  let offsets = [[-1.1, -0.7], [1.1, -0.7], [-1.1, 0.7], [1.1, 0.7]];
-  offsets.forEach(off => {
-    let leg = addPlate([cx+off[0], cy+0.75, cz+off[1]], [0,0,0], [0.3, 1.5, 0.3], 0xA0522D);
-    let sPos = localToWorld(top.pos, top.rot, off[0], off[1], 0.2); 
-    addScrew(sPos, top.rot, [top, leg]); 
-  });
-}
-
-function buildFloor(w, d) {
-  let floor = addPlate([0, -0.1, 0], [Math.PI/2, 0, 0], [w, d, 0.2], 0xBDC3C7);
-  let offsets = [[-w/2+0.8, -d/2+0.8], [w/2-0.8, -d/2+0.8], [-w/2+0.8, d/2-0.8], [w/2-0.8, d/2-0.8]];
-  offsets.forEach(off => { addScrew([off[0], 0, off[1]], [-Math.PI/2, 0, 0], [floor]); });
-}
-
-window.showMenu = function() {
+// --- 進行管理 ---
+function showMenu() {
   gameState = 'menu'; document.getElementById('start-screen').classList.add('show');
   document.getElementById('game-over').classList.remove('show'); document.getElementById('game-clear').classList.remove('show');
 }
-window.startGame = function() {
-  initAudio(); document.getElementById('start-screen').classList.remove('show');
-  currentLevel = parseInt(document.getElementById('level-slider').value);
-  initLevel(currentLevel);
+function startGame(lvl) { 
+  initAudio(); 
+  document.getElementById('start-screen').classList.remove('show'); 
+  let selected = parseInt(document.getElementById('level-slider').value);
+  currentLevel = lvl || selected; 
+  initLevel(currentLevel); 
 }
-window.nextLevel = function() {
-  document.getElementById('game-clear').classList.remove('show');
-  currentLevel = Math.min(10, currentLevel + 1);
-  initLevel(currentLevel);
-}
+function nextLevel() { document.getElementById('game-clear').classList.remove('show'); currentLevel++; initLevel(currentLevel); }
 
-window.initLevel = function(level) {
+function initLevel(level) {
   gameState = 'playing';
-  document.getElementById('game-over').classList.remove('show');
-  document.getElementById('game-clear').classList.remove('show');
+  document.getElementById('game-over').classList.remove('show'); document.getElementById('game-clear').classList.remove('show');
   document.getElementById('ui-level').innerText = level;
   
   while(scene.children.length > 3) {
@@ -369,151 +336,145 @@ window.initLevel = function(level) {
     if(obj.geometry) obj.geometry.dispose(); if(obj.material) obj.material.dispose();
     scene.remove(obj);
   }
-  
   state = { activeBoxes: [], queue: [], slots: [null, null, null, null, null], screws: [], plates: [], fallingPlates: [], clickTargets: [], isAnimating: false };
   for(let i=0; i<5; i++) document.getElementById('slot-'+i).innerHTML = '';
 
-  let insideProb = Math.min(0.5, (level - 2) * 0.1); // Levels 1-2 have 0% inside screws. Level 7+ has 50%.
-
   let s = Math.min(10, 6 + Math.floor(level/2));
-  let h = 4.5; 
-  buildFloor(s + 2, s + 2); 
-  let numWallPlanks = Math.min(5, 2 + Math.floor(level/2));
-
-  let leftBlockers = []; let rightBlockers = []; let backBlockers = []; let roofBlockers = [];
-
-  if (level >= 3 && Math.random() > 0.3) {
-    let winL = buildWindow(-s/2 - 0.1, h/2, 0, -Math.PI/2); leftBlockers.push(winL);
-  }
-  if (level >= 3 && Math.random() > 0.3) {
-    let winR = buildWindow(s/2 + 0.1, h/2, 0, Math.PI/2); rightBlockers.push(winR);
-  }
-  if (level >= 4 && Math.random() > 0.4) {
-    let winB = buildWindow(0, h/2, -s/2 - 0.1, Math.PI); backBlockers.push(winB);
-  }
-  if (level >= 2 && Math.random() > 0.2) {
-    let randX = (Math.random() > 0.5 ? 1 : -1) * (s/4);
-    let chimney = buildChimney(randX, h + 0.1, -s/4); roofBlockers.push(chimney);
-  }
+  let h = 4; 
   
-  let frontBlockers = [];
-  if (level >= 2) {
-    let doorDepth = 0.15; let signDepth = 0.1;
-    let wallSurfaceZ = s/2 + 0.1;
-    let doorZ = wallSurfaceZ + doorDepth/2; 
-    let signZ = doorZ + doorDepth/2 + signDepth/2; 
-    
-    // Sign Layer
-    let sign = addPlate([-0.4, 2.7, signZ], [0, 0, 0], [2.8, 1.4, signDepth], 0xF1C40F);
-    addScrew(localToWorld(sign.pos, sign.rot, -1.0, 0, 0.15), sign.rot, [sign]);
+  // 床
+  let floor = addPlate([0, -0.1, 0], [Math.PI/2, 0, 0], [s, s, 0.2], 0xBDC3C7);
+  for(let i=0;i<4;i++) {
+    let off = [[-s/2+0.8, -s/2+0.8], [s/2-0.8, -s/2+0.8], [-s/2+0.8, s/2-0.8], [s/2-0.8, s/2-0.8]][i];
+    addScrew([off[0], 0, off[1]], [-Math.PI/2, 0, 0], [floor]);
+  }
+
+  let frontBlockers = []; let leftBlockers = []; let rightBlockers = []; let backBlockers = []; let roofBlockers = [];
+  
+  // 💡 レイヤー構造の構築（依存関係の設定）
+  let sign;
+  if (level >= 3) {
+    sign = addPlate([0, 2.1, s/2 + 0.3], [0, 0, 0], [2.8, 1.2, 0.1], 0xF1C40F);
+    addScrew(localToWorld(sign.pos, sign.rot, -1.0, 0, 0.15), sign.rot, [sign]); 
     addScrew(localToWorld(sign.pos, sign.rot, 1.0, 0, 0.15), sign.rot, [sign]);
-
-    // Door Layer
-    let door = addPlate([0, 1.6, doorZ], [0, 0, 0], [2.2, 3.2, doorDepth], 0x8E44AD); 
-    door.blockers.push(sign); 
-    addScrew(localToWorld(door.pos, door.rot, -0.6, 1.2, 0.15), door.rot, [door]);
-    addScrew(localToWorld(door.pos, door.rot, 0.6, -1.2, 0.15), door.rot, [door]);
-    
-    frontBlockers.push(door);
   }
 
-  // Build Walls
-  buildDividedWall(0, h/2, -s/2, Math.PI, s, h, 0xECF0F1, numWallPlanks, backBlockers, insideProb); 
-  buildDividedWall(-s/2, h/2, 0, -Math.PI/2, s, h, 0xECF0F1, numWallPlanks, leftBlockers, insideProb); 
-  buildDividedWall(s/2, h/2, 0, Math.PI/2, s, h, 0xECF0F1, numWallPlanks, rightBlockers, insideProb); 
-  buildDividedWall(0, h/2, s/2, 0, s, h, 0xECF0F1, numWallPlanks, frontBlockers, insideProb); 
-  
-  buildDividedRoofFlat(0, h + 0.1, 0, s + 1, s + 1, 0xE74C3C, numWallPlanks + 1, roofBlockers, insideProb);
-
-  // Furniture
-  let numFurniture = Math.min(6, level);
-  for(let i=0; i<numFurniture; i++) {
-    let fx = (Math.random()-0.5)*(s-3); let fz = (Math.random()-0.5)*(s-3);
-    buildTable(fx, 0, fz);
+  let door;
+  if (level >= 2) {
+    door = addPlate([0, 1.3, s/2 + 0.15], [0, 0, 0], [2.0, 2.6, 0.1], 0x8E44AD); 
+    if(sign) door.blockedBy.push(sign); // 看板がドアをブロック！
+    frontBlockers.push(door); // ドアが前壁をブロック！
+    addScrew(localToWorld(door.pos, door.rot, -0.6, 0.8, 0.15), door.rot, [door]);
+    addScrew(localToWorld(door.pos, door.rot, 0.6, -0.8, 0.15), door.rot, [door]);
   }
 
-  // Pad screws to multiple of 3
-  let rem = state.screws.length % 3;
-  if (rem !== 0) {
-    let addCount = 3 - rem;
-    let floorPlate = state.plates[0]; 
-    for (let i = 0; i < addCount; i++) {
-      let sx = (Math.random()-0.5) * floorPlate.size[0] * 0.8;
-      let sy = (Math.random()-0.5) * floorPlate.size[1] * 0.8;
-      let sPos = localToWorld(floorPlate.pos, floorPlate.rot, sx, sy, floorPlate.size[2]/2 + 0.15);
-      addScrew(sPos, floorPlate.rot, [floorPlate]);
+  // ランダム窓
+  if (level >= 4) {
+    if(Math.random() > 0.3) {
+      let winL = addPlate([-s/2 - 0.15, 2.5, 0], [0, -Math.PI/2, 0], [1.5, 1.5, 0.1], 0x3498DB);
+      leftBlockers.push(winL);
+      addScrew(localToWorld(winL.pos, winL.rot, -0.4, 0.4, 0.15), winL.rot, [winL]);
+      addScrew(localToWorld(winL.pos, winL.rot, 0.4, -0.4, 0.15), winL.rot, [winL]);
+    }
+    if(Math.random() > 0.3) {
+      let winR = addPlate([s/2 + 0.15, 2.5, 0], [0, Math.PI/2, 0], [1.5, 1.5, 0.1], 0x3498DB);
+      rightBlockers.push(winR);
+      addScrew(localToWorld(winR.pos, winR.rot, -0.4, 0.4, 0.15), winR.rot, [winR]);
+      addScrew(localToWorld(winR.pos, winR.rot, 0.4, -0.4, 0.15), winR.rot, [winR]);
     }
   }
 
-  // --- DEPTH CALCULATION & STRICT PUZZLE SORTING ---
-  // 1. Calculate Plate Depths recursively
-  let changed = true; let iter = 0;
-  while(changed && iter < 100) {
-    changed = false; iter++;
-    state.plates.forEach(p => {
-      let maxBlockerDepth = -1;
-      p.blockers.forEach(b => maxBlockerDepth = Math.max(maxBlockerDepth, b.depth));
-      if (p.depth < maxBlockerDepth + 1) {
-        p.depth = maxBlockerDepth + 1;
-        changed = true;
+  // 煙突
+  if (level >= 5 && Math.random() > 0.2) {
+    let chimney = addPlate([s/4, h + 0.9, -s/4], [0, 0, 0], [1.0, 1.5, 1.0], 0xE67E22);
+    roofBlockers.push(chimney);
+    addScrew(localToWorld(chimney.pos, chimney.rot, -0.3, 0.5, 0.6), chimney.rot, [chimney]);
+    addScrew(localToWorld(chimney.pos, chimney.rot, 0.3, 0.5, 0.6), chimney.rot, [chimney]);
+  }
+
+  // 4面の壁
+  let numWallPlanks = Math.min(5, 2 + Math.floor(level/2));
+  buildDividedWall(0, h/2, -s/2, Math.PI, s, h, 0xECF0F1, numWallPlanks, backBlockers); 
+  buildDividedWall(-s/2, h/2, 0, -Math.PI/2, s, h, 0xECF0F1, numWallPlanks, leftBlockers); 
+  buildDividedWall(s/2, h/2, 0, Math.PI/2, s, h, 0xECF0F1, numWallPlanks, rightBlockers); 
+  buildDividedWall(0, h/2, s/2, 0, s, h, 0xECF0F1, numWallPlanks, frontBlockers); // ドアにブロックされる壁！
+    
+  // 屋根
+  buildDividedRoofFlat(0, h + 0.1, 0, s + 0.5, s + 0.5, 0xE74C3C, numWallPlanks, roofBlockers);
+
+  // ネジ総数を3の倍数に調整
+  let rem = state.screws.length % 3;
+  if (rem !== 0) {
+    let addCount = 3 - rem;
+    for (let i = 0; i < addCount; i++) {
+      let sx = (Math.random()-0.5) * floor.size[0] * 0.8;
+      let sy = (Math.random()-0.5) * floor.size[1] * 0.8;
+      let sPos = localToWorld(floor.pos, floor.rot, sx, sy, floor.size[2]/2 + 0.15);
+      addScrew(sPos, floor.rot, [floor]);
+    }
+  }
+
+  // 💡 【重要】デプス（深さ）計算とカラーのシャッフル（唯一の正解ルート作り）
+  let changed = true;
+  while(changed) {
+    changed = false;
+    for(let p of state.plates) {
+      let maxBlockDepth = -1;
+      for(let b of p.blockedBy) {
+        if (b.depth > maxBlockDepth) maxBlockDepth = b.depth;
       }
-    });
+      let newDepth = maxBlockDepth + 1;
+      if (p.depth !== newDepth) { p.depth = newDepth; changed = true; }
+    }
+  }
+  for(let sc of state.screws) {
+    sc.depth = Math.max(...sc.attachedPlates.map(p => p.depth));
   }
 
-  // 2. Assign Screw Depths based on the plates they attach to
-  state.screws.forEach(s => {
-    s.depth = Math.min(...s.attachedPlates.map(p => p.depth));
-    // PUZZLE MAGIC: Add procedural chaos based on level.
-    // Higher levels mix colors across deep layers, forcing the user to use slots carefully!
-    s.depth += Math.random() * (level * 0.4); 
+  // 深さ順にソートしつつ、レベルに応じてランダム性を高める（高いレベルほど複雑に絡み合う）
+  let shuffledScrews = [...state.screws];
+  shuffledScrews.sort((a, b) => {
+    let diff = a.depth - b.depth;
+    return diff + (Math.random() - 0.5) * (level * 0.8); 
   });
 
-  // 3. Sort screws by depth
-  state.screws.sort((a, b) => a.depth - b.depth);
-
-  // 4. Assign Colors strictly in chunks of 3 from the sorted array
-  let availableColors = COLORS.slice(0, Math.min(COLORS.length, 3 + Math.floor(level/1.5)));
-  let colorIndex = 0;
-  for(let i = 0; i < state.screws.length; i += 3) {
-    let c = availableColors[colorIndex % availableColors.length];
-    if (Math.random() > 0.5) c = availableColors[Math.floor(Math.random() * availableColors.length)]; // randomize sequence
-    
-    state.screws[i].colorVal = c;
-    if(state.screws[i+1]) state.screws[i+1].colorVal = c;
-    if(state.screws[i+2]) state.screws[i+2].colorVal = c;
-    colorIndex++;
-    
-    // Add to color counts for queue
-    let counts = state.queue.filter(qc => qc === c).length;
-    if (counts === 0) state.queue.push(c);
+  let availableColors = COLORS.slice(0, Math.min(COLORS.length, 3 + Math.floor(level/2)));
+  let colorPool = [];
+  for(let i=0; i<state.screws.length/3; i++) {
+    let c = availableColors[i % availableColors.length];
+    colorPool.push(c, c, c);
   }
-
-  // Shuffle queue so they don't appear exactly in depth order
-  state.queue.sort(() => Math.random() - 0.5);
-
-  state.screws.forEach(s => {
-    s.headMesh.material.color.setHex(s.colorVal); 
+  
+  // ソートされたネジに色を割り当て
+  shuffledScrews.forEach((sc, i) => {
+    sc.colorVal = colorPool[i];
+    sc.headMesh.material.color.setHex(sc.colorVal); 
   });
 
-  let dist = 14 + (level * 1.5);
-  camera.position.set(0, dist * 0.7, dist);
+  let counts = {};
+  colorPool.forEach(c => {
+    counts[c] = (counts[c] || 0) + 1;
+    if (counts[c] === 3) { state.queue.push(c); counts[c] = 0; }
+  });
+
+  // 初回のカスケードチェック（ネジのない板などを落とす）
+  checkCascades();
+
+  let dist = 14 + level;
+  camera.position.set(0, dist*0.6, dist);
   controls.target.set(0, 2, 0);
   controls.update();
-  
   renderBoxes();
 }
 
 function renderBoxes() {
   const ui = document.getElementById('ui-top'); ui.innerHTML = '';
-  while (state.activeBoxes.length < 4 && state.queue.length > 0) {
-    state.activeBoxes.push({ color: state.queue.shift(), count: 0 });
-  }
-
+  while (state.activeBoxes.length < 4 && state.queue.length > 0) state.activeBoxes.push({ color: state.queue.shift(), count: 0 });
+  
   state.activeBoxes.forEach((box) => {
     let el = document.createElement('div'); el.className = 'toolbox';
     let cssColor = '#' + box.color.toString(16).padStart(6, '0');
     el.style.borderColor = cssColor;
-    
     let top = document.createElement('div'); top.className = 'toolbox-top'; top.style.backgroundColor = cssColor; el.appendChild(top);
     for(let j=0; j<3; j++) {
       let hole = document.createElement('div'); hole.className = 'hole';
@@ -524,14 +485,12 @@ function renderBoxes() {
   });
 }
 
+// 💡 レイキャスター（タップ判定）
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerDownPos = { x: 0, y: 0 };
 
-container.addEventListener('pointerdown', (e) => { 
-  if (gameState === 'playing') pointerDownPos = { x: e.clientX, y: e.clientY }; 
-});
-
+container.addEventListener('pointerdown', (e) => { if (gameState === 'playing') pointerDownPos = { x: e.clientX, y: e.clientY }; });
 container.addEventListener('pointerup', (e) => {
   if (gameState !== 'playing' || state.isAnimating) return;
   if (Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y) > 10) return; 
@@ -550,11 +509,12 @@ container.addEventListener('pointerup', (e) => {
     if (hit.userData.isScrew) {
       let screwObj = hit.userData.obj;
       
-      // Strict Normal Check to prevent clicking the back of a screw or through walls
+      // 💡 カメラがネジの頭（表側）を向いているか判定（裏側のネジは外から透かして取れない）
       let screwNormal = new THREE.Vector3(0, 0, 1).applyEuler(screwObj.mesh.rotation);
       let camDir = new THREE.Vector3().subVectors(camera.position, screwObj.mesh.position).normalize();
       
-      if (screwNormal.dot(camDir) > 0.05) {
+      if (screwNormal.dot(camDir) > 0.1) {
+        // 見えているネジはブロックに関係なくいつでも外せる！
         handleScrewClick(screwObj);
       } else {
         playSound('error');
@@ -576,8 +536,7 @@ function handleScrewClick(screwObj) {
   if (!targetBox) {
     targetSlotIndex = state.slots.indexOf(null);
     if (targetSlotIndex === -1) {
-      playSound('error'); 
-      document.getElementById('slots-container').classList.add('shake');
+      playSound('error'); document.getElementById('slots-container').classList.add('shake');
       setTimeout(()=>document.getElementById('slots-container').classList.remove('shake'), 200);
       return;
     }
@@ -585,17 +544,18 @@ function handleScrewClick(screwObj) {
 
   playSound('tap');
   state.isAnimating = true;
-  
   scene.remove(screwObj.mesh);
   state.clickTargets = state.clickTargets.filter(m => m !== screwObj.headMesh);
   
-  // Trigger Cascade checks
+  // ネジを板から除去し、連鎖落下をチェック！
   screwObj.attachedPlates.forEach(p => {
     p.screws = p.screws.filter(s => s !== screwObj);
-    checkPlateFall(p);
   });
+  
+  checkCascades();
 
   let cssColor = '#' + screwObj.colorVal.toString(16).padStart(6, '0');
+
   if (targetBox) {
     targetBox.count++;
     setTimeout(() => { state.isAnimating = false; checkBoxCompletion(targetBox); }, 200);
@@ -614,26 +574,6 @@ function handleScrewClick(screwObj) {
   }
 }
 
-function checkPlateFall(plate) {
-  if (plate.isFalling) return; 
-  if (plate.screws.length > 0) return;
-  
-  // Cascade Dependency Check
-  plate.blockers = plate.blockers.filter(blocker => !blocker.isFalling);
-  
-  if (plate.blockers.length === 0) {
-    plate.isFalling = true;
-    setTimeout(() => { playSound('drop'); }, 50);
-    state.clickTargets = state.clickTargets.filter(m => m !== plate.mesh);
-    state.fallingPlates.push(plate);
-    
-    // Check if this unlocks other plates immediately!
-    state.plates.forEach(otherPlate => {
-      if (otherPlate.blockers.includes(plate)) checkPlateFall(otherPlate);
-    });
-  }
-}
-
 function checkBoxCompletion(box) {
   renderBoxes(); 
   if (box.count === 3) {
@@ -643,12 +583,7 @@ function checkBoxCompletion(box) {
     setTimeout(() => {
       state.activeBoxes = state.activeBoxes.filter(b => b !== box);
       renderBoxes();
-      if (state.activeBoxes.length === 0 && state.queue.length === 0) {
-        gameState = 'clear'; 
-        setTimeout(() => { document.getElementById('game-clear').classList.add('show'); }, 500);
-        return;
-      }
-      autoMatchFromSlots(); 
+      autoMatchFromSlots();
     }, 300);
   }
 }
@@ -669,10 +604,12 @@ function autoMatchFromSlots() {
   }
 }
 
+// 💡 描画ループ
 function loop() {
   requestAnimationFrame(loop);
   controls.update();
 
+  // 落下アニメーション
   for (let i = state.fallingPlates.length - 1; i >= 0; i--) {
     let p = state.fallingPlates[i];
     
@@ -688,16 +625,26 @@ function loop() {
     }
     p.mesh.material.opacity -= 0.03; 
     
-    if (p.mesh.material.opacity <= 0 || p.mesh.position.length() > 40) {
+    if (p.mesh.material.opacity <= 0 || p.mesh.position.length() > 30) {
       scene.remove(p.mesh);
       state.fallingPlates.splice(i, 1);
+    }
+  }
+
+  // 💡 【修正】クリア条件：すべてのネジが消え、かつ「すべての板の落下アニメーションが完全に終了」した時のみクリア！
+  if (gameState === 'playing' && state.activeBoxes.length === 0 && state.queue.length === 0 && state.slots.every(s => s === null)) {
+    let allPlatesFallen = state.plates.every(p => p.hasFallen);
+    if (allPlatesFallen && state.fallingPlates.length === 0) {
+      gameState = 'clear'; 
+      setTimeout(() => { document.getElementById('game-clear').classList.add('show'); }, 300);
     }
   }
 
   renderer.render(scene, camera);
 }
 
-loop();
+showMenu(); 
+loop();     
 </script>
 </body>
 </html>
