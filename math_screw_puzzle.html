@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>3Dドールハウス解体パズル - 究極版</title>
-<!-- 💡 3Dエンジンとカメラ制御 -->
+<title>3Dドールハウス解体パズル - 2階建て完全版</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
@@ -12,7 +11,6 @@
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #c8d6e5; margin: 0; padding: 0; }
   * { box-sizing: border-box; user-select: none; font-family: 'Rounded M+ 1c', sans-serif; }
-  
   body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; justify-content: center; }
   
   #game-wrapper {
@@ -21,12 +19,10 @@
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
   }
 
-  /* 上部ヘッダー */
   #header { padding: max(15px, var(--sat)) 15px 5px; display: flex; justify-content: space-between; align-items: center; z-index: 50; }
   .header-btn { background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); color: white; padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; cursor: pointer; }
   .level-text { font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px #000; letter-spacing: 2px; }
 
-  /* ツールボックス */
   #ui-top { padding: 10px; display: flex; justify-content: center; gap: 8px; z-index: 50; min-height: 85px; }
   .toolbox {
     width: 60px; height: 65px; background: #ecf0f1; border-radius: 12px; border-bottom: 6px solid #bdc3c7;
@@ -37,7 +33,6 @@
   .hole { width: 14px; height: 14px; background: #2c3e50; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.8); }
   .hole.filled { box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3), 0 2px 2px rgba(0,0,0,0.4); }
 
-  /* 待機スロット */
   #slots-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; z-index: 50; }
   .slot {
     width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.3);
@@ -49,7 +44,6 @@
   }
   .slot-screw::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 10px; height: 3px; background: rgba(0,0,0,0.5); border-radius: 2px; }
 
-  /* 3Dキャンバス */
   #canvas-container { flex: 1; position: relative; width: 100%; touch-action: none; cursor: grab; }
   #canvas-container:active { cursor: grabbing; }
   
@@ -62,7 +56,6 @@
   @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
   .shake { animation: shake 0.2s; }
 
-  /* オーバーレイ画面 */
   .overlay {
     position: absolute; inset: 0; background: rgba(10, 20, 30, 0.9);
     display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -71,7 +64,6 @@
   .overlay.show { opacity: 1; pointer-events: auto; }
   .title-logo { font-size: 34px; color: #f1c40f; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #d35400, 4px 4px 0 #c0392b; text-align: center; }
   
-  /* スライダーUI */
   .slider-container {
     background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); 
     padding: 20px; border-radius: 15px; margin-bottom: 30px; width: 85%; max-width: 320px; text-align: center;
@@ -92,28 +84,22 @@
     <div class="level-text">LEVEL <span id="ui-level">1</span></div>
     <div style="width: 80px;"></div>
   </div>
-  
   <div id="ui-top"></div>
   <div id="slots-container">
     <div class="slot" id="slot-0"></div><div class="slot" id="slot-1"></div><div class="slot" id="slot-2"></div>
     <div class="slot" id="slot-3"></div><div class="slot" id="slot-4"></div>
   </div>
-
-  <div id="canvas-container">
-    <div id="rotate-hint">👆 スワイプで回す 🔄</div>
-  </div>
+  <div id="canvas-container"><div id="rotate-hint">👆 スワイプで回す 🔄</div></div>
 
   <div id="start-screen" class="overlay show">
     <div class="title-logo">🏠 連鎖解体！<br>ドールハウスパズル</div>
-    
     <div class="slider-container">
-      <label>開始レベル: <span class="level-val" id="level-display">1</span></label>
-      <input type="range" id="level-slider" min="1" max="10" value="1" oninput="document.getElementById('level-display').innerText = this.value">
+      <label>開始レベル: <span class="level-val" id="level-display">10</span></label>
+      <input type="range" id="level-slider" min="1" max="10" value="10" oninput="document.getElementById('level-display').innerText = this.value">
       <div style="margin-top:15px; font-size:13px; color:#bdc3c7;">
-        手前の板を外さないと奥の壁は落ちないよ！<br>家の中（裏側）にもネジが隠れているかも…？
+        Lv8〜10は「2階建て」が登場！<br>家の中には家具がいっぱい！
       </div>
     </div>
-
     <button class="btn" onclick="startGame()">スタート！</button>
   </div>
 
@@ -165,7 +151,7 @@ container.appendChild(renderer.domElement);
 
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.05;
-controls.minDistance = 5; controls.maxDistance = 35; controls.enablePan = false; 
+controls.minDistance = 5; controls.maxDistance = 45; controls.enablePan = false; 
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); scene.add(ambientLight);
 const dirLight = new THREE.DirectionalLight(0xffffff, 0.6); dirLight.position.set(10, 20, 10); scene.add(dirLight);
@@ -181,7 +167,6 @@ window.addEventListener('resize', () => {
   renderer.setSize(container.clientWidth, container.clientHeight);
 });
 
-// --- 💡 構築用ヘルパー関数 ---
 function localToWorld(pos, rot, lx, ly, lz) {
   let v = new THREE.Vector3(lx, ly, lz);
   v.applyEuler(new THREE.Euler(rot[0], rot[1], rot[2], 'XYZ'));
@@ -189,8 +174,7 @@ function localToWorld(pos, rot, lx, ly, lz) {
   return [v.x, v.y, v.z];
 }
 
-// 板はDoubleSideにして内側からも見えるようにする
-function addPlate(pos, rot, size, colorHex) {
+function addPlate(pos, rot, size, colorHex, baseDepth = 0) {
   const geo = new THREE.BoxGeometry(size[0], size[1], size[2]);
   const mat = new THREE.MeshLambertMaterial({ color: colorHex, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geo, mat);
@@ -198,18 +182,15 @@ function addPlate(pos, rot, size, colorHex) {
   scene.add(mesh);
 
   let normal = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(...rot));
-  // 💡 依存関係（ブロック）を記録する配列を追加！
-  let plateObj = { mesh, screws: [], normal, pos, rot, size, blockedBy: [], hasFallen: false, depth: 0 };
+  let plateObj = { mesh, screws: [], normal, pos, rot, size, blockedBy: [], hasFallen: false, depth: baseDepth, baseDepth: baseDepth };
   state.plates.push(plateObj);
   state.clickTargets.push(mesh);
   mesh.userData = { isPlate: true, obj: plateObj };
   return plateObj;
 }
 
-// 立体的なネジ
 function addScrew(pos, rot, attachedPlates) {
   const group = new THREE.Group();
-  
   const headGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.15, 16);
   headGeo.rotateX(Math.PI/2);
   const headMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 });
@@ -234,28 +215,26 @@ function addScrew(pos, rot, attachedPlates) {
   return screwObj;
 }
 
-// 💡 連鎖落下（カスケード）をチェックするコア関数
+// 💡 連鎖落下（カスケード）
 function checkCascades() {
   let changed = true;
   while(changed) {
     changed = false;
     for(let p of state.plates) {
       if(!p.hasFallen && p.screws.length === 0) {
-        // 自分をブロックしている手前の板が【すべて】落ちているか確認
         let isBlocked = p.blockedBy.some(b => !b.hasFallen);
         if(!isBlocked) {
           p.hasFallen = true;
           state.fallingPlates.push(p);
-          // 連鎖感を出すために少しランダムに遅延させて音を鳴らす
           setTimeout(() => { playSound('drop'); }, Math.random() * 150);
-          changed = true; // 新たに板が落ちたので、それに依存していた奥の板も落ちるか再評価！
+          changed = true; 
         }
       }
     }
   }
 }
 
-// --- 💡 板張り壁の生成（ランダム位置＆裏側ネジ対応） ---
+// 💡 複数枚の板（ネジのオーバーラップ防止計算）
 function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, blockers = []) {
   let plankH = h / numPlanks;
   for(let i=0; i<numPlanks; i++) {
@@ -264,29 +243,27 @@ function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, blockers
     color.offsetHSL(0, 0, (i%2===0)?0.05:-0.05); 
     
     let plank = addPlate([cx, py, cz], [0, rotY, 0], [w - 0.1, plankH - 0.05, 0.2], color.getHex());
-    
-    // この板は、指定されたブロッカー（窓やドア）にブロックされる
     blockers.forEach(b => plank.blockedBy.push(b));
     
-    // ランダムなネジ配置（2〜3個）
     let numScrews = Math.floor(Math.random() * 2) + 2; 
+    let spacing = (w - 1.2) / numScrews; // 重ならないように領域を分割
+    let startX = -(w - 1.2) / 2 + spacing / 2;
+
     for(let j=0; j<numScrews; j++) {
-      let sx = (Math.random() - 0.5) * (w - 1.0); // 端すぎないように
+      let sx = startX + j * spacing;
+      sx += (Math.random() - 0.5) * (spacing * 0.4); // 領域内で少しだけランダムにずらす
       
-      // レベルが上がると裏側（家の中）にネジが隠れる確率UP！
-      let isBack = Math.random() < (currentLevel * 0.05); // MAX 50%
+      let isBack = Math.random() < (currentLevel * 0.05); // 最大50%が裏側
       let sz = isBack ? -0.15 : 0.15;
       let sPos = localToWorld([cx, py, cz], [0, rotY, 0], sx, 0, sz);
       
       let rot = [0, rotY, 0];
-      if (isBack) rot[1] += Math.PI; // 裏側の場合はネジを180度反転させる
-      
+      if (isBack) rot[1] += Math.PI; 
       addScrew(sPos, rot, [plank]);
     }
   }
 }
 
-// --- 💡 平坦な屋根の生成（ランダム位置＆裏側ネジ） ---
 function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, blockers = []) {
   let plankD = d / numPlanks;
   for(let i=0; i<numPlanks; i++) {
@@ -298,18 +275,73 @@ function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, blockers =
     blockers.forEach(b => plank.blockedBy.push(b));
 
     let numScrews = Math.floor(Math.random() * 2) + 2;
+    let spacing = (w - 1.2) / numScrews;
+    let startX = -(w - 1.2) / 2 + spacing / 2;
+
     for(let j=0; j<numScrews; j++) {
-      let sx = (Math.random() - 0.5) * (w - 1.0);
+      let sx = startX + j * spacing + (Math.random() - 0.5) * (spacing * 0.4);
       let isBack = Math.random() < (currentLevel * 0.05); 
       let sz = isBack ? -0.15 : 0.15;
       let sPos = localToWorld([cx, cy, pz], [-Math.PI/2, 0, 0], sx, 0, sz);
       
       let rot = [-Math.PI/2, 0, 0];
-      if (isBack) rot[0] += Math.PI; // 裏側
-      
+      if (isBack) rot[0] += Math.PI; 
       addScrew(sPos, rot, [plank]);
     }
   }
+}
+
+// --- 💡 家具の論理的な配置 ---
+// baseDepthを高めに設定し、壁や屋根と同じ深い色（最後に外す色）になりやすくする
+function buildTable(cx, cy, cz) {
+  let top = addPlate([cx, cy+1.0, cz], [-Math.PI/2, 0, 0], [2, 1.4, 0.15], 0x8B4513, 5);
+  let offsets = [[-0.8, -0.5], [0.8, -0.5], [-0.8, 0.5], [0.8, 0.5]];
+  offsets.forEach(off => {
+    let leg = addPlate([cx+off[0], cy+0.5, cz+off[1]], [0,0,0], [0.2, 1.0, 0.2], 0xA0522D, 5);
+    addScrew(localToWorld(top.pos, top.rot, off[0], off[1], 0.15), top.rot, [top, leg]);
+  });
+}
+
+function buildChair(cx, cy, cz, rotY) {
+  let seat = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.6, 0), [-Math.PI/2, 0, rotY], [0.8, 0.8, 0.1], 0x2ECC71, 5);
+  let back = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 1.0, -0.35), [0, rotY, 0], [0.8, 0.8, 0.1], 0x27AE60, 5);
+  addScrew(localToWorld(back.pos, back.rot, -0.2, -0.2, 0.1), back.rot, [seat, back]);
+  addScrew(localToWorld(back.pos, back.rot, 0.2, -0.2, 0.1), back.rot, [seat, back]);
+  let offsets = [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]];
+  offsets.forEach(off => {
+    let leg = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], off[0], 0.3, off[1]), [0,rotY,0], [0.1, 0.6, 0.1], 0xA0522D, 5);
+    addScrew(localToWorld(seat.pos, seat.rot, off[0], off[1], 0.1), seat.rot, [seat, leg]);
+  });
+}
+
+function buildBed(cx, cy, cz, rotY) {
+  let mat = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.4, 0), [-Math.PI/2, 0, rotY], [1.6, 2.5, 0.2], 0x3498DB, 5);
+  let head = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.7, -1.2), [0, rotY, 0], [1.6, 0.8, 0.1], 0x8B4513, 5);
+  addScrew(localToWorld(head.pos, head.rot, -0.5, -0.2, 0.1), head.rot, [mat, head]);
+  addScrew(localToWorld(head.pos, head.rot, 0.5, -0.2, 0.1), head.rot, [mat, head]);
+}
+
+function buildBookshelf(cx, cy, cz, rotY) {
+  let back = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 1.5, -0.2), [0, rotY, 0], [1.8, 3.0, 0.1], 0x8B4513, 5);
+  for(let i=0; i<3; i++) {
+    let shelf = addPlate(localToWorld([cx,cy,cz], [0,rotY,0], 0, 0.5 + i*1.0, 0), [-Math.PI/2, 0, rotY], [1.8, 0.4, 0.1], 0xA0522D, 5);
+    addScrew(localToWorld(back.pos, back.rot, -0.6, -1.0 + i*1.0, 0.1), back.rot, [shelf, back]);
+    addScrew(localToWorld(back.pos, back.rot, 0.6, -1.0 + i*1.0, 0.1), back.rot, [shelf, back]);
+  }
+}
+
+function buildRoomFurniture(s, cy) {
+  // 中央にテーブルとイス
+  buildTable(0, cy, 0);
+  buildChair(0, cy, 1.2, 0);
+  buildChair(0, cy, -1.2, Math.PI);
+  buildChair(1.2, cy, 0, -Math.PI/2);
+  buildChair(-1.2, cy, 0, Math.PI/2);
+  
+  // 角にベッド
+  buildBed(-s/2 + 1.5, cy, -s/2 + 1.5, 0);
+  // 壁際に本棚
+  buildBookshelf(s/2 - 0.5, cy, s/2 - 1.5, -Math.PI/2);
 }
 
 // --- 進行管理 ---
@@ -318,11 +350,9 @@ function showMenu() {
   document.getElementById('game-over').classList.remove('show'); document.getElementById('game-clear').classList.remove('show');
 }
 function startGame(lvl) { 
-  initAudio(); 
-  document.getElementById('start-screen').classList.remove('show'); 
+  initAudio(); document.getElementById('start-screen').classList.remove('show'); 
   let selected = parseInt(document.getElementById('level-slider').value);
-  currentLevel = lvl || selected; 
-  initLevel(currentLevel); 
+  currentLevel = lvl || selected; initLevel(currentLevel); 
 }
 function nextLevel() { document.getElementById('game-clear').classList.remove('show'); currentLevel++; initLevel(currentLevel); }
 
@@ -339,82 +369,97 @@ function initLevel(level) {
   state = { activeBoxes: [], queue: [], slots: [null, null, null, null, null], screws: [], plates: [], fallingPlates: [], clickTargets: [], isAnimating: false };
   for(let i=0; i<5; i++) document.getElementById('slot-'+i).innerHTML = '';
 
-  let s = Math.min(10, 6 + Math.floor(level/2));
+  let s = Math.min(12, 6 + Math.floor(level/1.5));
   let h = 4; 
+  let isTwoStory = level >= 8; // 💡 レベル8以上で2階建て！
+
+  // --- 1階 ---
+  let floor1 = addPlate([0, -0.1, 0], [Math.PI/2, 0, 0], [s, s, 0.2], 0xBDC3C7);
+  buildRoomFurniture(s, 0); // 1階の家具
+
+  let f1Front = []; let f1Left = []; let f1Right = []; let f1Back = [];
   
-  // 床
-  let floor = addPlate([0, -0.1, 0], [Math.PI/2, 0, 0], [s, s, 0.2], 0xBDC3C7);
-  for(let i=0;i<4;i++) {
-    let off = [[-s/2+0.8, -s/2+0.8], [s/2-0.8, -s/2+0.8], [-s/2+0.8, s/2-0.8], [s/2-0.8, s/2-0.8]][i];
-    addScrew([off[0], 0, off[1]], [-Math.PI/2, 0, 0], [floor]);
+  if (level >= 3) {
+    // 窓
+    let win1 = addPlate([-s/2 - 0.15, 2.0, 0], [0, -Math.PI/2, 0], [1.5, 1.5, 0.1], 0x87CEEB); f1Left.push(win1);
+    addScrew(localToWorld(win1.pos, win1.rot, -0.5, 0.5, 0.15), win1.rot, [win1]);
+    addScrew(localToWorld(win1.pos, win1.rot, 0.5, -0.5, 0.15), win1.rot, [win1]);
+    
+    // 花壇 (Flower bed)
+    if (level >= 4) {
+      let flowerBed = addPlate([s/2 + 0.15, 0.5, 0], [0, Math.PI/2, 0], [3.0, 1.0, 0.5], 0x27ae60); f1Right.push(flowerBed);
+      addScrew(localToWorld(flowerBed.pos, flowerBed.rot, -1.0, 0, 0.3), flowerBed.rot, [flowerBed]);
+      addScrew(localToWorld(flowerBed.pos, flowerBed.rot, 1.0, 0, 0.3), flowerBed.rot, [flowerBed]);
+    }
   }
 
-  let frontBlockers = []; let leftBlockers = []; let rightBlockers = []; let backBlockers = []; let roofBlockers = [];
-  
-  // 💡 レイヤー構造の構築（依存関係の設定）
-  let sign;
-  if (level >= 3) {
-    sign = addPlate([0, 2.1, s/2 + 0.3], [0, 0, 0], [2.8, 1.2, 0.1], 0xF1C40F);
+  // ドアと看板
+  if (level >= 4) {
+    let sign = addPlate([0, 2.1, s/2 + 0.3], [0, 0, 0], [2.8, 1.2, 0.1], 0xF1C40F);
     addScrew(localToWorld(sign.pos, sign.rot, -1.0, 0, 0.15), sign.rot, [sign]); 
     addScrew(localToWorld(sign.pos, sign.rot, 1.0, 0, 0.15), sign.rot, [sign]);
-  }
 
-  let door;
-  if (level >= 2) {
-    door = addPlate([0, 1.3, s/2 + 0.15], [0, 0, 0], [2.0, 2.6, 0.1], 0x8E44AD); 
-    if(sign) door.blockedBy.push(sign); // 看板がドアをブロック！
-    frontBlockers.push(door); // ドアが前壁をブロック！
+    let door = addPlate([0, 1.3, s/2 + 0.15], [0, 0, 0], [2.0, 2.6, 0.1], 0x8E44AD); 
+    door.blockedBy.push(sign); f1Front.push(door);
     addScrew(localToWorld(door.pos, door.rot, -0.6, 0.8, 0.15), door.rot, [door]);
     addScrew(localToWorld(door.pos, door.rot, 0.6, -0.8, 0.15), door.rot, [door]);
   }
 
-  // ランダム窓
-  if (level >= 4) {
-    if(Math.random() > 0.3) {
-      let winL = addPlate([-s/2 - 0.15, 2.5, 0], [0, -Math.PI/2, 0], [1.5, 1.5, 0.1], 0x3498DB);
-      leftBlockers.push(winL);
-      addScrew(localToWorld(winL.pos, winL.rot, -0.4, 0.4, 0.15), winL.rot, [winL]);
-      addScrew(localToWorld(winL.pos, winL.rot, 0.4, -0.4, 0.15), winL.rot, [winL]);
-    }
-    if(Math.random() > 0.3) {
-      let winR = addPlate([s/2 + 0.15, 2.5, 0], [0, Math.PI/2, 0], [1.5, 1.5, 0.1], 0x3498DB);
-      rightBlockers.push(winR);
-      addScrew(localToWorld(winR.pos, winR.rot, -0.4, 0.4, 0.15), winR.rot, [winR]);
-      addScrew(localToWorld(winR.pos, winR.rot, 0.4, -0.4, 0.15), winR.rot, [winR]);
-    }
-  }
-
-  // 煙突
-  if (level >= 5 && Math.random() > 0.2) {
-    let chimney = addPlate([s/4, h + 0.9, -s/4], [0, 0, 0], [1.0, 1.5, 1.0], 0xE67E22);
-    roofBlockers.push(chimney);
-    addScrew(localToWorld(chimney.pos, chimney.rot, -0.3, 0.5, 0.6), chimney.rot, [chimney]);
-    addScrew(localToWorld(chimney.pos, chimney.rot, 0.3, 0.5, 0.6), chimney.rot, [chimney]);
-  }
-
-  // 4面の壁
   let numWallPlanks = Math.min(5, 2 + Math.floor(level/2));
-  buildDividedWall(0, h/2, -s/2, Math.PI, s, h, 0xECF0F1, numWallPlanks, backBlockers); 
-  buildDividedWall(-s/2, h/2, 0, -Math.PI/2, s, h, 0xECF0F1, numWallPlanks, leftBlockers); 
-  buildDividedWall(s/2, h/2, 0, Math.PI/2, s, h, 0xECF0F1, numWallPlanks, rightBlockers); 
-  buildDividedWall(0, h/2, s/2, 0, s, h, 0xECF0F1, numWallPlanks, frontBlockers); // ドアにブロックされる壁！
-    
-  // 屋根
-  buildDividedRoofFlat(0, h + 0.1, 0, s + 0.5, s + 0.5, 0xE74C3C, numWallPlanks, roofBlockers);
+  if (level >= 4) {
+    buildDividedWall(0, h/2, -s/2, Math.PI, s, h, 0xECF0F1, numWallPlanks, f1Back); 
+    buildDividedWall(-s/2, h/2, 0, -Math.PI/2, s, h, 0xECF0F1, numWallPlanks, f1Left); 
+    buildDividedWall(s/2, h/2, 0, Math.PI/2, s, h, 0xECF0F1, numWallPlanks, f1Right); 
+    buildDividedWall(0, h/2, s/2, 0, s, h, 0xECF0F1, numWallPlanks, f1Front); 
+  }
 
-  // ネジ総数を3の倍数に調整
+  // --- 2階と屋根 ---
+  let roofBlockers = [];
+  let roofHeight = isTwoStory ? h*2 + 0.1 : h + 0.1;
+
+  if (isTwoStory) {
+    let floor2 = addPlate([0, h, 0], [Math.PI/2, 0, 0], [s, s, 0.2], 0xBDC3C7, 3);
+    buildRoomFurniture(s, h + 0.1); // 2階の家具
+
+    let f2Front = []; let f2Left = []; let f2Right = []; let f2Back = [];
+    
+    // 2階の窓
+    let win2 = addPlate([0, h + 2.0, s/2 + 0.15], [0, 0, 0], [1.5, 1.5, 0.1], 0x87CEEB); f2Front.push(win2);
+    addScrew(localToWorld(win2.pos, win2.rot, -0.5, 0.5, 0.15), win2.rot, [win2]);
+    addScrew(localToWorld(win2.pos, win2.rot, 0.5, -0.5, 0.15), win2.rot, [win2]);
+
+    buildDividedWall(0, h + h/2, -s/2, Math.PI, s, h, 0x95A5A6, numWallPlanks, f2Back); 
+    buildDividedWall(-s/2, h + h/2, 0, -Math.PI/2, s, h, 0x95A5A6, numWallPlanks, f2Left); 
+    buildDividedWall(s/2, h + h/2, 0, Math.PI/2, s, h, 0x95A5A6, numWallPlanks, f2Right); 
+    buildDividedWall(0, h + h/2, s/2, 0, s, h, 0x95A5A6, numWallPlanks, f2Front); 
+  }
+
+  // 煙突 (高くなる)
+  if (level >= 5) {
+    let ch = 1.5 + (level * 0.2); // レベルに応じて高くなる
+    let chimney = addPlate([s/4, roofHeight + ch/2, -s/4], [0, 0, 0], [1.0, ch, 1.0], 0xE67E22);
+    roofBlockers.push(chimney);
+    addScrew(localToWorld(chimney.pos, chimney.rot, -0.3, ch/3, 0.6), chimney.rot, [chimney]);
+    addScrew(localToWorld(chimney.pos, chimney.rot, 0.3, ch/3, 0.6), chimney.rot, [chimney]);
+  }
+
+  if (level >= 4) {
+    buildDividedRoofFlat(0, roofHeight, 0, s + 0.5, s + 0.5, 0xE74C3C, numWallPlanks, roofBlockers);
+  }
+
+  // ダミーネジで3の倍数に調整
   let rem = state.screws.length % 3;
   if (rem !== 0) {
     let addCount = 3 - rem;
     for (let i = 0; i < addCount; i++) {
-      let sx = (Math.random()-0.5) * floor.size[0] * 0.8;
-      let sy = (Math.random()-0.5) * floor.size[1] * 0.8;
-      let sPos = localToWorld(floor.pos, floor.rot, sx, sy, floor.size[2]/2 + 0.15);
-      addScrew(sPos, floor.rot, [floor]);
+      let sx = (Math.random()-0.5) * floor1.size[0] * 0.8;
+      let sy = (Math.random()-0.5) * floor1.size[1] * 0.8;
+      let sPos = localToWorld(floor1.pos, floor1.rot, sx, sy, floor1.size[2]/2 + 0.15);
+      addScrew(sPos, floor1.rot, [floor1]);
     }
   }
 
-  // 💡 【重要】デプス（深さ）計算とカラーのシャッフル（唯一の正解ルート作り）
+  // 💡 デプス計算とカラーシャッフル
   let changed = true;
   while(changed) {
     changed = false;
@@ -423,7 +468,7 @@ function initLevel(level) {
       for(let b of p.blockedBy) {
         if (b.depth > maxBlockDepth) maxBlockDepth = b.depth;
       }
-      let newDepth = maxBlockDepth + 1;
+      let newDepth = Math.max(p.baseDepth, maxBlockDepth + 1); // 基本深度（家具など）を考慮
       if (p.depth !== newDepth) { p.depth = newDepth; changed = true; }
     }
   }
@@ -431,7 +476,6 @@ function initLevel(level) {
     sc.depth = Math.max(...sc.attachedPlates.map(p => p.depth));
   }
 
-  // 深さ順にソートしつつ、レベルに応じてランダム性を高める（高いレベルほど複雑に絡み合う）
   let shuffledScrews = [...state.screws];
   shuffledScrews.sort((a, b) => {
     let diff = a.depth - b.depth;
@@ -445,7 +489,6 @@ function initLevel(level) {
     colorPool.push(c, c, c);
   }
   
-  // ソートされたネジに色を割り当て
   shuffledScrews.forEach((sc, i) => {
     sc.colorVal = colorPool[i];
     sc.headMesh.material.color.setHex(sc.colorVal); 
@@ -457,12 +500,12 @@ function initLevel(level) {
     if (counts[c] === 3) { state.queue.push(c); counts[c] = 0; }
   });
 
-  // 初回のカスケードチェック（ネジのない板などを落とす）
   checkCascades();
 
-  let dist = 14 + level;
+  // 2階建ての場合はカメラを引く
+  let dist = isTwoStory ? 20 + level : 14 + level;
   camera.position.set(0, dist*0.6, dist);
-  controls.target.set(0, 2, 0);
+  controls.target.set(0, isTwoStory ? h : h/2, 0); // 視点も少し上に
   controls.update();
   renderBoxes();
 }
@@ -485,7 +528,7 @@ function renderBoxes() {
   });
 }
 
-// 💡 レイキャスター（タップ判定）
+// 💡 レイキャスター
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerDownPos = { x: 0, y: 0 };
@@ -509,12 +552,10 @@ container.addEventListener('pointerup', (e) => {
     if (hit.userData.isScrew) {
       let screwObj = hit.userData.obj;
       
-      // 💡 カメラがネジの頭（表側）を向いているか判定（裏側のネジは外から透かして取れない）
       let screwNormal = new THREE.Vector3(0, 0, 1).applyEuler(screwObj.mesh.rotation);
       let camDir = new THREE.Vector3().subVectors(camera.position, screwObj.mesh.position).normalize();
       
       if (screwNormal.dot(camDir) > 0.1) {
-        // 見えているネジはブロックに関係なくいつでも外せる！
         handleScrewClick(screwObj);
       } else {
         playSound('error');
@@ -547,13 +588,11 @@ function handleScrewClick(screwObj) {
   scene.remove(screwObj.mesh);
   state.clickTargets = state.clickTargets.filter(m => m !== screwObj.headMesh);
   
-  // ネジを板から除去し、連鎖落下をチェック！
   screwObj.attachedPlates.forEach(p => {
     p.screws = p.screws.filter(s => s !== screwObj);
   });
   
   checkCascades();
-
   let cssColor = '#' + screwObj.colorVal.toString(16).padStart(6, '0');
 
   if (targetBox) {
@@ -609,13 +648,11 @@ function loop() {
   requestAnimationFrame(loop);
   controls.update();
 
-  // 落下アニメーション
   for (let i = state.fallingPlates.length - 1; i >= 0; i--) {
     let p = state.fallingPlates[i];
     
     p.mesh.position.addScaledVector(p.normal, 0.4); 
     p.mesh.position.y += 0.2; 
-    
     p.mesh.rotation.x += 0.05; 
     p.mesh.rotation.z += 0.05;
 
@@ -631,7 +668,6 @@ function loop() {
     }
   }
 
-  // 💡 【修正】クリア条件：すべてのネジが消え、かつ「すべての板の落下アニメーションが完全に終了」した時のみクリア！
   if (gameState === 'playing' && state.activeBoxes.length === 0 && state.queue.length === 0 && state.slots.every(s => s === null)) {
     let allPlatesFallen = state.plates.every(p => p.hasFallen);
     if (allPlatesFallen && state.fallingPlates.length === 0) {
