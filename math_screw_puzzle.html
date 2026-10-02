@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>3Dドールハウス解体パズル - 2階建て完成版</title>
+<title>3Dドールハウス解体パズル - 装飾追加バージョン</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
@@ -94,10 +94,10 @@
   <div id="start-screen" class="overlay show">
     <div class="title-logo">🏠 連鎖解体！<br>ドールハウスパズル</div>
     <div class="slider-container">
-      <label>開始レベル: <span class="level-val" id="level-display">8</span></label>
-      <input type="range" id="level-slider" min="1" max="10" value="8" oninput="document.getElementById('level-display').innerText = this.value">
+      <label>開始レベル: <span class="level-val" id="level-display">9</span></label>
+      <input type="range" id="level-slider" min="1" max="10" value="9" oninput="document.getElementById('level-display').innerText = this.value">
       <div style="margin-top:15px; font-size:13px; color:#bdc3c7;">
-        Lv8〜10は「2階建て」が登場！<br>家の中には家具や階段がいっぱい！
+        Lv8〜10は「2階建て」が登場！<br>郵便受けや時計など様々な装飾も！
       </div>
     </div>
     <button class="btn" onclick="startGame()">スタート！</button>
@@ -174,20 +174,22 @@ function localToWorld(pos, rot, lx, ly, lz) {
   return [v.x, v.y, v.z];
 }
 
-// 💡 動的なテクスチャ生成（花壇用）
-let flowerTex = null;
-function getFlowerTexture() {
-  if(flowerTex) return flowerTex;
+// 💡 動的なテクスチャ生成（花壇、時計、郵便受けなど用）
+const textureCache = {};
+function getIconTexture(icon, bgColor, w, h, size) {
+  let key = icon + bgColor + w + h;
+  if(textureCache[key]) return textureCache[key];
   const canvas = document.createElement('canvas');
-  canvas.width = 512; canvas.height = 128;
+  canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#27ae60'; // 花壇のベース色（緑）
-  ctx.fillRect(0, 0, 512, 128);
-  ctx.font = '70px sans-serif';
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, w, h);
+  ctx.font = `${size}px sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('🌷 🌻 🌷 🌻 🌷', 256, 64);
-  flowerTex = new THREE.CanvasTexture(canvas);
-  return flowerTex;
+  ctx.fillText(icon, w/2, h/2 + size*0.1); 
+  const tex = new THREE.CanvasTexture(canvas);
+  textureCache[key] = tex;
+  return tex;
 }
 
 function addPlate(pos, rot, size, colorHex, baseDepth = 0, customMaterial = null) {
@@ -249,7 +251,6 @@ function checkCascades() {
   }
 }
 
-// 複数枚の板（壁）
 function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, blockers = []) {
   let plankH = h / numPlanks;
   for(let i=0; i<numPlanks; i++) {
@@ -276,7 +277,6 @@ function buildDividedWall(cx, cy, cz, rotY, w, h, baseColor, numPlanks, blockers
   }
 }
 
-// 💡 煙突と干渉する板のみブロックされる平らな屋根
 function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, chimneyObj = null, chimneyZ = 0) {
   let plankD = d / numPlanks;
   for(let i=0; i<numPlanks; i++) {
@@ -286,7 +286,6 @@ function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, chimneyObj
     
     let plank = addPlate([cx, cy, pz], [-Math.PI/2, 0, 0], [w - 0.1, plankD - 0.05, 0.2], color.getHex());
     
-    // 💡 煙突がある場合、その煙突のZ座標と近い板だけをブロックする！
     if (chimneyObj && Math.abs(pz - chimneyZ) <= plankD * 1.5) {
       plank.blockedBy.push(chimneyObj);
     }
@@ -309,10 +308,8 @@ function buildDividedRoofFlat(cx, cy, cz, w, d, baseColor, numPlanks, chimneyObj
 
 // --- 家具と階段 ---
 function buildStairs(cx, cy, cz, floorHeight) {
-  let len = floorHeight * 1.414; // 45度
-  // 階段のベース板
+  let len = floorHeight * 1.414; 
   let stairs = addPlate([cx, cy, cz], [-Math.PI/4, 0, 0], [2, len, 0.2], 0xA0522D, 4);
-  // 上部と下部にネジ
   addScrew(localToWorld(stairs.pos, stairs.rot, -0.6, len/2 - 0.6, 0.15), stairs.rot, [stairs]);
   addScrew(localToWorld(stairs.pos, stairs.rot, 0.6, -len/2 + 0.6, 0.15), stairs.rot, [stairs]);
 }
@@ -354,18 +351,15 @@ function buildBookshelf(cx, cy, cz, rotY) {
   }
 }
 
-// 家具を配置する関数（階段の位置を避ける）
 function buildRoomFurniture(s, cy, isFirstFloor) {
   buildTable(0, cy, 0);
   buildChair(0, cy, 1.2, 0);
   buildChair(0, cy, -1.2, Math.PI);
   buildChair(1.4, cy, 0, -Math.PI/2);
   
-  // 1階なら右側に階段が来るためベッドは左側に配置
   if (isFirstFloor) {
     buildBed(-s/2 + 1.5, cy, -s/2 + 1.5, 0);
   } else {
-    // 2階なら自由に配置
     buildBed(-s/2 + 1.5, cy, -s/2 + 1.5, 0);
     buildBookshelf(s/2 - 0.5, cy, s/2 - 1.5, -Math.PI/2);
   }
@@ -402,14 +396,14 @@ function initLevel(level) {
 
   // --- 1階 ---
   let floor1 = addPlate([0, -0.1, 0], [Math.PI/2, 0, 0], [s, s, 0.2], 0xBDC3C7);
+  // 💡 バグ修正：Y座標を確実に+0.15オフセットしてネジ頭を出す
   for(let i=0;i<4;i++) {
     let off = [[-s/2+0.8, -s/2+0.8], [s/2-0.8, -s/2+0.8], [-s/2+0.8, s/2-0.8], [s/2-0.8, s/2-0.8]][i];
-    addScrew([off[0], 0, off[1]], [-Math.PI/2, 0, 0], [floor1]);
+    addScrew([off[0], 0.15, off[1]], [-Math.PI/2, 0, 0], [floor1]);
   }
 
   buildRoomFurniture(s, 0, isTwoStory); 
 
-  // 階段（2階建ての場合）
   if (isTwoStory) {
     buildStairs(s/2 - 2, h/2, 0, h);
   }
@@ -422,9 +416,9 @@ function initLevel(level) {
     addScrew(localToWorld(win1.pos, win1.rot, -0.5, 0.5, 0.15), win1.rot, [win1]);
     addScrew(localToWorld(win1.pos, win1.rot, 0.5, -0.5, 0.15), win1.rot, [win1]);
     
-    // 💡 花壇 (お花アイコンのテクスチャ)
+    // 花壇
     if (level >= 4) {
-      let flowerMat = new THREE.MeshLambertMaterial({ map: getFlowerTexture(), side: THREE.DoubleSide, transparent: true });
+      let flowerMat = new THREE.MeshLambertMaterial({ map: getIconTexture('🌷 🌻 🌷 🌻 🌷', '#27ae60', 512, 128, 70), side: THREE.DoubleSide, transparent: true });
       let flowerBed = addPlate([s/2 + 0.15, 0.5, 0], [0, Math.PI/2, 0], [3.0, 1.0, 0.1], 0xffffff, 0, flowerMat); 
       f1Right.push(flowerBed);
       addScrew(localToWorld(flowerBed.pos, flowerBed.rot, -1.0, 0, 0.15), flowerBed.rot, [flowerBed]);
@@ -432,7 +426,7 @@ function initLevel(level) {
     }
   }
 
-  // ドアと看板
+  // ドア、看板、郵便受け
   if (level >= 4) {
     let sign = addPlate([-0.2, 2.1, s/2 + 0.3], [0, 0, 0], [2.8, 1.2, 0.1], 0xF1C40F);
     addScrew(localToWorld(sign.pos, sign.rot, -1.0, 0, 0.15), sign.rot, [sign]); 
@@ -442,6 +436,22 @@ function initLevel(level) {
     door.blockedBy.push(sign); f1Front.push(door);
     addScrew(localToWorld(door.pos, door.rot, -0.6, 0.8, 0.15), door.rot, [door]);
     addScrew(localToWorld(door.pos, door.rot, 0.6, -0.8, 0.15), door.rot, [door]);
+
+    // 💡 新オブジェクト：郵便受け
+    if (Math.random() > 0.3) {
+      let mailMat = new THREE.MeshLambertMaterial({ map: getIconTexture('✉️', '#c0392b', 128, 128, 60), side: THREE.DoubleSide });
+      let mailbox = addPlate([1.8, 1.2, s/2 + 0.15], [0, 0, 0], [1.0, 1.0, 0.1], 0xffffff, 0, mailMat);
+      f1Front.push(mailbox);
+      addScrew(localToWorld(mailbox.pos, mailbox.rot, 0, 0.3, 0.15), mailbox.rot, [mailbox]);
+    }
+  }
+
+  // 💡 新オブジェクト：家の中の絵画
+  if (level >= 5 && Math.random() > 0.3) {
+    let paintMat = new THREE.MeshLambertMaterial({ map: getIconTexture('🖼️️', '#f39c12', 256, 128, 80), side: THREE.DoubleSide });
+    let painting = addPlate([0, 2.0, -s/2 + 0.15], [0, Math.PI, 0], [2.0, 1.2, 0.1], 0xffffff, 4, paintMat); 
+    addScrew(localToWorld(painting.pos, painting.rot, -0.8, 0, 0.15), painting.rot, [painting]);
+    addScrew(localToWorld(painting.pos, painting.rot, 0.8, 0, 0.15), painting.rot, [painting]);
   }
 
   let numWallPlanks = Math.min(5, 2 + Math.floor(level/2));
@@ -456,11 +466,11 @@ function initLevel(level) {
   let roofHeight = isTwoStory ? h*2 + 0.1 : h + 0.1;
 
   if (isTwoStory) {
-    // 💡 2階の床（描画と落下を完璧に実装）
     let floor2 = addPlate([0, h, 0], [Math.PI/2, 0, 0], [s, s, 0.2], 0x95A5A6, 3);
+    // 💡 バグ修正：2階の床ネジも確実に+0.15浮かせる
     for(let i=0;i<4;i++) {
       let off = [[-s/2+0.8, -s/2+0.8], [s/2-0.8, -s/2+0.8], [-s/2+0.8, s/2-0.8], [s/2-0.8, s/2-0.8]][i];
-      addScrew([off[0], h, off[1]], [-Math.PI/2, 0, 0], [floor2]);
+      addScrew([off[0], h + 0.15, off[1]], [-Math.PI/2, 0, 0], [floor2]);
     }
 
     buildRoomFurniture(s, h + 0.1, false); 
@@ -471,15 +481,23 @@ function initLevel(level) {
     addScrew(localToWorld(win2.pos, win2.rot, -0.5, 0.5, 0.15), win2.rot, [win2]);
     addScrew(localToWorld(win2.pos, win2.rot, 0.5, -0.5, 0.15), win2.rot, [win2]);
 
+    // 💡 新オブジェクト：2階の壁掛け時計
+    if (Math.random() > 0.3) {
+      let clockMat = new THREE.MeshLambertMaterial({ map: getIconTexture('🕒', '#ecf0f1', 128, 128, 80), side: THREE.DoubleSide });
+      let clock = addPlate([s/2 - 1.5, h + 2.8, s/2 + 0.15], [0, 0, 0], [1.2, 1.2, 0.1], 0xffffff, 0, clockMat);
+      f2Front.push(clock);
+      addScrew(localToWorld(clock.pos, clock.rot, -0.4, 0, 0.15), clock.rot, [clock]);
+      addScrew(localToWorld(clock.pos, clock.rot, 0.4, 0, 0.15), clock.rot, [clock]);
+    }
+
     buildDividedWall(0, h + h/2, -s/2, Math.PI, s, h, 0xBDC3C7, numWallPlanks, f2Back); 
     buildDividedWall(-s/2, h + h/2, 0, -Math.PI/2, s, h, 0xBDC3C7, numWallPlanks, f2Left); 
     buildDividedWall(s/2, h + h/2, 0, Math.PI/2, s, h, 0xBDC3C7, numWallPlanks, f2Right); 
     buildDividedWall(0, h + h/2, s/2, 0, s, h, 0xBDC3C7, numWallPlanks, f2Front); 
   }
 
-  // 💡 煙突と屋根の「個別ロック」
   let chimneyObj = null;
-  let chimneyZ = -s/4; // 煙突のZ座標
+  let chimneyZ = -s/4; 
   if (level >= 5) {
     let ch = 1.5 + (level * 0.2); 
     chimneyObj = addPlate([s/4, roofHeight + ch/2, chimneyZ], [0, 0, 0], [1.0, ch, 1.0], 0xE67E22);
@@ -487,24 +505,39 @@ function initLevel(level) {
     addScrew(localToWorld(chimneyObj.pos, chimneyObj.rot, 0.3, ch/3, 0.6), chimneyObj.rot, [chimneyObj]);
   }
 
-  if (level >= 4) {
-    // 煙突のオブジェクトと座標を渡し、接している板だけをブロックする
-    buildDividedRoofFlat(0, roofHeight, 0, s + 0.5, s + 0.5, 0xE74C3C, numWallPlanks, chimneyObj, chimneyZ);
+  let roofBlockers = [];
+  // 💡 新オブジェクト：太陽光パネル（屋根の左側をブロック）
+  if (level >= 6 && Math.random() > 0.3) {
+    let solarMat = new THREE.MeshLambertMaterial({ color: 0x2c3e50, side: THREE.DoubleSide }); 
+    let solar = addPlate([-s/4, roofHeight + 0.15, 0], [-Math.PI/2, 0, 0], [s/2 - 0.5, s - 1.0, 0.1], 0xffffff, 0, solarMat);
+    roofBlockers.push(solar);
+    addScrew(localToWorld(solar.pos, solar.rot, -1.0, 1.0, 0.15), solar.rot, [solar]);
+    addScrew(localToWorld(solar.pos, solar.rot, 1.0, -1.0, 0.15), solar.rot, [solar]);
   }
 
-  // ダミーネジで3の倍数に調整
+  if (level >= 4) {
+    buildDividedRoofFlat(0, roofHeight, 0, s + 0.5, s + 0.5, 0xE74C3C, numWallPlanks, chimneyObj, chimneyZ);
+    // ソーラーパネルが乗っている板もブロックする
+    if (roofBlockers.length > 0) {
+      state.plates.forEach(p => {
+        if (p.pos[1] === roofHeight && p.pos[0] < 0) { // 左側の屋根
+          p.blockedBy.push(roofBlockers[0]);
+        }
+      });
+    }
+  }
+
+  // 💡 バグ修正：ダミーネジもY座標を確実に+0.15オフセット
   let rem = state.screws.length % 3;
   if (rem !== 0) {
     let addCount = 3 - rem;
     for (let i = 0; i < addCount; i++) {
       let sx = (Math.random()-0.5) * floor1.size[0] * 0.8;
-      let sy = (Math.random()-0.5) * floor1.size[1] * 0.8;
-      let sPos = localToWorld(floor1.pos, floor1.rot, sx, sy, floor1.size[2]/2 + 0.15);
-      addScrew(sPos, floor1.rot, [floor1]);
+      let sz = (Math.random()-0.5) * floor1.size[2] * 0.8;
+      addScrew([sx, 0.15, sz], [-Math.PI/2, 0, 0], [floor1]);
     }
   }
 
-  // デプス計算とカラーシャッフル
   let changed = true;
   while(changed) {
     changed = false;
@@ -572,7 +605,6 @@ function renderBoxes() {
   });
 }
 
-// 💡 レイキャスター
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let pointerDownPos = { x: 0, y: 0 };
@@ -687,7 +719,6 @@ function autoMatchFromSlots() {
   }
 }
 
-// 💡 描画ループ
 function loop() {
   requestAnimationFrame(loop);
   controls.update();
