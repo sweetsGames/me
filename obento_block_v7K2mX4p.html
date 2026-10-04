@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>お弁当づくりブロックパズル</title>
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { overscroll-behavior: none; touch-action: none; background: #fdf6e3; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; }
+  body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+  
+  #game-wrapper {
+    position: relative; width: 100%; max-width: 450px; height: 100%; max-height: 850px;
+    background: #ffecd2; background-image: linear-gradient(120deg, #f6d365 0%, #fda085 100%);
+    display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);
+  }
+
+  #header { padding: max(15px, var(--sat)) 15px 10px; display: flex; justify-content: space-between; align-items: center; }
+  .score-box { background: rgba(255,255,255,0.8); padding: 8px 20px; border-radius: 20px; font-size: 20px; font-weight: 900; color: #d35400; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  
+  /* お弁当箱（盤面） */
+  #board-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 2px; width: 95%; aspect-ratio: 1 / 1;
+    background: #8e44ad; /* お弁当箱の色 */
+    border: 8px solid #c0392b; border-radius: 15px; padding: 4px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 10px 15px rgba(0,0,0,0.2);
+    position: relative;
+  }
+  
+  .cell { background: rgba(255, 255, 255, 0.2); border-radius: 4px; transition: background 0.2s; }
+  .cell.filled { box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; font-size: 24px; }
+  
+  /* 消去時のフラッシュアニメーション */
+  @keyframes flash { 0% { background: white; transform: scale(1.1); } 100% { background: rgba(255,255,255,0.2); transform: scale(1); } }
+  .cell.clearing { animation: flash 0.4s ease-out; }
+
+  /* 候補ブロック置き場 */
+  #tray { height: 160px; background: rgba(255,255,255,0.5); border-top: 4px solid white; display: flex; justify-content: space-around; align-items: center; padding: 10px; padding-bottom: max(10px, var(--sab)); }
+  .candidate-slot { width: 30%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; }
+  
+  /* ドラッグするブロック */
+  .block-container { position: absolute; display: grid; gap: 2px; cursor: grab; user-select: none; z-index: 10; }
+  .block-container.dragging { z-index: 100; cursor: grabbing; transform: scale(1.2); opacity: 0.9; transition: transform 0.1s; }
+  .block-cell { width: 30px; height: 30px; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: 20px; box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3); }
+
+  /* オーバーレイ画面 */
+  .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .title { font-size: 32px; color: #fff; font-weight: 900; margin-bottom: 20px; text-shadow: 2px 2px 0 #d35400; text-align: center; line-height: 1.4; }
+  .btn { padding: 15px 40px; font-size: 22px; font-weight: bold; color: white; background: #e67e22; border: none; border-radius: 30px; box-shadow: 0 6px 0 #d35400; cursor: pointer; margin-top: 20px; }
+  .btn:active { transform: translateY(6px); box-shadow: none; }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="header">
+    <div class="score-box">おいしさ: <span id="ui-score">0</span></div>
+  </div>
+  
+  <div id="board-container">
+    <div id="board"></div>
+  </div>
+
+  <div id="tray">
+    <div class="candidate-slot" id="slot-0"></div>
+    <div class="candidate-slot" id="slot-1"></div>
+    <div class="candidate-slot" id="slot-2"></div>
+  </div>
+
+  <div id="start-screen" class="overlay show">
+    <div class="title">🍱 お弁当づくり<br>ブロックパズル</div>
+    <div style="background:white; color:#333; padding:20px; border-radius:15px; font-weight:bold; width:80%; text-align:center;">
+      おかずをスワイプして<br>お弁当箱に詰めよう！<br><br>
+      タテかヨコに1列そろうと<br>「パクッ」と食べられるよ😋<br>
+      すき間なく上手に詰められるかな？
+    </div>
+    <button class="btn" onclick="startGame()">お弁当をつくる！</button>
+  </div>
+
+  <div id="game-over" class="overlay">
+    <h1 style="color:#e74c3c; font-size:40px; margin-bottom:10px;">ごちそうさま！</h1>
+    <div style="color:white; font-size:24px; margin-bottom: 20px;">おいしさ: <span id="result-score">0</span></div>
+    <button class="btn" onclick="startGame()">もういっかい</button>
+  </div>
+</div>
+
+<script>
+// --- 音声 ---
+let actx;
+function initAudio() { if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); } if (actx.state === 'suspended') actx.resume(); }
+function playSound(type) {
+  if (!actx) return;
+  const t = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
+  osc.connect(gain); gain.connect(actx.destination);
+  if (type === 'put') { 
+    osc.type = 'sine'; osc.frequency.setValueAtTime(600, t); osc.frequency.exponentialRampToValueAtTime(300, t + 0.1);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    osc.start(t); osc.stop(t + 0.1);
+  } else if (type === 'clear') { 
+    // 食べる音（明るい）
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(800, t); osc.frequency.setValueAtTime(1000, t+0.1); osc.frequency.setValueAtTime(1200, t+0.2);
+    gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+    osc.start(t); osc.stop(t + 0.3);
+  } else if (type === 'error') {
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
+    osc.start(t); osc.stop(t + 0.15);
+  }
+}
+
+// --- ゲーム設定 ---
+const BOARD_SIZE = 8;
+let board = [];
+let score = 0;
+let CELL_SIZE = 0; // 画面サイズに合わせて計算
+
+// おかずブロックの定義
+const SHAPES = [
+  { name: 'トマト', icon: '🍅', color: '#e74c3c', shape: [[1]] },
+  { name: '卵焼き', icon: '🥚', color: '#f1c40f', shape: [[1,1]] },
+  { name: '卵焼き縦', icon: '🥚', color: '#f1c40f', shape: [[1],[1]] },
+  { name: 'おにぎり', icon: '🍙', color: '#ecf0f1', shape: [[1,1],[1,1]] },
+  { name: 'ウインナー', icon: '🌭', color: '#d35400', shape: [[1,1,1]] },
+  { name: 'ウインナー縦', icon: '🌭', color: '#d35400', shape: [[1],[1],[1]] },
+  { name: 'ブロッコリー', icon: '🥦', color: '#27ae60', shape: [[1,0],[1,1]] },
+  { name: 'ブロッコリーL', icon: '🥦', color: '#27ae60', shape: [[1,1],[1,0]] },
+  { name: '唐揚げ', icon: '🍗', color: '#e67e22', shape: [[0,1,0],[1,1,1]] },
+  { name: 'エビフライ', icon: '🍤', color: '#f39c12', shape: [[1,1,1,1]] },
+  { name: 'エビフライ縦', icon: '🍤', color: '#f39c12', shape: [[1],[1],[1],[1]] },
+  { name: 'ハンバーグ', icon: '🥩', color: '#8e44ad', shape: [[1,1,1],[1,1,1]] }
+];
+
+let candidates = [null, null, null];
+
+// --- 初期化と描画 ---
+const boardEl = document.getElementById('board');
+
+function initBoard() {
+  board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
+  boardEl.innerHTML = '';
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      let cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.id = `cell-${r}-${c}`;
+      boardEl.appendChild(cell);
+    }
+  }
+  // セルのサイズを取得（配置の計算用）
+  CELL_SIZE = boardEl.clientWidth / BOARD_SIZE;
+  window.addEventListener('resize', () => { CELL_SIZE = boardEl.clientWidth / BOARD_SIZE; });
+}
+
+function updateBoardView() {
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      let cell = document.getElementById(`cell-${r}-${c}`);
+      let val = board[r][c];
+      if (val) {
+        cell.className = 'cell filled';
+        cell.style.backgroundColor = val.color;
+        cell.innerText = val.icon;
+      } else {
+        cell.className = 'cell';
+        cell.style.backgroundColor = '';
+        cell.innerText = '';
+      }
+    }
+  }
+}
+
+// 候補の生成
+function generateCandidates() {
+  let emptyCount = 0;
+  for (let i = 0; i < 3; i++) {
+    if (!candidates[i]) {
+      let shapeDef = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      candidates[i] = shapeDef;
+      renderCandidate(i, shapeDef);
+      emptyCount++;
+    }
+  }
+  if (emptyCount > 0) checkGameOver();
+}
+
+function renderCandidate(index, shapeDef) {
+  const slot = document.getElementById(`slot-${index}`);
+  slot.innerHTML = '';
+  if (!shapeDef) return;
+
+  const blockCont = document.createElement('div');
+  blockCont.className = 'block-container';
+  
+  const rows = shapeDef.shape.length;
+  const cols = shapeDef.shape[0].length;
+  blockCont.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+  blockCont.style.gridTemplateRows = `repeat(${rows}, 30px)`;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (shapeDef.shape[r][c]) {
+        let cell = document.createElement('div');
+        cell.className = 'block-cell';
+        cell.style.backgroundColor = shapeDef.color;
+        cell.innerText = shapeDef.icon;
+        // グリッド位置を指定
+        cell.style.gridRow = r + 1;
+        cell.style.gridColumn = c + 1;
+        blockCont.appendChild(cell);
+      }
+    }
+  }
+
+  slot.appendChild(blockCont);
+  setupDrag(blockCont, index, shapeDef);
+}
+
+// --- ドラッグ＆ドロップ処理 ---
+function setupDrag(blockEl, index, shapeDef) {
+  let startX, startY;
+  
+  blockEl.addEventListener('pointerdown', (e) => {
+    initAudio();
+    blockEl.classList.add('dragging');
+    
+    // 指で隠れないように、ブロックを少し上にずらして持つ（オフセット）
+    const rect = blockEl.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+
+    // ブロックをbody直下に移動して自由に動かせるようにする
+    document.body.appendChild(blockEl);
+    blockEl.style.left = `${e.clientX - offsetX}px`;
+    blockEl.style.top = `${e.clientY - offsetY - 40}px`; // 40px上にずらす
+
+    function onMove(ev) {
+      blockEl.style.left = `${ev.clientX - offsetX}px`;
+      blockEl.style.top = `${ev.clientY - offsetY - 40}px`;
+    }
+
+    function onUp(ev) {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      blockEl.classList.remove('dragging');
+
+      // 配置できるか判定
+      const blockRect = blockEl.getBoundingClientRect();
+      // ブロックの左上の座標を基準にする
+      const boardRect = boardEl.getBoundingClientRect();
+      
+      // 盤面に対する相対座標
+      let relX = blockRect.left - boardRect.left;
+      let relY = blockRect.top - boardRect.top;
+      
+      // 最も近いセル(行・列)を計算
+      let col = Math.round(relX / CELL_SIZE);
+      let row = Math.round(relY / CELL_SIZE);
+
+      if (canPlace(shapeDef.shape, row, col)) {
+        placeShape(shapeDef, row, col);
+        candidates[index] = null;
+        blockEl.remove();
+        playSound('put');
+        checkLines();
+        
+        // 3つ使い切ったら補充
+        if (!candidates[0] && !candidates[1] && !candidates[2]) {
+          generateCandidates();
+        } else {
+          checkGameOver();
+        }
+      } else {
+        // 配置失敗したら元の場所に戻す
+        playSound('error');
+        document.getElementById(`slot-${index}`).appendChild(blockEl);
+        blockEl.style.left = '';
+        blockEl.style.top = '';
+      }
+    }
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  });
+  
+  blockEl.ondragstart = () => false;
+}
+
+// --- ロジック ---
+function canPlace(shapeMatrix, startR, startC) {
+  const rows = shapeMatrix.length;
+  const cols = shapeMatrix[0].length;
+  
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (shapeMatrix[r][c]) {
+        let boardR = startR + r;
+        let boardC = startC + c;
+        if (boardR < 0 || boardR >= BOARD_SIZE || boardC < 0 || boardC >= BOARD_SIZE) return false; // 枠外
+        if (board[boardR][boardC] !== null) return false; // 既にブロックがある
+      }
+    }
+  }
+  return true;
+}
+
+function placeShape(shapeDef, startR, startC) {
+  const shapeMatrix = shapeDef.shape;
+  let blocksPlaced = 0;
+  for (let r = 0; r < shapeMatrix.length; r++) {
+    for (let c = 0; c < shapeMatrix[0].length; c++) {
+      if (shapeMatrix[r][c]) {
+        board[startR + r][startC + c] = { color: shapeDef.color, icon: shapeDef.icon };
+        blocksPlaced++;
+      }
+    }
+  }
+  score += blocksPlaced * 10;
+  updateScore();
+  updateBoardView();
+}
+
+function checkLines() {
+  let linesToClear = { rows: [], cols: [] };
+
+  // 行のチェック
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    if (board[r].every(cell => cell !== null)) linesToClear.rows.push(r);
+  }
+  // 列のチェック
+  for (let c = 0; c < BOARD_SIZE; c++) {
+    let colFull = true;
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      if (board[r][c] === null) { colFull = false; break; }
+    }
+    if (colFull) linesToClear.cols.push(c);
+  }
+
+  if (linesToClear.rows.length > 0 || linesToClear.cols.length > 0) {
+    playSound('clear');
+    
+    // アニメーション用にクラスを追加
+    linesToClear.rows.forEach(r => {
+      for (let c = 0; c < BOARD_SIZE; c++) document.getElementById(`cell-${r}-${c}`).classList.add('clearing');
+    });
+    linesToClear.cols.forEach(c => {
+      for (let r = 0; r < BOARD_SIZE; r++) document.getElementById(`cell-${r}-${c}`).classList.add('clearing');
+    });
+
+    // スコア加算（同時消しでボーナス）
+    let totalLines = linesToClear.rows.length + linesToClear.cols.length;
+    score += totalLines * 100 + (totalLines > 1 ? 50 : 0);
+    updateScore();
+
+    // 実際のデータ消去はアニメーション後に
+    setTimeout(() => {
+      linesToClear.rows.forEach(r => { for (let c = 0; c < BOARD_SIZE; c++) board[r][c] = null; });
+      linesToClear.cols.forEach(c => { for (let r = 0; r < BOARD_SIZE; r++) board[r][c] = null; });
+      
+      // クラスを外して再描画
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) document.getElementById(`cell-${r}-${c}`).classList.remove('clearing');
+      }
+      updateBoardView();
+      checkGameOver(); // 消えた後に置けるようになるかもしれないので再チェック
+    }, 400);
+  }
+}
+
+function checkGameOver() {
+  // 現在の候補ブロックが、盤面のどこかに1つでも置けるかチェック
+  let canPlay = false;
+  for (let i = 0; i < 3; i++) {
+    if (candidates[i]) {
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          if (canPlace(candidates[i].shape, r, c)) {
+            canPlay = true;
+            break;
+          }
+        }
+        if (canPlay) break;
+      }
+    }
+    if (canPlay) break;
+  }
+
+  if (!canPlay) {
+    setTimeout(() => {
+      document.getElementById('result-score').innerText = score;
+      document.getElementById('game-over').classList.add('show');
+    }, 500);
+  }
+}
+
+function updateScore() {
+  document.getElementById('ui-score').innerText = score;
+}
+
+function startGame() {
+  initAudio();
+  document.getElementById('start-screen').classList.remove('show');
+  document.getElementById('game-over').classList.remove('show');
+  score = 0; updateScore();
+  candidates = [null, null, null];
+  initBoard();
+  generateCandidates();
+}
+
+// 画面読み込み時に初期化
+initBoard();
+</script>
+</body>
+</html>
