@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>お弁当づくりパズル - レベル＆仕切り実装版</title>
+<title>お弁当づくりパズル - ボーナス追加版</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #fdf6e3; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; }
@@ -15,30 +15,28 @@
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);
   }
 
-  /* 上部UI */
-  #header { padding: max(15px, var(--sat)) 15px 10px; display: flex; justify-content: space-between; align-items: center; }
-  .level-box { background: rgba(255,255,255,0.8); padding: 8px 15px; border-radius: 20px; font-size: 18px; font-weight: 900; color: #c0392b; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-  .goal-box { background: rgba(255,255,255,0.8); padding: 8px 15px; border-radius: 20px; font-size: 16px; font-weight: bold; color: #2c3e50; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  /* 上部UI（スコア表示復活） */
+  #header { padding: max(15px, var(--sat)) 15px 10px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+  .level-box { background: rgba(255,255,255,0.8); padding: 6px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #c0392b; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  .score-box { background: rgba(255,255,255,0.8); padding: 6px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #d35400; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  .goal-box { width: 100%; text-align: center; background: rgba(255,255,255,0.8); padding: 8px 15px; border-radius: 20px; font-size: 16px; font-weight: bold; color: #2c3e50; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
   
   /* お弁当箱（盤面 9x9） */
-  #board-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; }
+  #board-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; position: relative; }
   #board {
     display: grid;
     grid-template-columns: repeat(9, 1fr);
     grid-template-rows: repeat(9, 1fr);
     width: 100%; max-width: 400px; aspect-ratio: 1 / 1;
-    background: #d35400; /* お弁当箱の底の色 */
+    background: #d35400; 
     border: 8px solid #8e44ad; border-radius: 15px; padding: 4px;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.6), 0 10px 15px rgba(0,0,0,0.2);
     position: relative; box-sizing: border-box; gap: 2px;
   }
   
   .cell { background: rgba(255, 255, 255, 0.3); border-radius: 4px; transition: background 0.2s; box-sizing: border-box; }
-  
-  /* 💡 3x3の仕切りを太線で表現 */
   .cell.border-right { border-right: 4px solid #8e44ad; }
   .cell.border-bottom { border-bottom: 4px solid #8e44ad; }
-
   .cell.filled { box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; font-size: 24px; }
   
   /* 消去アニメーション */
@@ -54,6 +52,14 @@
   .block-container.dragging { z-index: 100; cursor: grabbing; transform: scale(1.0); opacity: 0.95; }
   .block-cell { border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: 20px; box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3); box-sizing: border-box; }
 
+  /* フローティングテキスト（ボーナス演出） */
+  .floating-text {
+    position: absolute; pointer-events: none; font-weight: 900; font-size: 22px;
+    text-shadow: 2px 2px 0 white, -2px -2px 0 white, 2px -2px 0 white, -2px 2px 0 white;
+    animation: floatUp 1.5s ease-out forwards; z-index: 150; text-align: center; width: 100%;
+  }
+  @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 20% { transform: translateY(-20px) scale(1.2); opacity: 1; } 80% { transform: translateY(-60px) scale(1); opacity: 1; } 100% { transform: translateY(-80px) scale(1); opacity: 0; } }
+
   /* オーバーレイ画面 */
   .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
   .overlay.show { opacity: 1; pointer-events: auto; }
@@ -68,7 +74,8 @@
 <div id="game-wrapper">
   <div id="header">
     <div class="level-box">LEVEL <span id="ui-level">1</span></div>
-    <div class="goal-box">目標: <span id="ui-goal">3</span> 回食べる！</div>
+    <div class="score-box">おいしさ: <span id="ui-score">0</span></div>
+    <div class="goal-box">目標: あと <span id="ui-goal">3</span> 回食べる！</div>
   </div>
   
   <div id="board-container">
@@ -85,10 +92,13 @@
     <div class="title">🍱 お弁当づくり<br>ブロックパズル</div>
     <div class="desc">
       おかずをスワイプして詰めよう！<br><br>
-      <b>「タテ1列」「ヨコ1列」</b>または<br>
-      <b>「3×3の仕切り」</b>をすべて埋めると<br>
+      <b>「タテ・ヨコ1列」</b>または<br>
+      <b>「3×3の太枠」</b>をすべて埋めると<br>
       パクッと食べられるよ😋<br><br>
-      ※レベルが上がると、苦手な<br>お邪魔ピーマン(🫑)が出現！
+      ✨ <b>高得点のヒント</b> ✨<br>
+      同じおかずだけで列を作ったり<br>
+      苦手なピーマン(🫑)を一緒に食べると<br>
+      ボーナスポイントがもらえるよ！
     </div>
     <button class="btn" onclick="startGame(1)">スタート！</button>
   </div>
@@ -97,6 +107,7 @@
     <h1 style="color:#2ecc71; font-size:40px; margin-bottom:10px;">ごちそうさま！</h1>
     <div class="desc" style="margin-bottom:20px; background:#e8f8f5;">
       目標達成！お弁当を完食したよ🎉<br>
+      現在のおいしさ: <span id="clear-score" style="color:#e67e22; font-size:24px;">0</span><br>
       次はもっと難しいお弁当に挑戦だ！
     </div>
     <button class="btn" style="background:#27ae60; box-shadow:0 6px 0 #1e8449;" onclick="nextLevel()">次のレベルへ</button>
@@ -106,6 +117,7 @@
     <h1 style="color:#e74c3c; font-size:40px; margin-bottom:10px;">おなかいっぱい…</h1>
     <div class="desc" style="margin-bottom:20px; background:#fdedec;">
       もうおかずを置く場所がないよ💦<br>
+      最終おいしさ: <span id="result-score" style="color:#e67e22; font-size:24px;">0</span><br>
       すき間なく詰めるのがコツ！
     </div>
     <button class="btn" style="background:#e74c3c; box-shadow:0 6px 0 #c0392b;" onclick="startGame(currentLevel)">リトライ</button>
@@ -128,6 +140,11 @@ function playSound(type) {
     osc.type = 'triangle'; osc.frequency.setValueAtTime(800, t); osc.frequency.setValueAtTime(1000, t+0.1); osc.frequency.setValueAtTime(1200, t+0.2);
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
+  } else if (type === 'bonus') {
+    // ボーナス用のキラキラ音
+    osc.type = 'sine'; osc.frequency.setValueAtTime(1000, t); osc.frequency.setValueAtTime(1500, t+0.1); osc.frequency.setValueAtTime(2000, t+0.2);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+    osc.start(t); osc.stop(t + 0.4);
   } else if (type === 'error') {
     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
     osc.start(t); osc.stop(t + 0.15);
@@ -138,9 +155,10 @@ function playSound(type) {
 const BOARD_SIZE = 9;
 let board = [];
 let currentLevel = 1;
+let score = 0;
 let targetClears = 0;
 let currentClears = 0;
-let cellSize = 0; // 盤面の1マスのサイズ（ドラッグ時の補正用）
+let cellSize = 0;
 
 const SHAPES = [
   { icon: '🍅', color: '#e74c3c', shape: [[1]] },
@@ -154,13 +172,14 @@ const SHAPES = [
   { icon: '🍤', color: '#f39c12', shape: [[1,1,1,1]] },
   { icon: '🍤', color: '#f39c12', shape: [[1],[1],[1],[1]] },
   { icon: '🥩', color: '#8e44ad', shape: [[1,1,1],[1,1,1]] },
-  { icon: '🍄', color: '#cd6155', shape: [[0,1,0],[1,1,1]] } // キノコ追加
+  { icon: '🍄', color: '#cd6155', shape: [[0,1,0],[1,1,1]] }
 ];
 
 let candidates = [null, null, null];
 
 // --- 初期化と描画 ---
 const boardEl = document.getElementById('board');
+const boardContainer = document.getElementById('board-container');
 
 function initBoard() {
   board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
@@ -170,24 +189,19 @@ function initBoard() {
       let cell = document.createElement('div');
       cell.className = 'cell';
       cell.id = `cell-${r}-${c}`;
-      
-      // 💡 3x3の仕切り線を表現（2、5行/列目の右下にボーダーを追加）
       if (r % 3 === 2 && r !== 8) cell.classList.add('border-bottom');
       if (c % 3 === 2 && c !== 8) cell.classList.add('border-right');
-      
       boardEl.appendChild(cell);
     }
   }
   
-  // マスのサイズを計算（ドラッグ時のスナップ精度向上のため）
   const updateCellSize = () => {
     const boardRect = boardEl.getBoundingClientRect();
-    // padding(4px * 2) と border(8px * 2) を引いて、gap(2px * 8)を考慮した正確なセルサイズ
     cellSize = (boardRect.width - 24 - 16) / BOARD_SIZE; 
   };
   updateCellSize();
   window.addEventListener('resize', updateCellSize);
-  setTimeout(updateCellSize, 100); // 描画直後のズレ防止
+  setTimeout(updateCellSize, 100);
 }
 
 function updateBoardView() {
@@ -208,21 +222,37 @@ function updateBoardView() {
   }
 }
 
-// 💡 レベル初期化（お邪魔ブロックの配置など）
+function updateUI() {
+  document.getElementById('ui-level').innerText = currentLevel;
+  document.getElementById('ui-score').innerText = score;
+  let remain = Math.max(0, targetClears - currentClears);
+  document.getElementById('ui-goal').innerText = remain;
+}
+
+function showFloatingText(text, color) {
+  const el = document.createElement('div');
+  el.className = 'floating-text';
+  el.style.color = color;
+  el.innerText = text;
+  // 盤面の中央あたりに出現させる
+  el.style.top = '40%';
+  boardContainer.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// レベル初期化
 function loadLevel(level) {
   currentLevel = level;
-  document.getElementById('ui-level').innerText = currentLevel;
-  
-  // レベル×2回の消去が必要
   targetClears = 2 + currentLevel;
   currentClears = 0;
-  updateGoalUI();
+  if(level === 1) score = 0; // 最初からやり直す場合のみスコアリセット
+  updateUI();
   
   initBoard();
   candidates = [null, null, null];
   
   // お邪魔ブロック（ピーマン）の配置
-  let numObstacles = Math.floor(currentLevel * 1.5);
+  let numObstacles = Math.floor((currentLevel - 1) * 1.5);
   let placed = 0;
   while(placed < numObstacles) {
     let r = Math.floor(Math.random() * BOARD_SIZE);
@@ -234,11 +264,6 @@ function loadLevel(level) {
   }
   updateBoardView();
   generateCandidates();
-}
-
-function updateGoalUI() {
-  let remain = Math.max(0, targetClears - currentClears);
-  document.getElementById('ui-goal').innerText = remain;
 }
 
 function generateCandidates() {
@@ -264,7 +289,6 @@ function renderCandidate(index, shapeDef) {
   
   const rows = shapeDef.shape.length;
   const cols = shapeDef.shape[0].length;
-  // トレイ上では少し小さめ(30px)で表示
   const trayCellSize = 30;
   blockCont.style.gridTemplateColumns = `repeat(${cols}, ${trayCellSize}px)`;
   blockCont.style.gridTemplateRows = `repeat(${rows}, ${trayCellSize}px)`;
@@ -290,7 +314,7 @@ function renderCandidate(index, shapeDef) {
   setupDrag(blockCont, index, shapeDef);
 }
 
-// --- 💡 ドラッグ＆ドロップ処理（スナップ精度の大幅向上） ---
+// --- ドラッグ＆ドロップ処理 ---
 function setupDrag(blockEl, index, shapeDef) {
   blockEl.addEventListener('pointerdown', (e) => {
     initAudio();
@@ -299,8 +323,6 @@ function setupDrag(blockEl, index, shapeDef) {
     const rows = shapeDef.shape.length;
     const cols = shapeDef.shape[0].length;
 
-    // 💡 掴んだ瞬間に、ブロックのサイズを「盤面のセルサイズ」と全く同じに拡大する！
-    // これにより、盤面上に持っていったときの配置ズレが100%なくなる。
     blockEl.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
     blockEl.style.gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
     
@@ -311,13 +333,11 @@ function setupDrag(blockEl, index, shapeDef) {
     });
 
     const rect = blockEl.getBoundingClientRect();
-    // 指の位置とブロックの左上との距離（オフセット）を記憶
     const offsetX = e.clientX - rect.left;
     const offsetY = e.clientY - rect.top;
 
     document.body.appendChild(blockEl);
     
-    // 指で隠れないように、Y方向に少し上にずらして持つ（-40px）
     const yShift = 40;
     blockEl.style.left = `${e.clientX - offsetX}px`;
     blockEl.style.top = `${e.clientY - offsetY - yShift}px`;
@@ -332,16 +352,12 @@ function setupDrag(blockEl, index, shapeDef) {
       document.removeEventListener('pointerup', onUp);
       blockEl.classList.remove('dragging');
 
-      // ブロックの現在の「見た目の左上座標」を取得
       const finalRect = blockEl.getBoundingClientRect();
       const boardRect = boardEl.getBoundingClientRect();
       
-      // 盤面の左上（ボーダーやパディングの内側）を基準にした相対座標
-      let relX = finalRect.left - (boardRect.left + 12); // border8 + padding4
+      let relX = finalRect.left - (boardRect.left + 12); 
       let relY = finalRect.top - (boardRect.top + 12);
       
-      // 相対座標をセルサイズで割って、最も近い行・列を算出
-      // gap(2px) も考慮して割る
       let targetC = Math.round(relX / (cellSize + 2));
       let targetR = Math.round(relY / (cellSize + 2));
 
@@ -359,7 +375,6 @@ function setupDrag(blockEl, index, shapeDef) {
         }
       } else {
         playSound('error');
-        // トレイに戻す時はサイズを元(30px)に戻す
         blockEl.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
         blockEl.style.gridTemplateRows = `repeat(${rows}, 30px)`;
         Array.from(blockEl.children).forEach(c => {
@@ -397,26 +412,27 @@ function canPlace(shapeMatrix, startR, startC) {
 
 function placeShape(shapeDef, startR, startC) {
   const shapeMatrix = shapeDef.shape;
+  let blocksPlaced = 0;
   for (let r = 0; r < shapeMatrix.length; r++) {
     for (let c = 0; c < shapeMatrix[0].length; c++) {
       if (shapeMatrix[r][c]) {
         board[startR + r][startC + c] = { color: shapeDef.color, icon: shapeDef.icon, isObstacle: false };
+        blocksPlaced++;
       }
     }
   }
-  updateBoardView();
+  score += blocksPlaced * 10;
+  updateUI();
 }
 
-// 💡 縦、横、および「3x3の仕切り」の消去判定
+// 💡 タイポ修正＆ボーナス機能を追加したチェック処理
 function checkLines() {
   let linesToClear = { rows: [], cols: [], areas: [] };
 
-  // 1. 行のチェック
   for (let r = 0; r < BOARD_SIZE; r++) {
     if (board[r].every(cell => cell !== null)) linesToClear.rows.push(r);
   }
   
-  // 2. 列のチェック
   for (let c = 0; c < BOARD_SIZE; c++) {
     let colFull = true;
     for (let r = 0; r < BOARD_SIZE; r++) {
@@ -425,7 +441,6 @@ function checkLines() {
     if (colFull) linesToClear.cols.push(c);
   }
 
-  // 3. 💡 3x3エリア（仕切りの中）のチェック
   for (let ar = 0; ar < 3; ar++) {
     for (let ac = 0; ac < 3; ac++) {
       let areaFull = true;
@@ -444,38 +459,71 @@ function checkLines() {
   if (totalClears > 0) {
     playSound('clear');
     currentClears += totalClears;
-    updateGoalUI();
+    updateUI();
     
-    // アニメーション用にクラスを追加
+    // 重複を避けるためにSetで消去セルを管理
+    let cellsToClear = new Set();
+    
     linesToClear.rows.forEach(r => {
-      for (let c = 0; c < BOARD_SIZE; c++) document.getElementById(`cell-${r}-${c}`).classList.add('clearing');
+      for (let c = 0; c < BOARD_SIZE; c++) cellsToClear.add(`${r},${c}`);
     });
     linesToClear.cols.forEach(c => {
-      for (let r = 0; r < BOARD_SIZE; r++) document.getElementById(`cell-${r}-${c}`).classList.add('clearing');
+      for (let r = 0; r < BOARD_SIZE; r++) cellsToClear.add(`${r},${c}`);
     });
     linesToClear.areas.forEach(pos => {
       for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 3; c++) document.getElementById(`cell-${pos.r + r}-${pos.c + c}`).classList.add('clearing');
+        for (let c = 0; c < 3; c++) cellsToClear.add(`${pos.r + r},${pos.c + c}`);
       }
     });
 
-    // 消去とクリア判定
-    setTimeout(() => {
-      linesToClear.rows.forEach(r => { for (let c = 0; c < BOARD_SIZE; c++) board[r][c] = null; });
-      linesToClear.cols.forEach(c => { for (let r = 0; r < BOARD_SIZE; r++) board[r][c] = null; });
-      linesToClear.areas.forEach(pos => {
-        for (let r = 0; r < 3; r++) { for (let c = 0; c < 3; c++) board[r + r][pos.c + c] = null; }
-      });
-      
-      for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) document.getElementById(`cell-${r}-${c}`).classList.remove('clearing');
+    let pimanCount = 0;
+    let nonPimanIcons = new Set();
+
+    cellsToClear.forEach(coord => {
+      let [r, c] = coord.split(',').map(Number);
+      let cellData = board[r][c];
+      if (cellData) {
+        if (cellData.isObstacle) {
+          pimanCount++;
+        } else {
+          nonPimanIcons.add(cellData.icon);
+        }
+        document.getElementById(`cell-${r}-${c}`).classList.add('clearing');
       }
+    });
+
+    // 💡 ボーナススコア計算
+    let gainedScore = totalClears * 100;
+    
+    if (pimanCount > 0) {
+      playSound('bonus');
+      gainedScore += pimanCount * 50;
+      showFloatingText(`ピーマン克服！ +${pimanCount * 50}`, '#27ae60');
+    }
+    
+    // ピーマン以外のアイコンが1種類のみだった場合
+    if (nonPimanIcons.size === 1 && cellsToClear.size > pimanCount) {
+      setTimeout(() => { playSound('bonus'); }, 200);
+      gainedScore += 300;
+      showFloatingText('同じおかずボーナス！ +300', '#f39c12');
+    }
+
+    score += gainedScore;
+    updateUI();
+
+    // 実際のデータ消去
+    setTimeout(() => {
+      cellsToClear.forEach(coord => {
+        let [r, c] = coord.split(',').map(Number);
+        board[r][c] = null;
+        document.getElementById(`cell-${r}-${c}`).classList.remove('clearing');
+      });
       
       updateBoardView();
       
       if (currentClears >= targetClears) {
-        // 目標達成！
         setTimeout(() => {
+          document.getElementById('clear-score').innerText = score;
           document.getElementById('level-clear').classList.add('show');
         }, 300);
       } else {
@@ -486,7 +534,7 @@ function checkLines() {
 }
 
 function checkGameOver() {
-  if (currentClears >= targetClears) return; // すでにクリア済みならスキップ
+  if (currentClears >= targetClears) return; 
   
   let canPlay = false;
   for (let i = 0; i < 3; i++) {
@@ -505,6 +553,7 @@ function checkGameOver() {
 
   if (!canPlay) {
     setTimeout(() => {
+      document.getElementById('result-score').innerText = score;
       document.getElementById('game-over').classList.add('show');
     }, 500);
   }
@@ -520,7 +569,6 @@ function nextLevel() {
   startGame(currentLevel + 1);
 }
 
-// 初回読み込み時は描画だけしておく
 initBoard();
 </script>
 </body>
