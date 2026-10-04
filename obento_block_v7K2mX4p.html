@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>お弁当づくりパズル - ボーナス追加版</title>
+<title>お弁当づくりパズル - 描画バグ修正版</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #fdf6e3; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; }
@@ -15,7 +15,7 @@
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);
   }
 
-  /* 上部UI（スコア表示復活） */
+  /* 上部UI */
   #header { padding: max(15px, var(--sat)) 15px 10px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
   .level-box { background: rgba(255,255,255,0.8); padding: 6px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #c0392b; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
   .score-box { background: rgba(255,255,255,0.8); padding: 6px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #d35400; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -141,7 +141,6 @@ function playSound(type) {
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
   } else if (type === 'bonus') {
-    // ボーナス用のキラキラ音
     osc.type = 'sine'; osc.frequency.setValueAtTime(1000, t); osc.frequency.setValueAtTime(1500, t+0.1); osc.frequency.setValueAtTime(2000, t+0.2);
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
     osc.start(t); osc.stop(t + 0.4);
@@ -234,24 +233,21 @@ function showFloatingText(text, color) {
   el.className = 'floating-text';
   el.style.color = color;
   el.innerText = text;
-  // 盤面の中央あたりに出現させる
   el.style.top = '40%';
   boardContainer.appendChild(el);
   setTimeout(() => el.remove(), 1500);
 }
 
-// レベル初期化
 function loadLevel(level) {
   currentLevel = level;
   targetClears = 2 + currentLevel;
   currentClears = 0;
-  if(level === 1) score = 0; // 最初からやり直す場合のみスコアリセット
+  if(level === 1) score = 0; 
   updateUI();
   
   initBoard();
   candidates = [null, null, null];
   
-  // お邪魔ブロック（ピーマン）の配置
   let numObstacles = Math.floor((currentLevel - 1) * 1.5);
   let placed = 0;
   while(placed < numObstacles) {
@@ -314,7 +310,6 @@ function renderCandidate(index, shapeDef) {
   setupDrag(blockCont, index, shapeDef);
 }
 
-// --- ドラッグ＆ドロップ処理 ---
 function setupDrag(blockEl, index, shapeDef) {
   blockEl.addEventListener('pointerdown', (e) => {
     initAudio();
@@ -423,9 +418,11 @@ function placeShape(shapeDef, startR, startC) {
   }
   score += blocksPlaced * 10;
   updateUI();
+  
+  // 💡 ここが抜けていた致命的なバグを修正！置いた瞬間に盤面を再描画します。
+  updateBoardView();
 }
 
-// 💡 タイポ修正＆ボーナス機能を追加したチェック処理
 function checkLines() {
   let linesToClear = { rows: [], cols: [], areas: [] };
 
@@ -461,7 +458,6 @@ function checkLines() {
     currentClears += totalClears;
     updateUI();
     
-    // 重複を避けるためにSetで消去セルを管理
     let cellsToClear = new Set();
     
     linesToClear.rows.forEach(r => {
@@ -492,7 +488,6 @@ function checkLines() {
       }
     });
 
-    // 💡 ボーナススコア計算
     let gainedScore = totalClears * 100;
     
     if (pimanCount > 0) {
@@ -501,7 +496,6 @@ function checkLines() {
       showFloatingText(`ピーマン克服！ +${pimanCount * 50}`, '#27ae60');
     }
     
-    // ピーマン以外のアイコンが1種類のみだった場合
     if (nonPimanIcons.size === 1 && cellsToClear.size > pimanCount) {
       setTimeout(() => { playSound('bonus'); }, 200);
       gainedScore += 300;
@@ -511,7 +505,6 @@ function checkLines() {
     score += gainedScore;
     updateUI();
 
-    // 実際のデータ消去
     setTimeout(() => {
       cellsToClear.forEach(coord => {
         let [r, c] = coord.split(',').map(Number);
