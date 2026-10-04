@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>お弁当づくりパズル - 描画バグ修正版</title>
+<title>お弁当づくりパズル - クエスト＆コンボ実装版</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #fdf6e3; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; }
@@ -15,21 +15,19 @@
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);
   }
 
-  /* 上部UI */
-  #header { padding: max(15px, var(--sat)) 15px 10px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
-  .level-box { background: rgba(255,255,255,0.8); padding: 6px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #c0392b; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-  .score-box { background: rgba(255,255,255,0.8); padding: 6px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #d35400; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-  .goal-box { width: 100%; text-align: center; background: rgba(255,255,255,0.8); padding: 8px 15px; border-radius: 20px; font-size: 16px; font-weight: bold; color: #2c3e50; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  /* 上部UI（おしながきエリア追加） */
+  #header { padding: max(10px, var(--sat)) 10px 5px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+  .top-row { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+  .level-box { background: rgba(255,255,255,0.9); padding: 5px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #c0392b; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .score-box { background: rgba(255,255,255,0.9); padding: 5px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #d35400; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .goal-box { width: 100%; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; box-sizing: border-box; }
   
   /* お弁当箱（盤面 9x9） */
   #board-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; position: relative; }
   #board {
-    display: grid;
-    grid-template-columns: repeat(9, 1fr);
-    grid-template-rows: repeat(9, 1fr);
+    display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr);
     width: 100%; max-width: 400px; aspect-ratio: 1 / 1;
-    background: #d35400; 
-    border: 8px solid #8e44ad; border-radius: 15px; padding: 4px;
+    background: #d35400; border: 8px solid #8e44ad; border-radius: 15px; padding: 4px;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.6), 0 10px 15px rgba(0,0,0,0.2);
     position: relative; box-sizing: border-box; gap: 2px;
   }
@@ -39,20 +37,26 @@
   .cell.border-bottom { border-bottom: 4px solid #8e44ad; }
   .cell.filled { box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2); display: flex; justify-content: center; align-items: center; font-size: 24px; }
   
-  /* 消去アニメーション */
   @keyframes flash { 0% { background: white; transform: scale(1.1); z-index: 10; } 100% { background: rgba(255,255,255,0.3); transform: scale(1); z-index: 1; } }
   .cell.clearing { animation: flash 0.4s ease-out; }
 
-  /* 候補ブロック置き場（トレイ） */
-  #tray { height: 160px; background: rgba(255,255,255,0.5); border-top: 4px solid white; display: flex; justify-content: space-around; align-items: center; padding: 10px; padding-bottom: max(10px, var(--sab)); }
+  /* 候補置き場＆チェンジボタン */
+  #tray-container { background: rgba(255,255,255,0.5); border-top: 4px solid white; padding-bottom: max(10px, var(--sab)); display: flex; flex-direction: column; }
+  .tray-header { display: flex; justify-content: flex-end; padding: 8px 15px 0 15px; }
+  .change-btn { background: #bdc3c7; border: none; border-radius: 10px; padding: 6px 12px; font-weight: bold; color: white; transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .change-btn.ready { background: #e67e22; cursor: pointer; box-shadow: 0 4px 0 #d35400; }
+  .change-btn.ready:active { transform: translateY(4px); box-shadow: none; }
+  .gauge-bg { background: rgba(0,0,0,0.2); height: 6px; width: 100px; border-radius: 3px; overflow: hidden; }
+  .gauge-fill { background: #f1c40f; height: 100%; width: 0%; transition: width 0.3s; }
+  
+  #tray { height: 140px; display: flex; justify-content: space-around; align-items: center; padding: 5px 10px; }
   .candidate-slot { width: 30%; height: 100%; display: flex; justify-content: center; align-items: center; position: relative; }
   
-  /* ブロックコンテナ */
   .block-container { position: absolute; display: grid; gap: 2px; cursor: grab; user-select: none; z-index: 10; transition: transform 0.1s; }
   .block-container.dragging { z-index: 100; cursor: grabbing; transform: scale(1.0); opacity: 0.95; }
   .block-cell { border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: 20px; box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3); box-sizing: border-box; }
 
-  /* フローティングテキスト（ボーナス演出） */
+  /* フローティングテキスト */
   .floating-text {
     position: absolute; pointer-events: none; font-weight: 900; font-size: 22px;
     text-shadow: 2px 2px 0 white, -2px -2px 0 white, 2px -2px 0 white, -2px 2px 0 white;
@@ -73,32 +77,42 @@
 
 <div id="game-wrapper">
   <div id="header">
-    <div class="level-box">LEVEL <span id="ui-level">1</span></div>
-    <div class="score-box">おいしさ: <span id="ui-score">0</span></div>
-    <div class="goal-box">目標: あと <span id="ui-goal">3</span> 回食べる！</div>
+    <div class="top-row">
+      <div class="level-box">LEVEL <span id="ui-level">1</span></div>
+      <div class="score-box">おいしさ: <span id="ui-score">0</span></div>
+    </div>
+    <div class="goal-box">
+      <div style="font-size:12px; color:#7f8c8d; margin-bottom:4px;">今日のおしながき（目標）</div>
+      <div id="ui-recipe" style="display:flex; justify-content:center; gap:15px; flex-wrap:wrap;"></div>
+    </div>
   </div>
   
   <div id="board-container">
     <div id="board"></div>
   </div>
 
-  <div id="tray">
-    <div class="candidate-slot" id="slot-0"></div>
-    <div class="candidate-slot" id="slot-1"></div>
-    <div class="candidate-slot" id="slot-2"></div>
+  <div id="tray-container">
+    <div class="tray-header">
+      <button class="change-btn" id="change-btn" onclick="useChange()" disabled>
+        🔄 おかずチェンジ
+        <div class="gauge-bg"><div class="gauge-fill" id="change-gauge"></div></div>
+      </button>
+    </div>
+    <div id="tray">
+      <div class="candidate-slot" id="slot-0"></div>
+      <div class="candidate-slot" id="slot-1"></div>
+      <div class="candidate-slot" id="slot-2"></div>
+    </div>
   </div>
 
   <div id="start-screen" class="overlay show">
     <div class="title">🍱 お弁当づくり<br>ブロックパズル</div>
     <div class="desc">
-      おかずをスワイプして詰めよう！<br><br>
-      <b>「タテ・ヨコ1列」</b>または<br>
-      <b>「3×3の太枠」</b>をすべて埋めると<br>
-      パクッと食べられるよ😋<br><br>
-      ✨ <b>高得点のヒント</b> ✨<br>
-      同じおかずだけで列を作ったり<br>
-      苦手なピーマン(🫑)を一緒に食べると<br>
-      ボーナスポイントがもらえるよ！
+      上の「おしながき」にあるおかずを<br>お弁当箱に詰めて、列や四角を<br>そろえて食べよう！<br><br>
+      ✨ <b>新しい遊び方</b> ✨<br>
+      ・連続で消すと<b>コンボボーナス！</b><br>
+      ・ゲージが貯まると<b>おかずチェンジ</b><br>
+      　の魔法が使えるよ！
     </div>
     <button class="btn" onclick="startGame(1)">スタート！</button>
   </div>
@@ -106,7 +120,7 @@
   <div id="level-clear" class="overlay">
     <h1 style="color:#2ecc71; font-size:40px; margin-bottom:10px;">ごちそうさま！</h1>
     <div class="desc" style="margin-bottom:20px; background:#e8f8f5;">
-      目標達成！お弁当を完食したよ🎉<br>
+      おしながきのおかずを完食したよ🎉<br>
       現在のおいしさ: <span id="clear-score" style="color:#e67e22; font-size:24px;">0</span><br>
       次はもっと難しいお弁当に挑戦だ！
     </div>
@@ -118,7 +132,7 @@
     <div class="desc" style="margin-bottom:20px; background:#fdedec;">
       もうおかずを置く場所がないよ💦<br>
       最終おいしさ: <span id="result-score" style="color:#e67e22; font-size:24px;">0</span><br>
-      すき間なく詰めるのがコツ！
+      おかずチェンジを上手く使おう！
     </div>
     <button class="btn" style="background:#e74c3c; box-shadow:0 6px 0 #c0392b;" onclick="startGame(currentLevel)">リトライ</button>
   </div>
@@ -128,16 +142,18 @@
 // --- 音声 ---
 let actx;
 function initAudio() { if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); } if (actx.state === 'suspended') actx.resume(); }
-function playSound(type) {
+function playSound(type, comboCount = 0) {
   if (!actx) return;
   const t = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
   osc.connect(gain); gain.connect(actx.destination);
+  
   if (type === 'put') { 
     osc.type = 'sine'; osc.frequency.setValueAtTime(600, t); osc.frequency.exponentialRampToValueAtTime(300, t + 0.1);
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
     osc.start(t); osc.stop(t + 0.1);
   } else if (type === 'clear') { 
-    osc.type = 'triangle'; osc.frequency.setValueAtTime(800, t); osc.frequency.setValueAtTime(1000, t+0.1); osc.frequency.setValueAtTime(1200, t+0.2);
+    let pitch = 800 + (comboCount * 150); // コンボで音が上がる
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(pitch, t); osc.frequency.setValueAtTime(pitch+200, t+0.1); osc.frequency.setValueAtTime(pitch+400, t+0.2);
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
   } else if (type === 'bonus') {
@@ -147,6 +163,10 @@ function playSound(type) {
   } else if (type === 'error') {
     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
     osc.start(t); osc.stop(t + 0.15);
+  } else if (type === 'change') {
+    osc.type = 'square'; osc.frequency.setValueAtTime(400, t); osc.frequency.setValueAtTime(800, t+0.1);
+    gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    osc.start(t); osc.stop(t + 0.2);
   }
 }
 
@@ -155,9 +175,10 @@ const BOARD_SIZE = 9;
 let board = [];
 let currentLevel = 1;
 let score = 0;
-let targetClears = 0;
-let currentClears = 0;
 let cellSize = 0;
+let recipe = {}; // 例: {'🍅': 5, '🥚': 3}
+let changeGauge = 0;
+let combo = 0;
 
 const SHAPES = [
   { icon: '🍅', color: '#e74c3c', shape: [[1]] },
@@ -176,7 +197,6 @@ const SHAPES = [
 
 let candidates = [null, null, null];
 
-// --- 初期化と描画 ---
 const boardEl = document.getElementById('board');
 const boardContainer = document.getElementById('board-container');
 
@@ -193,7 +213,6 @@ function initBoard() {
       boardEl.appendChild(cell);
     }
   }
-  
   const updateCellSize = () => {
     const boardRect = boardEl.getBoundingClientRect();
     cellSize = (boardRect.width - 24 - 16) / BOARD_SIZE; 
@@ -221,11 +240,50 @@ function updateBoardView() {
   }
 }
 
+// 💡 UIの更新（おしながきのクリア判定も行う）
 function updateUI() {
   document.getElementById('ui-level').innerText = currentLevel;
   document.getElementById('ui-score').innerText = score;
-  let remain = Math.max(0, targetClears - currentClears);
-  document.getElementById('ui-goal').innerText = remain;
+  
+  let recipeHtml = '';
+  let isClear = true;
+  for(let icon in recipe) {
+    let count = Math.max(0, recipe[icon]);
+    if (count > 0) isClear = false;
+    let style = count === 0 ? 'opacity:0.3; text-decoration:line-through;' : '';
+    recipeHtml += `<div style="font-size:18px; ${style}">${icon}あと${count}</div>`;
+  }
+  document.getElementById('ui-recipe').innerHTML = recipeHtml;
+  
+  // ゲージ更新
+  let gaugeEl = document.getElementById('change-gauge');
+  gaugeEl.style.width = `${Math.min(100, changeGauge)}%`;
+  let changeBtn = document.getElementById('change-btn');
+  if (changeGauge >= 100) {
+    changeBtn.disabled = false;
+    changeBtn.classList.add('ready');
+  } else {
+    changeBtn.disabled = true;
+    changeBtn.classList.remove('ready');
+  }
+  
+  return isClear;
+}
+
+function addGauge(amount) {
+  changeGauge += amount;
+  if (changeGauge > 100) changeGauge = 100;
+  updateUI();
+}
+
+function useChange() {
+  if (changeGauge < 100) return;
+  initAudio();
+  playSound('change');
+  changeGauge = 0;
+  candidates = [null, null, null];
+  generateCandidates();
+  updateUI();
 }
 
 function showFloatingText(text, color) {
@@ -238,16 +296,27 @@ function showFloatingText(text, color) {
   setTimeout(() => el.remove(), 1500);
 }
 
+// 💡 レシピ（おしながき）の生成
 function loadLevel(level) {
   currentLevel = level;
-  targetClears = 2 + currentLevel;
-  currentClears = 0;
   if(level === 1) score = 0; 
-  updateUI();
+  changeGauge = 0;
+  combo = 0;
+  
+  // レシピ生成
+  recipe = {};
+  let typesCount = Math.min(4, 1 + Math.floor(level / 2)); 
+  let baseShapes = SHAPES.filter(s => !['🫑', '🍄'].includes(s.icon)); // 基本おかず
+  baseShapes.sort(() => Math.random() - 0.5); 
+  for(let i = 0; i < typesCount; i++) {
+    let count = 4 + level * 2 + Math.floor(Math.random() * 3);
+    recipe[baseShapes[i].icon] = count;
+  }
   
   initBoard();
   candidates = [null, null, null];
   
+  // お邪魔ブロック（ピーマン）の配置
   let numObstacles = Math.floor((currentLevel - 1) * 1.5);
   let placed = 0;
   while(placed < numObstacles) {
@@ -258,7 +327,9 @@ function loadLevel(level) {
       placed++;
     }
   }
+  
   updateBoardView();
+  updateUI();
   generateCandidates();
 }
 
@@ -285,7 +356,7 @@ function renderCandidate(index, shapeDef) {
   
   const rows = shapeDef.shape.length;
   const cols = shapeDef.shape[0].length;
-  const trayCellSize = 30;
+  const trayCellSize = 28;
   blockCont.style.gridTemplateColumns = `repeat(${cols}, ${trayCellSize}px)`;
   blockCont.style.gridTemplateRows = `repeat(${rows}, ${trayCellSize}px)`;
 
@@ -300,7 +371,7 @@ function renderCandidate(index, shapeDef) {
         cell.style.gridColumn = c + 1;
         cell.style.width = `${trayCellSize}px`;
         cell.style.height = `${trayCellSize}px`;
-        cell.style.fontSize = '20px';
+        cell.style.fontSize = '18px';
         blockCont.appendChild(cell);
       }
     }
@@ -310,6 +381,7 @@ function renderCandidate(index, shapeDef) {
   setupDrag(blockCont, index, shapeDef);
 }
 
+// --- ドラッグ＆ドロップ処理 ---
 function setupDrag(blockEl, index, shapeDef) {
   blockEl.addEventListener('pointerdown', (e) => {
     initAudio();
@@ -361,6 +433,7 @@ function setupDrag(blockEl, index, shapeDef) {
         candidates[index] = null;
         blockEl.remove();
         playSound('put');
+        addGauge(10); // ブロックを置くとゲージ+10%
         checkLines();
         
         if (!candidates[0] && !candidates[1] && !candidates[2]) {
@@ -370,10 +443,10 @@ function setupDrag(blockEl, index, shapeDef) {
         }
       } else {
         playSound('error');
-        blockEl.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
-        blockEl.style.gridTemplateRows = `repeat(${rows}, 30px)`;
+        blockEl.style.gridTemplateColumns = `repeat(${cols}, 28px)`;
+        blockEl.style.gridTemplateRows = `repeat(${rows}, 28px)`;
         Array.from(blockEl.children).forEach(c => {
-          c.style.width = '30px'; c.style.height = '30px'; c.style.fontSize = '20px';
+          c.style.width = '28px'; c.style.height = '28px'; c.style.fontSize = '18px';
         });
         document.getElementById(`slot-${index}`).appendChild(blockEl);
         blockEl.style.left = '';
@@ -417,10 +490,8 @@ function placeShape(shapeDef, startR, startC) {
     }
   }
   score += blocksPlaced * 10;
-  updateUI();
-  
-  // 💡 ここが抜けていた致命的なバグを修正！置いた瞬間に盤面を再描画します。
   updateBoardView();
+  updateUI();
 }
 
 function checkLines() {
@@ -454,9 +525,11 @@ function checkLines() {
   let totalClears = linesToClear.rows.length + linesToClear.cols.length + linesToClear.areas.length;
 
   if (totalClears > 0) {
-    playSound('clear');
-    currentClears += totalClears;
-    updateUI();
+    combo++; // コンボ加算
+    playSound('clear', combo);
+    
+    // 消すとゲージが大きく回復
+    addGauge(totalClears * 20); 
     
     let cellsToClear = new Set();
     
@@ -479,6 +552,11 @@ function checkLines() {
       let [r, c] = coord.split(',').map(Number);
       let cellData = board[r][c];
       if (cellData) {
+        // 💡 レシピのカウントダウン
+        if (recipe[cellData.icon] !== undefined) {
+          recipe[cellData.icon]--;
+        }
+        
         if (cellData.isObstacle) {
           pimanCount++;
         } else {
@@ -488,22 +566,24 @@ function checkLines() {
       }
     });
 
-    let gainedScore = totalClears * 100;
+    let gainedScore = totalClears * 100 * combo; // コンボ倍率
+    
+    if (combo > 1) {
+      setTimeout(() => { showFloatingText(`${combo}連鎖！`, '#e74c3c'); }, 100);
+    }
     
     if (pimanCount > 0) {
-      playSound('bonus');
+      setTimeout(() => { playSound('bonus'); showFloatingText(`ピーマン克服！ +${pimanCount * 50}`, '#27ae60'); }, 400);
       gainedScore += pimanCount * 50;
-      showFloatingText(`ピーマン克服！ +${pimanCount * 50}`, '#27ae60');
     }
     
     if (nonPimanIcons.size === 1 && cellsToClear.size > pimanCount) {
-      setTimeout(() => { playSound('bonus'); }, 200);
+      setTimeout(() => { playSound('bonus'); showFloatingText('同じおかずボーナス！ +300', '#f39c12'); }, 700);
       gainedScore += 300;
-      showFloatingText('同じおかずボーナス！ +300', '#f39c12');
     }
 
     score += gainedScore;
-    updateUI();
+    let isClear = updateUI();
 
     setTimeout(() => {
       cellsToClear.forEach(coord => {
@@ -514,7 +594,7 @@ function checkLines() {
       
       updateBoardView();
       
-      if (currentClears >= targetClears) {
+      if (isClear) {
         setTimeout(() => {
           document.getElementById('clear-score').innerText = score;
           document.getElementById('level-clear').classList.add('show');
@@ -523,11 +603,17 @@ function checkLines() {
         checkGameOver();
       }
     }, 400);
+  } else {
+    // 消えなかったらコンボリセット
+    combo = 0;
   }
 }
 
 function checkGameOver() {
-  if (currentClears >= targetClears) return; 
+  // すでにクリア条件を満たしているかチェック（念のため）
+  let isClear = true;
+  for(let icon in recipe) { if(recipe[icon] > 0) isClear = false; }
+  if (isClear) return; 
   
   let canPlay = false;
   for (let i = 0; i < 3; i++) {
@@ -544,11 +630,16 @@ function checkGameOver() {
     if (canPlay) break;
   }
 
-  if (!canPlay) {
+  // チェンジゲージが100%ならまだ負けではない
+  if (!canPlay && changeGauge < 100) {
     setTimeout(() => {
       document.getElementById('result-score').innerText = score;
       document.getElementById('game-over').classList.add('show');
     }, 500);
+  } else if (!canPlay && changeGauge >= 100) {
+    // 置けないけどチェンジが使えるよ！とアピールする
+    document.getElementById('change-btn').style.transform = 'scale(1.1)';
+    setTimeout(() => { document.getElementById('change-btn').style.transform = 'scale(1)'; }, 200);
   }
 }
 
