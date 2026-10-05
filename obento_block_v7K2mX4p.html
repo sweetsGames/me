@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>お弁当づくりパズル - クエスト＆コンボ実装版</title>
+<title>お弁当づくりパズル - 常時補充＆難易度調整版</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #fdf6e3; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; }
@@ -15,7 +15,7 @@
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);
   }
 
-  /* 上部UI（おしながきエリア追加） */
+  /* 上部UI */
   #header { padding: max(10px, var(--sat)) 10px 5px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
   .top-row { display: flex; justify-content: space-between; width: 100%; align-items: center; }
   .level-box { background: rgba(255,255,255,0.9); padding: 5px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #c0392b; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -71,6 +71,12 @@
   .desc { background:white; color:#333; padding:20px; border-radius:15px; font-weight:bold; width:85%; text-align:center; line-height:1.6; }
   .btn { padding: 15px 40px; font-size: 22px; font-weight: bold; color: white; background: #e67e22; border: none; border-radius: 30px; box-shadow: 0 6px 0 #d35400; cursor: pointer; margin-top: 20px; transition: 0.1s; }
   .btn:active { transform: translateY(6px); box-shadow: none; }
+  
+  /* スライダーUI */
+  .slider-container { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; margin-top: 15px; width: 85%; max-width: 320px; text-align: center; }
+  .slider-container label { color: white; font-weight: bold; font-size: 16px; display: block; margin-bottom: 10px; }
+  .level-val { color: #f1c40f; font-size: 24px; font-weight: 900; }
+  input[type=range] { width: 100%; accent-color: #e67e22; }
 </style>
 </head>
 <body>
@@ -110,11 +116,15 @@
     <div class="desc">
       上の「おしながき」にあるおかずを<br>お弁当箱に詰めて、列や四角を<br>そろえて食べよう！<br><br>
       ✨ <b>新しい遊び方</b> ✨<br>
+      ・おかずを置くと<b>すぐに次が来る！</b><br>
       ・連続で消すと<b>コンボボーナス！</b><br>
-      ・ゲージが貯まると<b>おかずチェンジ</b><br>
-      　の魔法が使えるよ！
+      ・ゲージが貯まると<b>チェンジ</b>可能！
     </div>
-    <button class="btn" onclick="startGame(1)">スタート！</button>
+    <div class="slider-container">
+      <label>開始レベル: <span class="level-val" id="level-display">1</span></label>
+      <input type="range" id="level-slider" min="1" max="10" value="1" oninput="document.getElementById('level-display').innerText = this.value">
+    </div>
+    <button class="btn" onclick="startGame()">スタート！</button>
   </div>
 
   <div id="level-clear" class="overlay">
@@ -134,7 +144,7 @@
       最終おいしさ: <span id="result-score" style="color:#e67e22; font-size:24px;">0</span><br>
       おかずチェンジを上手く使おう！
     </div>
-    <button class="btn" style="background:#e74c3c; box-shadow:0 6px 0 #c0392b;" onclick="startGame(currentLevel)">リトライ</button>
+    <button class="btn" style="background:#e74c3c; box-shadow:0 6px 0 #c0392b;" onclick="retryGame()">リトライ</button>
   </div>
 </div>
 
@@ -152,7 +162,7 @@ function playSound(type, comboCount = 0) {
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
     osc.start(t); osc.stop(t + 0.1);
   } else if (type === 'clear') { 
-    let pitch = 800 + (comboCount * 150); // コンボで音が上がる
+    let pitch = 800 + (comboCount * 150); 
     osc.type = 'triangle'; osc.frequency.setValueAtTime(pitch, t); osc.frequency.setValueAtTime(pitch+200, t+0.1); osc.frequency.setValueAtTime(pitch+400, t+0.2);
     gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
@@ -176,7 +186,7 @@ let board = [];
 let currentLevel = 1;
 let score = 0;
 let cellSize = 0;
-let recipe = {}; // 例: {'🍅': 5, '🥚': 3}
+let recipe = {}; 
 let changeGauge = 0;
 let combo = 0;
 
@@ -240,7 +250,6 @@ function updateBoardView() {
   }
 }
 
-// 💡 UIの更新（おしながきのクリア判定も行う）
 function updateUI() {
   document.getElementById('ui-level').innerText = currentLevel;
   document.getElementById('ui-score').innerText = score;
@@ -296,28 +305,38 @@ function showFloatingText(text, color) {
   setTimeout(() => el.remove(), 1500);
 }
 
-// 💡 レシピ（おしながき）の生成
+// 💡 レベルごとのクリア目標調整
 function loadLevel(level) {
   currentLevel = level;
   if(level === 1) score = 0; 
   changeGauge = 0;
   combo = 0;
   
-  // レシピ生成
+  // 難易度カーブの調整
+  let typesCount, count;
+  if (level === 1) { typesCount = 1; count = 2; }
+  else if (level === 2) { typesCount = 1; count = 4; }
+  else if (level === 3) { typesCount = 2; count = 5; }
+  else if (level === 4) { typesCount = 2; count = 7; }
+  else if (level === 5) { typesCount = 3; count = 10; }
+  else if (level === 6) { typesCount = 3; count = 12; }
+  else if (level === 7) { typesCount = 4; count = 14; }
+  else if (level === 8) { typesCount = 4; count = 16; }
+  else if (level === 9) { typesCount = 4; count = 20; }
+  else { typesCount = 5; count = 25; }
+
   recipe = {};
-  let typesCount = Math.min(4, 1 + Math.floor(level / 2)); 
-  let baseShapes = SHAPES.filter(s => !['🫑', '🍄'].includes(s.icon)); // 基本おかず
+  let baseShapes = SHAPES.filter(s => !['🫑', '🍄'].includes(s.icon)); 
   baseShapes.sort(() => Math.random() - 0.5); 
   for(let i = 0; i < typesCount; i++) {
-    let count = 4 + level * 2 + Math.floor(Math.random() * 3);
     recipe[baseShapes[i].icon] = count;
   }
   
   initBoard();
   candidates = [null, null, null];
   
-  // お邪魔ブロック（ピーマン）の配置
-  let numObstacles = Math.floor((currentLevel - 1) * 1.5);
+  // お邪魔ブロック（ピーマン）の配置 (チュートリアル期間はなし)
+  let numObstacles = level <= 2 ? 0 : Math.floor((currentLevel - 2) * 1.5);
   let placed = 0;
   while(placed < numObstacles) {
     let r = Math.floor(Math.random() * BOARD_SIZE);
@@ -333,11 +352,22 @@ function loadLevel(level) {
   generateCandidates();
 }
 
+// 💡 常に補充＆出現率の補正
 function generateCandidates() {
   let emptyCount = 0;
   for (let i = 0; i < 3; i++) {
     if (!candidates[i]) {
-      let shapeDef = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      // レシピに残っているおかずが選ばれやすくなるように重み付け
+      let weightedShapes = [...SHAPES];
+      for (let icon in recipe) {
+        if (recipe[icon] > 0) {
+          // 目標に残っているおかずの形状を確率プールに追加（約3倍出やすくなる）
+          let matchingShapes = SHAPES.filter(s => s.icon === icon);
+          weightedShapes.push(...matchingShapes);
+          weightedShapes.push(...matchingShapes);
+        }
+      }
+      let shapeDef = weightedShapes[Math.floor(Math.random() * weightedShapes.length)];
       candidates[i] = shapeDef;
       renderCandidate(i, shapeDef);
       emptyCount++;
@@ -381,7 +411,6 @@ function renderCandidate(index, shapeDef) {
   setupDrag(blockCont, index, shapeDef);
 }
 
-// --- ドラッグ＆ドロップ処理 ---
 function setupDrag(blockEl, index, shapeDef) {
   blockEl.addEventListener('pointerdown', (e) => {
     initAudio();
@@ -433,14 +462,11 @@ function setupDrag(blockEl, index, shapeDef) {
         candidates[index] = null;
         blockEl.remove();
         playSound('put');
-        addGauge(10); // ブロックを置くとゲージ+10%
+        addGauge(10); 
         checkLines();
         
-        if (!candidates[0] && !candidates[1] && !candidates[2]) {
-          generateCandidates();
-        } else {
-          checkGameOver();
-        }
+        // 💡 1つ使ったら即座に補充
+        generateCandidates();
       } else {
         playSound('error');
         blockEl.style.gridTemplateColumns = `repeat(${cols}, 28px)`;
@@ -500,7 +526,6 @@ function checkLines() {
   for (let r = 0; r < BOARD_SIZE; r++) {
     if (board[r].every(cell => cell !== null)) linesToClear.rows.push(r);
   }
-  
   for (let c = 0; c < BOARD_SIZE; c++) {
     let colFull = true;
     for (let r = 0; r < BOARD_SIZE; r++) {
@@ -508,7 +533,6 @@ function checkLines() {
     }
     if (colFull) linesToClear.cols.push(c);
   }
-
   for (let ar = 0; ar < 3; ar++) {
     for (let ac = 0; ac < 3; ac++) {
       let areaFull = true;
@@ -525,10 +549,8 @@ function checkLines() {
   let totalClears = linesToClear.rows.length + linesToClear.cols.length + linesToClear.areas.length;
 
   if (totalClears > 0) {
-    combo++; // コンボ加算
+    combo++; 
     playSound('clear', combo);
-    
-    // 消すとゲージが大きく回復
     addGauge(totalClears * 20); 
     
     let cellsToClear = new Set();
@@ -552,11 +574,9 @@ function checkLines() {
       let [r, c] = coord.split(',').map(Number);
       let cellData = board[r][c];
       if (cellData) {
-        // 💡 レシピのカウントダウン
         if (recipe[cellData.icon] !== undefined) {
           recipe[cellData.icon]--;
         }
-        
         if (cellData.isObstacle) {
           pimanCount++;
         } else {
@@ -566,7 +586,7 @@ function checkLines() {
       }
     });
 
-    let gainedScore = totalClears * 100 * combo; // コンボ倍率
+    let gainedScore = totalClears * 100 * combo; 
     
     if (combo > 1) {
       setTimeout(() => { showFloatingText(`${combo}連鎖！`, '#e74c3c'); }, 100);
@@ -604,13 +624,11 @@ function checkLines() {
       }
     }, 400);
   } else {
-    // 消えなかったらコンボリセット
     combo = 0;
   }
 }
 
 function checkGameOver() {
-  // すでにクリア条件を満たしているかチェック（念のため）
   let isClear = true;
   for(let icon in recipe) { if(recipe[icon] > 0) isClear = false; }
   if (isClear) return; 
@@ -630,27 +648,33 @@ function checkGameOver() {
     if (canPlay) break;
   }
 
-  // チェンジゲージが100%ならまだ負けではない
   if (!canPlay && changeGauge < 100) {
     setTimeout(() => {
       document.getElementById('result-score').innerText = score;
       document.getElementById('game-over').classList.add('show');
     }, 500);
   } else if (!canPlay && changeGauge >= 100) {
-    // 置けないけどチェンジが使えるよ！とアピールする
     document.getElementById('change-btn').style.transform = 'scale(1.1)';
     setTimeout(() => { document.getElementById('change-btn').style.transform = 'scale(1)'; }, 200);
   }
 }
 
-function startGame(level) {
+function startGame() {
   initAudio();
   document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
-  loadLevel(level);
+  let selected = parseInt(document.getElementById('level-slider').value);
+  loadLevel(selected);
+}
+
+function retryGame() {
+  startGame(currentLevel);
 }
 
 function nextLevel() {
-  startGame(currentLevel + 1);
+  currentLevel++;
+  if (currentLevel > 10) currentLevel = 10; // Max level
+  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
+  loadLevel(currentLevel);
 }
 
 initBoard();
