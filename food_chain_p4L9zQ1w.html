@@ -168,7 +168,7 @@ let GAME_TIME = 120;
 let currentMode = 'time'; // 'time' or 'royal'
 const FIELD_SIZE = 3500; 
 
-// 💡 算数ベースの進化段階
+// 算数ベースの進化段階
 const EVO_STAGES = [
   { icon: '🦠', name: 'プランクトン', minNum: 1, color: '#1abc9c' },
   { icon: '🦐', name: 'エビ', minNum: 20, color: '#e67e22' },
@@ -180,11 +180,11 @@ const EVO_STAGES = [
 
 // エサとなる生き物の生成設定
 const PREY_TYPES = [
-  { stage: 0, minN: 1, maxN: 5, prob: 50 },     // プランクトン (1~5)
-  { stage: 1, minN: 10, maxN: 30, prob: 30 },   // エビ (10~30)
-  { stage: 2, minN: 50, maxN: 150, prob: 12 },  // 小魚 (50~150)
-  { stage: 3, minN: 200, maxN: 500, prob: 6 },  // イカ (200~500)
-  { stage: 4, minN: 800, maxN: 1500, prob: 2 }  // アザラシ (800~1500)
+  { stage: 0, minN: 1, maxN: 5, prob: 50 },     
+  { stage: 1, minN: 10, maxN: 30, prob: 30 },   
+  { stage: 2, minN: 50, maxN: 150, prob: 12 },  
+  { stage: 3, minN: 200, maxN: 500, prob: 6 },  
+  { stage: 4, minN: 800, maxN: 1500, prob: 2 }  
 ];
 
 let gameState = 'menu'; 
@@ -228,16 +228,16 @@ class Predator {
     this.name = name;
     this.baseColor = colorCode;
     
-    // リスポーン位置は安全な場所をなるべく選ぶ
     this.x = Math.random() * FIELD_SIZE;
     this.y = Math.random() * FIELD_SIZE;
     
-    // 💡 初期数字（プレイヤーは3スタート、CPUは3〜10）
     this.number = isPlayer ? 3 : Math.floor(Math.random() * 8) + 3;
     
     this.calcRadius();
-    this.targetRadius = this.radius;
-    this.speed = isPlayer ? 250 : 160; // 💡 CPUの速度を大幅に減速（ナーフ）
+    // 💡 ここが原因でした！代入を逆に修正し、初期サイズが正しく反映されるようにしました。
+    this.radius = this.targetRadius;
+    
+    this.speed = isPlayer ? 250 : 160; 
     
     this.evoLevel = 0;
     this.checkEvolution();
@@ -249,7 +249,6 @@ class Predator {
     this.respawnTimer = 0;
   }
 
-  // 数字から表示用の半径を計算（大きくなりすぎないようにルート計算）
   calcRadius() {
     this.targetRadius = 25 + Math.sqrt(this.number) * 4;
   }
@@ -281,14 +280,13 @@ class Predator {
 
   update(dt) {
     if (this.isDead) {
-      // タイムアタックモードのみCPUが復活する。バトルロイヤルでは復活しない
       if (currentMode === 'time' || this.isPlayer) {
         this.respawnTimer -= dt;
         if (this.respawnTimer <= 0 && !this.isPlayer) {
           this.isDead = false;
           this.x = Math.random() * FIELD_SIZE;
           this.y = Math.random() * FIELD_SIZE;
-          this.number = Math.max(3, Math.floor(this.number * 0.3)); // 死ぬと数字が激減
+          this.number = Math.max(3, Math.floor(this.number * 0.3)); 
           this.calcRadius();
           this.radius = this.targetRadius;
           this.evoLevel = 0;
@@ -317,10 +315,9 @@ class Predator {
         }
       }
     } else {
-      // 💡 AIの挙動（弱体化）
       this.aiTimer -= dt;
       if (this.aiTimer <= 0) {
-        this.aiTimer = 1.0 + Math.random(); // 1〜2秒に1回しか思考しない（スキだらけにする）
+        this.aiTimer = 1.0 + Math.random(); 
         let bestTarget = null;
         let bestDist = Infinity;
         let escapeVector = {x: 0, y: 0};
@@ -329,7 +326,6 @@ class Predator {
         const allPredators = [player, ...enemies].filter(p => !p.isDead && p !== this);
         for (let p of allPredators) {
           let dist = Math.hypot(this.x - p.x, this.y - p.y);
-          // 視野を300に縮小。自分より大きい数字の敵から逃げる
           if (dist < 300 && p.number > this.number) {
             escapeVector.x += this.x - p.x;
             escapeVector.y += this.y - p.y;
@@ -342,7 +338,6 @@ class Predator {
           this.targetX = this.x + (escapeVector.x / eDist) * 300;
           this.targetY = this.y + (escapeVector.y / eDist) * 300;
         } else {
-          // エサを探す（視野300）
           for (let p of preys) {
             let dist = Math.hypot(this.x - p.x, this.y - p.y);
             if (dist < 300 && this.number >= p.number && dist < bestDist) {
@@ -395,7 +390,7 @@ class Predator {
     ctx.textBaseline = 'middle';
     ctx.fillText(stageInfo.icon, this.x, this.y + this.radius * 0.1);
     
-    // 💡 「数字」をデカデカと表示！
+    // 数字表示
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 4;
@@ -430,7 +425,6 @@ class Prey {
       }
     }
     
-    // 💡 指定範囲内でランダムな数字を付与
     this.number = Math.floor(Math.random() * (this.type.maxN - this.type.minN + 1)) + this.type.minN;
     this.radius = 15 + Math.sqrt(this.number) * 3;
     this.icon = EVO_STAGES[this.type.stage].icon;
@@ -455,7 +449,6 @@ class Prey {
     ctx.textBaseline = 'middle';
     ctx.fillText(this.icon, this.x, this.y + this.radius * 0.1);
     
-    // 💡 エサの数字も分かりやすく表示
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 3;
@@ -475,7 +468,7 @@ function initGame() {
     GAME_TIME = parseInt(document.getElementById('time-select').value);
     document.getElementById('ui-mode-label').innerText = 'のこり時間';
   } else {
-    GAME_TIME = 9999; // ロイヤルモードは実質無制限
+    GAME_TIME = 9999; 
     document.getElementById('ui-mode-label').innerText = 'ライバル残数';
   }
 
@@ -531,7 +524,6 @@ function checkCollisions() {
   if (player.isDead) return;
   const allPredators = [player, ...enemies].filter(p => !p.isDead);
 
-  // 捕食者 vs エサ
   for (let pred of allPredators) {
     for (let prey of preys) {
       if (prey.isDead) continue;
@@ -540,10 +532,9 @@ function checkCollisions() {
       let dy = pred.y - prey.y;
       let dist = Math.hypot(dx, dy);
       
-      // 💡 数字が同じか小さい場合のみ食べられる！
       if (dist < pred.radius && pred.number >= prey.number) {
         prey.isDead = true;
-        pred.addNumber(prey.number); // 足し算！
+        pred.addNumber(prey.number); 
         if (pred.isPlayer) {
           playSound('eat_small');
           document.getElementById('drag-hint').style.display = 'none'; 
@@ -554,7 +545,6 @@ function checkCollisions() {
     }
   }
 
-  // 捕食者 vs 捕食者（対戦・捕食）
   for (let i = 0; i < allPredators.length; i++) {
     for (let j = i + 1; j < allPredators.length; j++) {
       let p1 = allPredators[i];
@@ -563,9 +553,7 @@ function checkCollisions() {
       let dy = p1.y - p2.y;
       let dist = Math.hypot(dx, dy);
 
-      // 触れた場合
       if (dist < Math.max(p1.radius, p2.radius) * 0.8) {
-        // 💡 厳密に数字が大きい方が勝つ！
         if (p1.number > p2.number) {
           p1.addNumber(p2.number);
           p2.isDead = true;
@@ -630,7 +618,6 @@ function gameLoop(currentTime) {
       return;
     }
   } else {
-    // ロイヤルモードクリア判定
     let aliveEnemies = enemies.filter(e => !e.isDead).length;
     if (aliveEnemies === 0) {
       gameClearSequence();
