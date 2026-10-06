@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ギャラクシー・ホール - 宇宙のスケールサバイバル</title>
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { overscroll-behavior: none; touch-action: none; background: #020617; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
+  body { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; display: flex; justify-content: center; align-items: center; }
+  
+  #game-wrapper {
+    position: relative; width: 100%; max-width: 450px; height: 100%; max-height: 850px;
+    background: #0f172a; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  }
+
+  /* 上部UI（ランキングとタイマー） */
+  #header { position: absolute; top: var(--sat); left: 0; width: 100%; padding: 10px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; box-sizing: border-box; pointer-events: none; }
+  
+  .leaderboard { background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 10px; font-size: 14px; font-weight: bold; pointer-events: auto; }
+  .leaderboard-title { color: #f1c40f; margin-bottom: 5px; font-size: 12px; }
+  .rank-item { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 3px; }
+  .rank-item.is-me { color: #3498db; font-size: 16px; }
+
+  .timer-box { background: rgba(231, 76, 60, 0.9); padding: 8px 20px; border-radius: 20px; font-size: 24px; font-weight: 900; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+  
+  /* キャンバスエリア */
+  #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; cursor: crosshair; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* 操作説明のヒント */
+  #drag-hint {
+    position: absolute; bottom: calc(20px + var(--sab)); left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); padding: 8px 16px; border-radius: 20px;
+    font-size: 14px; font-weight: bold; pointer-events: none; animation: pulse 2s infinite; backdrop-filter: blur(4px);
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  /* オーバーレイ画面 */
+  .overlay { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .title { font-size: 34px; color: #9b59b6; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 0 #8e44ad, -2px -2px 0 #fff; text-align: center; line-height: 1.4; }
+  .desc { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color:white; padding:20px; border-radius:15px; font-weight:bold; width:85%; text-align:left; line-height:1.6; font-size: 14px; }
+  .btn { padding: 15px 50px; font-size: 22px; font-weight: bold; color: white; background: #3498db; border: none; border-radius: 30px; box-shadow: 0 6px 0 #2980b9; cursor: pointer; margin-top: 20px; transition: 0.1s; }
+  .btn:active { transform: translateY(6px); box-shadow: none; }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="header">
+    <div class="leaderboard" id="leaderboard">
+      <div class="leaderboard-title">👑 ランキング (重さ)</div>
+      <div id="rank-list"></div>
+    </div>
+    <div class="timer-box" id="ui-timer">60</div>
+  </div>
+  
+  <div id="canvas-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="drag-hint">👆 画面をドラッグして移動</div>
+  </div>
+
+  <div id="start-screen" class="overlay show">
+    <div class="title">🌌 ギャラクシー<br>ホール</div>
+    <div class="desc">
+      あなたは宇宙の「ブラックホール」！<br>
+      ドラッグして<b>自分より小さい星</b>を<br>
+      吸い込んで大きくなろう！<br><br>
+      🪨隕石 → 🌙月 → 🌍地球 → ☀️太陽<br><br>
+      ⚠️ <b>自分より大きいライバル(CPU)</b>に<br>
+      近づくと吸い込まれちゃうから注意！<br>
+      60秒で宇宙一の大きさを目指せ！
+    </div>
+    <button class="btn" onclick="startGame()">ゲームスタート</button>
+  </div>
+
+  <div id="game-over" class="overlay">
+    <h1 style="color:#f1c40f; font-size:40px; margin-bottom:10px;">タイムアップ！</h1>
+    <div class="desc" style="text-align:center; font-size:20px; margin-bottom:20px; background:transparent; border:none;">
+      あなたの最終順位<br>
+      <span id="result-rank" style="font-size:48px; color:#e74c3c;">1</span> 位<br>
+      重さ: <span id="result-score">0</span>
+    </div>
+    <button class="btn" style="background:#e67e22; box-shadow:0 6px 0 #d35400;" onclick="showStartScreen()">もういっかい</button>
+  </div>
+</div>
+
+<script>
+// --- 音声 ---
+let actx;
+function initAudio() { if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); } if (actx.state === 'suspended') actx.resume(); }
+function playSound(type) {
+  if (!actx) return;
+  const t = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
+  osc.connect(gain); gain.connect(actx.destination);
+  
+  if (type === 'eat_small') { 
+    osc.type = 'sine'; osc.frequency.setValueAtTime(400, t); osc.frequency.exponentialRampToValueAtTime(800, t + 0.1);
+    gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    osc.start(t); osc.stop(t + 0.1);
+  } else if (type === 'eat_big') { 
+    osc.type = 'square'; osc.frequency.setValueAtTime(200, t); osc.frequency.exponentialRampToValueAtTime(100, t + 0.2);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+    osc.start(t); osc.stop(t + 0.3);
+  } else if (type === 'die') {
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); osc.frequency.linearRampToValueAtTime(50, t + 0.5);
+    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.5);
+    osc.start(t); osc.stop(t + 0.5);
+  }
+}
+
+// --- ゲーム設定 ---
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const GAME_TIME = 60; 
+const FIELD_SIZE = 3000; // 宇宙の広さ
+
+// 天体（エサ）の定義。実際の宇宙の大きさをデフォルメ
+const STAR_TYPES = [
+  { icon: '🪨', radius: 15, mass: 10, prob: 60 },
+  { icon: '🌙', radius: 30, mass: 30, prob: 30 },
+  { icon: '🌍', radius: 60, mass: 100, prob: 10 },
+  { icon: '🪐', radius: 120, mass: 300, prob: 3 },
+  { icon: '☀️', radius: 250, mass: 1000, prob: 1 }
+];
+
+let gameState = 'menu'; // menu, playing, gameover
+let timeLeft = 0;
+let lastTime = 0;
+let animationId;
+
+let player;
+let enemies = [];
+let stars = [];
+
+// カメラ（プレイヤーを中心に映す）
+let camera = { x: 0, y: 0, zoom: 1 };
+
+// マウス・タッチ座標
+let input = { x: 0, y: 0, active: false };
+
+// リサイズ対応
+function resize() {
+  const container = document.getElementById('canvas-container');
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+}
+window.addEventListener('resize', resize);
+
+// --- クラス定義 ---
+
+class Hole {
+  constructor(isPlayer, name, color) {
+    this.isPlayer = isPlayer;
+    this.name = name;
+    this.color = color;
+    this.x = Math.random() * FIELD_SIZE;
+    this.y = Math.random() * FIELD_SIZE;
+    this.baseRadius = 20; // 初期の大きさ
+    this.mass = 0;
+    this.radius = this.baseRadius;
+    this.targetRadius = this.baseRadius;
+    this.speed = 200; // px per second
+    
+    // AI用のランダム移動目標
+    this.targetX = this.x;
+    this.targetY = this.y;
+    this.aiTimer = 0;
+    this.isDead = false;
+    this.respawnTimer = 0;
+  }
+
+  addMass(m) {
+    this.mass += m;
+    // 質量が増えると少しずつ半径が大きくなる
+    this.targetRadius = this.baseRadius + Math.pow(this.mass, 0.6); 
+  }
+
+  update(dt) {
+    if (this.isDead) {
+      this.respawnTimer -= dt;
+      if (this.respawnTimer <= 0) {
+        this.isDead = false;
+        this.x = Math.random() * FIELD_SIZE;
+        this.y = Math.random() * FIELD_SIZE;
+        this.mass = Math.max(0, this.mass * 0.5); // 死ぬと質量が半分になる
+        this.targetRadius = this.baseRadius + Math.pow(this.mass, 0.6);
+        this.radius = this.targetRadius;
+      }
+      return;
+    }
+
+    // スムーズな巨大化
+    this.radius += (this.targetRadius - this.radius) * 10 * dt;
+    
+    // 大きくなるほどスピードは少し落ちる
+    let currentSpeed = Math.max(80, this.speed - this.radius * 0.2);
+
+    let dx = 0;
+    let dy = 0;
+
+    if (this.isPlayer) {
+      if (input.active) {
+        // カメラの中心（プレイヤー位置）から入力座標へのベクトル
+        let cx = canvas.width / 2;
+        let cy = canvas.height / 2;
+        let vecX = input.x - cx;
+        let vecY = input.y - cy;
+        let dist = Math.hypot(vecX, vecY);
+        if (dist > 10) {
+          dx = (vecX / dist) * currentSpeed * dt;
+          dy = (vecY / dist) * currentSpeed * dt;
+        }
+      }
+    } else {
+      // 💡 AIの動き（自分より小さいものを追いかけ、大きいものから逃げる）
+      this.aiTimer -= dt;
+      if (this.aiTimer <= 0) {
+        this.aiTimer = 0.5; // 0.5秒ごとに思考更新
+        
+        let bestTarget = null;
+        let bestDist = Infinity;
+        let escapeVector = {x: 0, y: 0};
+        let isEscaping = false;
+
+        // 脅威（自分より大きいHole）を探す
+        const allHoles = [player, ...enemies].filter(h => !h.isDead && h !== this);
+        for (let h of allHoles) {
+          let dist = Math.hypot(this.x - h.x, this.y - h.y);
+          if (dist < 400 && h.radius > this.radius * 1.1) {
+            escapeVector.x += this.x - h.x;
+            escapeVector.y += this.y - h.y;
+            isEscaping = true;
+          }
+        }
+
+        if (isEscaping) {
+          let eDist = Math.hypot(escapeVector.x, escapeVector.y);
+          this.targetX = this.x + (escapeVector.x / eDist) * 300;
+          this.targetY = this.y + (escapeVector.y / eDist) * 300;
+        } else {
+          // エサを探す
+          for (let s of stars) {
+            let dist = Math.hypot(this.x - s.x, this.y - s.y);
+            // 画面に映る範囲で、かつ自分が食べられるサイズ
+            if (dist < 400 && this.radius > s.radius * 0.8 && dist < bestDist) {
+              bestDist = dist;
+              bestTarget = s;
+            }
+          }
+          if (bestTarget) {
+            this.targetX = bestTarget.x;
+            this.targetY = bestTarget.y;
+          } else {
+            // 見つからなければ適当にさまよう
+            this.targetX = this.x + (Math.random() - 0.5) * 500;
+            this.targetY = this.y + (Math.random() - 0.5) * 500;
+          }
+        }
+      }
+
+      let vecX = this.targetX - this.x;
+      let vecY = this.targetY - this.y;
+      let dist = Math.hypot(vecX, vecY);
+      if (dist > 10) {
+        dx = (vecX / dist) * currentSpeed * dt;
+        dy = (vecY / dist) * currentSpeed * dt;
+      }
+    }
+
+    this.x += dx;
+    this.y += dy;
+
+    // フィールド境界
+    this.x = Math.max(this.radius, Math.min(FIELD_SIZE - this.radius, this.x));
+    this.y = Math.max(this.radius, Math.min(FIELD_SIZE - this.radius, this.y));
+  }
+
+  draw(ctx) {
+    if (this.isDead) return;
+    
+    // ブラックホールのオーラ
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius + 5, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.globalAlpha = 0.5;
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    // ブラックホール本体（漆黒）
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    
+    // 名前表示
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.font = `bold ${Math.max(12, this.radius * 0.4)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(this.name, this.x, this.y);
+  }
+}
+
+// 宇宙の星（エサ）
+class Star {
+  constructor() {
+    this.spawn();
+  }
+  
+  spawn() {
+    this.x = Math.random() * FIELD_SIZE;
+    this.y = Math.random() * FIELD_SIZE;
+    
+    // 確率で星の種類を決定
+    let r = Math.random() * 100;
+    let sum = 0;
+    this.type = STAR_TYPES[0];
+    for (let type of STAR_TYPES) {
+      sum += type.prob;
+      if (r <= sum) {
+        this.type = type;
+        break;
+      }
+    }
+    this.radius = this.type.radius;
+    this.mass = this.type.mass;
+    this.icon = this.type.icon;
+    this.isDead = false;
+  }
+
+  draw(ctx) {
+    if (this.isDead) return;
+    ctx.font = `${this.radius * 1.5}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(this.icon, this.x, this.y);
+  }
+}
+
+// --- 入力処理 ---
+const container = document.getElementById('canvas-container');
+
+function setInput(e) {
+  const rect = canvas.getBoundingClientRect();
+  // タッチまたはマウス座標
+  let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  input.x = clientX - rect.left;
+  input.y = clientY - rect.top;
+  input.active = true;
+}
+
+container.addEventListener('mousedown', setInput);
+container.addEventListener('mousemove', (e) => { if(input.active) setInput(e); });
+container.addEventListener('mouseup', () => { input.active = false; });
+container.addEventListener('mouseleave', () => { input.active = false; });
+
+container.addEventListener('touchstart', (e) => { setInput(e); e.preventDefault(); }, {passive: false});
+container.addEventListener('touchmove', (e) => { setInput(e); e.preventDefault(); }, {passive: false});
+container.addEventListener('touchend', () => { input.active = false; });
+
+// --- ゲームロジック ---
+
+function initGame() {
+  resize();
+  
+  // プレイヤー生成
+  player = new Hole(true, "あなた", "#9b59b6");
+  
+  // ライバルAI生成
+  enemies = [
+    new Hole(false, "CPU 1", "#e74c3c"),
+    new Hole(false, "CPU 2", "#3498db"),
+    new Hole(false, "CPU 3", "#2ecc71"),
+    new Hole(false, "CPU 4", "#f1c40f")
+  ];
+
+  // 星の配置
+  stars = [];
+  for (let i = 0; i < 200; i++) {
+    stars.push(new Star());
+  }
+
+  timeLeft = GAME_TIME;
+  lastTime = performance.now();
+  gameState = 'playing';
+  document.getElementById('drag-hint').style.display = 'block';
+
+  cancelAnimationFrame(animationId);
+  animationId = requestAnimationFrame(gameLoop);
+}
+
+function updateRankings() {
+  let allHoles = [player, ...enemies];
+  allHoles.sort((a, b) => b.mass - a.mass); // 質量で降順
+  
+  let html = '';
+  let myRank = 1;
+  allHoles.forEach((h, index) => {
+    let isMe = h.isPlayer;
+    if (isMe) myRank = index + 1;
+    html += `<div class="rank-item ${isMe ? 'is-me' : ''}">
+               <span>${index + 1}. ${h.name}</span>
+               <span>${Math.floor(h.mass)}</span>
+             </div>`;
+  });
+  document.getElementById('rank-list').innerHTML = html;
+  return myRank;
+}
+
+function checkCollisions() {
+  const allHoles = [player, ...enemies].filter(h => !h.isDead);
+
+  // 穴 vs 星（エサ）
+  for (let hole of allHoles) {
+    for (let star of stars) {
+      if (star.isDead) continue;
+      
+      let dx = hole.x - star.x;
+      let dy = hole.y - star.y;
+      let dist = Math.hypot(dx, dy);
+      
+      // 💡 重力（引き寄せ効果）: 穴が星より大きい場合、少し近づくと吸い寄せられる
+      if (dist < hole.radius + star.radius * 2 && hole.radius > star.radius * 0.8) {
+        star.x += dx * 0.05;
+        star.y += dy * 0.05;
+      }
+
+      // 吸い込み判定（星が穴の中心付近に入ったら）
+      if (dist < hole.radius * 0.8 && hole.radius > star.radius * 0.8) {
+        star.isDead = true;
+        hole.addMass(star.mass);
+        if (hole.isPlayer) {
+          playSound(star.mass >= 100 ? 'eat_big' : 'eat_small');
+          document.getElementById('drag-hint').style.display = 'none'; // 吸い込めたらヒントを消す
+        }
+        // すぐに新しい星を遠くに補充
+        star.spawn();
+      }
+    }
+  }
+
+  // 穴 vs 穴（対戦要素）
+  for (let i = 0; i < allHoles.length; i++) {
+    for (let j = i + 1; j < allHoles.length; j++) {
+      let h1 = allHoles[i];
+      let h2 = allHoles[j];
+      let dx = h1.x - h2.x;
+      let dy = h1.y - h2.y;
+      let dist = Math.hypot(dx, dy);
+
+      if (dist < Math.max(h1.radius, h2.radius)) {
+        // 大きい方が小さい方を食べる (1.2倍以上のサイズ差が必要)
+        if (h1.radius > h2.radius * 1.2) {
+          h1.addMass(h2.mass);
+          h2.isDead = true;
+          h2.respawnTimer = 3; // 3秒後に復活
+          if (h2.isPlayer || h1.isPlayer) playSound('die');
+        } else if (h2.radius > h1.radius * 1.2) {
+          h2.addMass(h1.mass);
+          h1.isDead = true;
+          h1.respawnTimer = 3;
+          if (h1.isPlayer || h2.isPlayer) playSound('die');
+        }
+      }
+    }
+  }
+}
+
+function gameLoop(currentTime) {
+  if (gameState !== 'playing') return;
+  
+  let dt = (currentTime - lastTime) / 1000;
+  if (dt > 0.1) dt = 0.1; // タブ切り替え時のワープ防止
+  lastTime = currentTime;
+
+  // タイマー更新
+  timeLeft -= dt;
+  document.getElementById('ui-timer').innerText = Math.ceil(Math.max(0, timeLeft));
+  
+  if (timeLeft <= 0) {
+    gameState = 'gameover';
+    let finalRank = updateRankings();
+    document.getElementById('result-rank').innerText = finalRank;
+    document.getElementById('result-score').innerText = Math.floor(player.mass);
+    document.getElementById('game-over').classList.add('show');
+    return;
+  }
+
+  // 更新
+  player.update(dt);
+  enemies.forEach(e => e.update(dt));
+  checkCollisions();
+  updateRankings();
+
+  // 💡 カメラ制御（プレイヤーが大きくなるほどズームアウトして視野を広げる）
+  // 基準となる画面サイズに対するプレイヤーの表示サイズ割合を維持する
+  let targetZoom = 30 / player.radius; 
+  if (targetZoom > 1.5) targetZoom = 1.5;
+  if (targetZoom < 0.2) targetZoom = 0.2;
+  camera.zoom += (targetZoom - camera.zoom) * 5 * dt; // スムーズにズーム
+  
+  camera.x = player.x;
+  camera.y = player.y;
+
+  // --- 描画 ---
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 背景の格子（宇宙のグリッド）を描画（移動している感触を出すため）
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.translate(-camera.x, -camera.y);
+
+  // グリッド線
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  ctx.lineWidth = 2;
+  const gridSize = 100;
+  ctx.beginPath();
+  for (let x = 0; x <= FIELD_SIZE; x += gridSize) {
+    ctx.moveTo(x, 0); ctx.lineTo(x, FIELD_SIZE);
+  }
+  for (let y = 0; y <= FIELD_SIZE; y += gridSize) {
+    ctx.moveTo(0, y); ctx.lineTo(FIELD_SIZE, y);
+  }
+  ctx.stroke();
+
+  // フィールドの境界
+  ctx.strokeStyle = '#e74c3c';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(0, 0, FIELD_SIZE, FIELD_SIZE);
+
+  // オブジェクト描画
+  stars.forEach(s => s.draw(ctx));
+  enemies.forEach(e => e.draw(ctx));
+  player.draw(ctx);
+
+  ctx.restore();
+
+  animationId = requestAnimationFrame(gameLoop);
+}
+
+function showStartScreen() {
+  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
+  document.getElementById('start-screen').classList.add('show');
+}
+
+function startGame() {
+  initAudio();
+  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
+  initGame();
+}
+
+// 初期ロード時の背景描画だけしておく
+resize();
+ctx.fillStyle = '#0f172a';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+</script>
+</body>
+</html>
