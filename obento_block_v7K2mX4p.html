@@ -3,10 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>お弁当づくりパズル - レイアウト完全対応版</title>
+<title>お弁当づくりパズル - 起動バグ完全修正版</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
-  /* 💡 100dvh を使用してブラウザのバーが出ても見切れないようにする */
   html, body { overscroll-behavior: none; touch-action: none; background: #fdf6e3; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; }
   body { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; display: flex; justify-content: center; align-items: center; }
   
@@ -16,19 +15,15 @@
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);
   }
 
-  /* 💡 flex-shrink: 0 で UI が押し潰されるのを防ぐ */
   #header { flex-shrink: 0; padding: max(10px, var(--sat)) 10px 5px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
   .top-row { display: flex; justify-content: space-between; width: 100%; align-items: center; }
   .level-box { background: rgba(255,255,255,0.9); padding: 5px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #c0392b; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
   .score-box { background: rgba(255,255,255,0.9); padding: 5px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #d35400; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
   .goal-box { width: 100%; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; box-sizing: border-box; }
   
-  /* お弁当箱（盤面 9x9） */
-  /* 💡 min-height: 0 で余った空間内で正しく縮小されるようにする */
   #board-container { flex: 1; min-height: 0; display: flex; justify-content: center; align-items: center; padding: 10px; position: relative; }
   #board {
     display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr);
-    /* 💡 widthとheightはJavaScriptで正確に計算して設定します */
     background: #d35400; border: 8px solid #8e44ad; border-radius: 15px; padding: 4px;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.6), 0 10px 15px rgba(0,0,0,0.2);
     position: relative; box-sizing: border-box; gap: 2px; margin: 0 auto;
@@ -42,8 +37,6 @@
   @keyframes flash { 0% { background: white; transform: scale(1.1); z-index: 10; } 100% { background: rgba(255,255,255,0.3); transform: scale(1); z-index: 1; } }
   .cell.clearing { animation: flash 0.4s ease-out; }
 
-  /* 候補置き場＆チェンジボタン */
-  /* 💡 flex-shrink: 0 で絶対に高さを死守する */
   #tray-container { flex-shrink: 0; background: rgba(255,255,255,0.5); border-top: 4px solid white; padding-bottom: max(10px, var(--sab)); display: flex; flex-direction: column; }
   .tray-header { display: flex; justify-content: flex-end; padding: 8px 15px 0 15px; }
   .change-btn { background: #bdc3c7; border: none; border-radius: 10px; padding: 6px 12px; font-weight: bold; color: white; transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -59,7 +52,6 @@
   .block-container.dragging { z-index: 100; cursor: grabbing; transform: scale(1.0); opacity: 0.95; }
   .block-cell { border-radius: 4px; display: flex; justify-content: center; align-items: center; font-size: 20px; box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3); box-sizing: border-box; }
 
-  /* フローティングテキスト */
   .floating-text {
     position: absolute; pointer-events: none; font-weight: 900; font-size: 22px;
     text-shadow: 2px 2px 0 white, -2px -2px 0 white, 2px -2px 0 white, -2px 2px 0 white;
@@ -67,7 +59,6 @@
   }
   @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 20% { transform: translateY(-20px) scale(1.2); opacity: 1; } 80% { transform: translateY(-60px) scale(1); opacity: 1; } 100% { transform: translateY(-80px) scale(1); opacity: 0; } }
 
-  /* オーバーレイ画面 */
   .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
   .overlay.show { opacity: 1; pointer-events: auto; }
   .title { font-size: 34px; color: #f1c40f; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 0 #d35400; text-align: center; line-height: 1.4; }
@@ -75,7 +66,6 @@
   .btn { padding: 15px 40px; font-size: 22px; font-weight: bold; color: white; background: #e67e22; border: none; border-radius: 30px; box-shadow: 0 6px 0 #d35400; cursor: pointer; margin-top: 20px; transition: 0.1s; }
   .btn:active { transform: translateY(6px); box-shadow: none; }
   
-  /* スライダーUI */
   .slider-container { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); padding: 15px; border-radius: 15px; margin-top: 15px; width: 85%; max-width: 320px; text-align: center; }
   .slider-container label { color: white; font-weight: bold; font-size: 16px; display: block; margin-bottom: 10px; }
   .level-val { color: #f1c40f; font-size: 24px; font-weight: 900; }
@@ -188,7 +178,7 @@ const BOARD_SIZE = 9;
 let board = [];
 let currentLevel = 1;
 let score = 0;
-let cellSize = 0;
+let cellSize = 30; // 初期値（エラー回避用）
 let recipe = {}; 
 let changeGauge = 0;
 let combo = 0;
@@ -216,17 +206,20 @@ const boardContainer = document.getElementById('board-container');
 // 💡 動的サイズ計算：ブラウザの高さに関わらず確実に画面に収まるようにする
 const updateCellSize = () => {
   const containerRect = boardContainer.getBoundingClientRect();
-  // コンテナの幅と高さのうち、短い方に合わせて正方形のサイズを決定
-  let size = Math.min(containerRect.width, containerRect.height) - 10;
-  if (size > 400) size = 400; // 最大サイズ制限
-  if (size < 200) size = 200; // 最小サイズ制限
+  // 念のため幅が0になるバグを防ぐフォールバックを追加
+  const cw = containerRect.width || 300;
+  const ch = containerRect.height || 300;
+  
+  let size = Math.min(cw, ch) - 10;
+  if (size > 400) size = 400; 
+  if (size < 200) size = 200; 
   
   boardEl.style.width = `${size}px`;
   boardEl.style.height = `${size}px`;
 
-  // 枠線やパディングを差し引いて1マスのサイズを計算
   const boardRect = boardEl.getBoundingClientRect();
   cellSize = (boardRect.width - 24 - 16) / BOARD_SIZE; 
+  if (cellSize <= 0 || isNaN(cellSize)) cellSize = 30; // 万が一のための保護
 };
 
 function initBoard() {
@@ -244,9 +237,9 @@ function initBoard() {
   }
   
   updateCellSize();
-  window.addEventListener('resize', updateCellSize);
-  setTimeout(updateCellSize, 100);
 }
+
+window.addEventListener('resize', updateCellSize);
 
 function updateBoardView() {
   for (let r = 0; r < BOARD_SIZE; r++) {
@@ -346,6 +339,10 @@ function loadLevel(level) {
   }
   
   initBoard();
+  
+  // 💡 ゲーム画面が表示された直後に強制的にサイズを再計算
+  setTimeout(updateCellSize, 50);
+
   candidates = [null, null, null];
   
   let numObstacles = level <= 2 ? 0 : Math.floor((currentLevel - 2) * 1.5);
@@ -425,7 +422,6 @@ function setupDrag(blockEl, index, shapeDef) {
     initAudio();
     blockEl.classList.add('dragging');
     
-    // 💡 画面サイズ変更対応のため、掴む直前にもセルサイズを再計算
     updateCellSize();
     
     const rows = shapeDef.shape.length;
@@ -670,22 +666,22 @@ function checkGameOver() {
   }
 }
 
-function startGame() {
+// 💡 スタート関連の引数を統一してエラーを防止
+function startGame(level) {
   initAudio();
   document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
-  let selected = parseInt(document.getElementById('level-slider').value);
+  let selected = level || parseInt(document.getElementById('level-slider').value);
   loadLevel(selected);
 }
 
 function retryGame() {
-  startGame(currentLevel); // リトライ時は引数でレベルを渡してあげる必要があるので修正
+  startGame(currentLevel); 
 }
 
 function nextLevel() {
-  currentLevel++;
-  if (currentLevel > 10) currentLevel = 10; 
-  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
-  loadLevel(currentLevel);
+  let next = currentLevel + 1;
+  if (next > 10) next = 10; 
+  startGame(next);
 }
 
 initBoard();
