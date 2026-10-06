@@ -18,9 +18,10 @@
   .bubbles { position: absolute; inset: 0; background-image: radial-gradient(3px 3px at 20px 30px, rgba(255,255,255,0.4), transparent), radial-gradient(4px 4px at 60px 80px, rgba(255,255,255,0.2), transparent), radial-gradient(5px 5px at 120px 150px, rgba(255,255,255,0.3), transparent); background-size: 200px 200px; animation: bubbleUp 6s infinite linear; z-index: 0; pointer-events: none; }
   @keyframes bubbleUp { 0% { transform: translateY(200px); } 100% { transform: translateY(-200px); } }
 
-  /* 上部UI */
+  /* 💡 上部UI：pointer-events: none; でタッチ操作を下のキャンバスに貫通させる */
   #header { position: absolute; top: var(--sat); left: 0; width: 100%; padding: 10px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; box-sizing: border-box; pointer-events: none; }
   
+  /* 💡 実際に表示されているUI部品だけは pointer-events: auto; にする */
   .status-board { display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
   .leaderboard { background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 10px; font-size: 14px; font-weight: bold; }
   .leaderboard-title { color: #f1c40f; margin-bottom: 5px; font-size: 12px; }
@@ -34,7 +35,7 @@
   
   /* キャンバスエリア */
   #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; cursor: crosshair; z-index: 5; }
-  canvas { display: block; width: 100%; height: 100%; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; } /* 💡 スクロール防止 */
 
   #drag-hint {
     position: absolute; bottom: calc(20px + var(--sab)); left: 50%; transform: translateX(-50%);
@@ -165,10 +166,9 @@ function playSound(type) {
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 let GAME_TIME = 120; 
-let currentMode = 'time'; // 'time' or 'royal'
+let currentMode = 'time'; 
 const FIELD_SIZE = 3500; 
 
-// 算数ベースの進化段階
 const EVO_STAGES = [
   { icon: '🦠', name: 'プランクトン', minNum: 1, color: '#1abc9c' },
   { icon: '🦐', name: 'エビ', minNum: 20, color: '#e67e22' },
@@ -178,7 +178,6 @@ const EVO_STAGES = [
   { icon: '🐋', name: 'シャチ', minNum: 3000, color: '#34495e' }
 ];
 
-// エサとなる生き物の生成設定
 const PREY_TYPES = [
   { stage: 0, minN: 1, maxN: 5, prob: 50 },     
   { stage: 1, minN: 10, maxN: 30, prob: 30 },   
@@ -234,7 +233,6 @@ class Predator {
     this.number = isPlayer ? 3 : Math.floor(Math.random() * 8) + 3;
     
     this.calcRadius();
-    // 💡 ここが原因でした！代入を逆に修正し、初期サイズが正しく反映されるようにしました。
     this.radius = this.targetRadius;
     
     this.speed = isPlayer ? 250 : 160; 
@@ -457,6 +455,29 @@ class Prey {
     ctx.fillText(this.number, this.x, this.y - this.radius * 0.5);
   }
 }
+
+// --- 入力処理 ---
+// 💡 キャンバス全体を覆う #canvas-container に対してイベントを設定
+const container = document.getElementById('canvas-container');
+
+function setInput(e) {
+  const rect = canvas.getBoundingClientRect();
+  let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  input.x = clientX - rect.left;
+  input.y = clientY - rect.top;
+  input.active = true;
+}
+
+container.addEventListener('mousedown', setInput);
+container.addEventListener('mousemove', (e) => { if(input.active) setInput(e); });
+container.addEventListener('mouseup', () => { input.active = false; });
+container.addEventListener('mouseleave', () => { input.active = false; });
+
+// 💡 タッチ操作の設定（e.preventDefault()で画面のスクロールを防ぐ）
+container.addEventListener('touchstart', (e) => { setInput(e); e.preventDefault(); }, {passive: false});
+container.addEventListener('touchmove', (e) => { setInput(e); e.preventDefault(); }, {passive: false});
+container.addEventListener('touchend', () => { input.active = false; });
 
 // --- ゲームロジック ---
 
