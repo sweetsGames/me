@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>パクパク食物連鎖 - 算数サバイバル</title>
+<title>パクパク食物連鎖 - 算数サバイバル（難易度選択つき）</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #020617; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -18,10 +18,8 @@
   .bubbles { position: absolute; inset: 0; background-image: radial-gradient(3px 3px at 20px 30px, rgba(255,255,255,0.4), transparent), radial-gradient(4px 4px at 60px 80px, rgba(255,255,255,0.2), transparent), radial-gradient(5px 5px at 120px 150px, rgba(255,255,255,0.3), transparent); background-size: 200px 200px; animation: bubbleUp 6s infinite linear; z-index: 0; pointer-events: none; }
   @keyframes bubbleUp { 0% { transform: translateY(200px); } 100% { transform: translateY(-200px); } }
 
-  /* 💡 上部UI：pointer-events: none; でタッチ操作を下のキャンバスに貫通させる */
   #header { position: absolute; top: var(--sat); left: 0; width: 100%; padding: 10px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; box-sizing: border-box; pointer-events: none; }
   
-  /* 💡 実際に表示されているUI部品だけは pointer-events: auto; にする */
   .status-board { display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
   .leaderboard { background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 10px; font-size: 14px; font-weight: bold; }
   .leaderboard-title { color: #f1c40f; margin-bottom: 5px; font-size: 12px; }
@@ -33,9 +31,8 @@
   .timer-box { background: rgba(231, 76, 60, 0.9); padding: 8px 20px; border-radius: 20px; font-size: 24px; font-weight: 900; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; text-align: center; }
   .mode-label { font-size: 10px; margin-bottom: 2px; }
   
-  /* キャンバスエリア */
   #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; cursor: crosshair; z-index: 5; }
-  canvas { display: block; width: 100%; height: 100%; touch-action: none; } /* 💡 スクロール防止 */
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; } 
 
   #drag-hint {
     position: absolute; bottom: calc(20px + var(--sab)); left: 50%; transform: translateX(-50%);
@@ -51,15 +48,14 @@
   }
   @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 20% { transform: translateY(-20px) scale(1.2); opacity: 1; } 80% { transform: translateY(-60px) scale(1); opacity: 1; } 100% { transform: translateY(-80px) scale(1); opacity: 0; } }
 
-  /* オーバーレイ画面 */
   .overlay { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
   .overlay.show { opacity: 1; pointer-events: auto; }
   .title { font-size: 30px; color: #3498db; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 0 #2980b9, -2px -2px 0 #fff; text-align: center; line-height: 1.4; }
   .desc { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color:white; padding:15px; border-radius:15px; font-weight:bold; width:85%; text-align:left; line-height:1.5; font-size: 14px; box-sizing: border-box; }
   
-  /* 設定UI */
   .settings-box { background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; margin-top: 15px; width: 85%; box-sizing: border-box; }
   .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: bold; }
+  .setting-row:last-child { margin-bottom: 0; }
   select { font-size: 16px; padding: 5px; border-radius: 5px; font-family: inherit; font-weight: bold; }
 
   .btn { padding: 15px 40px; font-size: 20px; font-weight: bold; color: white; background: #e67e22; border: none; border-radius: 30px; box-shadow: 0 6px 0 #d35400; cursor: pointer; margin-top: 15px; transition: 0.1s; }
@@ -112,6 +108,15 @@
           <option value="60">1分</option>
           <option value="120" selected>2分</option>
           <option value="180">3分</option>
+        </select>
+      </div>
+      <!-- 💡 CPUの強さ設定を追加 -->
+      <div class="setting-row">
+        <label>敵のつよさ:</label>
+        <select id="cpu-select">
+          <option value="1">🟢 弱い</option>
+          <option value="1.5" selected>🟡 普通</option>
+          <option value="3">🔴 強い</option>
         </select>
       </div>
     </div>
@@ -167,6 +172,7 @@ const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 let GAME_TIME = 120; 
 let currentMode = 'time'; 
+let cpuDifficulty = 1.5; // 💡 CPUの強さ倍率（初期値は普通）
 const FIELD_SIZE = 3500; 
 
 const EVO_STAGES = [
@@ -235,7 +241,8 @@ class Predator {
     this.calcRadius();
     this.radius = this.targetRadius;
     
-    this.speed = isPlayer ? 250 : 160; 
+    // 💡 プレイヤーのスピードは250固定。CPUのスピードに強さ倍率を掛ける（160 × 1.0, 1.5, 3.0）
+    this.speed = isPlayer ? 250 : 160 * cpuDifficulty; 
     
     this.evoLevel = 0;
     this.checkEvolution();
@@ -315,16 +322,21 @@ class Predator {
     } else {
       this.aiTimer -= dt;
       if (this.aiTimer <= 0) {
-        this.aiTimer = 1.0 + Math.random(); 
+        // 💡 AIの思考スピード（反応速度）にも強さ倍率を掛ける（強いほど隙がない）
+        this.aiTimer = (1.0 + Math.random()) / cpuDifficulty; 
+        
         let bestTarget = null;
         let bestDist = Infinity;
         let escapeVector = {x: 0, y: 0};
         let isEscaping = false;
 
+        // 💡 視野の広さにも強さ倍率を掛ける（300 × 1.0, 1.5, 3.0）
+        let vision = 300 * cpuDifficulty;
+
         const allPredators = [player, ...enemies].filter(p => !p.isDead && p !== this);
         for (let p of allPredators) {
           let dist = Math.hypot(this.x - p.x, this.y - p.y);
-          if (dist < 300 && p.number > this.number) {
+          if (dist < vision && p.number > this.number) {
             escapeVector.x += this.x - p.x;
             escapeVector.y += this.y - p.y;
             isEscaping = true;
@@ -333,12 +345,12 @@ class Predator {
 
         if (isEscaping) {
           let eDist = Math.hypot(escapeVector.x, escapeVector.y);
-          this.targetX = this.x + (escapeVector.x / eDist) * 300;
-          this.targetY = this.y + (escapeVector.y / eDist) * 300;
+          this.targetX = this.x + (escapeVector.x / eDist) * vision;
+          this.targetY = this.y + (escapeVector.y / eDist) * vision;
         } else {
           for (let p of preys) {
             let dist = Math.hypot(this.x - p.x, this.y - p.y);
-            if (dist < 300 && this.number >= p.number && dist < bestDist) {
+            if (dist < vision && this.number >= p.number && dist < bestDist) {
               bestDist = dist;
               bestTarget = p;
             }
@@ -347,8 +359,8 @@ class Predator {
             this.targetX = bestTarget.x;
             this.targetY = bestTarget.y;
           } else {
-            this.targetX = this.x + (Math.random() - 0.5) * 400;
-            this.targetY = this.y + (Math.random() - 0.5) * 400;
+            this.targetX = this.x + (Math.random() - 0.5) * vision * 1.5;
+            this.targetY = this.y + (Math.random() - 0.5) * vision * 1.5;
           }
         }
       }
@@ -373,7 +385,6 @@ class Predator {
     
     let stageInfo = EVO_STAGES[this.evoLevel];
 
-    // テリトリー（オーラ）
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fillStyle = this.isPlayer ? 'rgba(52, 152, 219, 0.3)' : 'rgba(231, 76, 60, 0.3)';
@@ -382,13 +393,11 @@ class Predator {
     ctx.strokeStyle = this.isPlayer ? '#3498db' : '#e74c3c';
     ctx.stroke();
 
-    // アイコン描画
     ctx.font = `${this.radius * 1.0}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(stageInfo.icon, this.x, this.y + this.radius * 0.1);
     
-    // 数字表示
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 4;
@@ -396,7 +405,6 @@ class Predator {
     ctx.strokeText(this.number, this.x, this.y - this.radius * 0.5);
     ctx.fillText(this.number, this.x, this.y - this.radius * 0.5);
     
-    // 名前
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.font = `bold ${Math.max(12, this.radius * 0.3)}px sans-serif`;
     ctx.fillText(this.name, this.x, this.y + this.radius * 0.8);
@@ -457,7 +465,6 @@ class Prey {
 }
 
 // --- 入力処理 ---
-// 💡 キャンバス全体を覆う #canvas-container に対してイベントを設定
 const container = document.getElementById('canvas-container');
 
 function setInput(e) {
@@ -474,7 +481,6 @@ container.addEventListener('mousemove', (e) => { if(input.active) setInput(e); }
 container.addEventListener('mouseup', () => { input.active = false; });
 container.addEventListener('mouseleave', () => { input.active = false; });
 
-// 💡 タッチ操作の設定（e.preventDefault()で画面のスクロールを防ぐ）
 container.addEventListener('touchstart', (e) => { setInput(e); e.preventDefault(); }, {passive: false});
 container.addEventListener('touchmove', (e) => { setInput(e); e.preventDefault(); }, {passive: false});
 container.addEventListener('touchend', () => { input.active = false; });
@@ -484,7 +490,10 @@ container.addEventListener('touchend', () => { input.active = false; });
 function initGame() {
   resize();
   
+  // UIから設定を取得
   currentMode = document.getElementById('mode-select').value;
+  cpuDifficulty = parseFloat(document.getElementById('cpu-select').value);
+  
   if (currentMode === 'time') {
     GAME_TIME = parseInt(document.getElementById('time-select').value);
     document.getElementById('ui-mode-label').innerText = 'のこり時間';
