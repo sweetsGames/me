@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>お弁当づくりパズル - 常時補充＆難易度調整版</title>
+<title>お弁当づくりパズル - レイアウト完全対応版</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  /* 💡 100dvh を使用してブラウザのバーが出ても見切れないようにする */
   html, body { overscroll-behavior: none; touch-action: none; background: #fdf6e3; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; }
-  body { position: fixed; inset: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+  body { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; display: flex; justify-content: center; align-items: center; }
   
   #game-wrapper {
     position: relative; width: 100%; max-width: 450px; height: 100%; max-height: 850px;
@@ -15,21 +16,22 @@
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.2);
   }
 
-  /* 上部UI */
-  #header { padding: max(10px, var(--sat)) 10px 5px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+  /* 💡 flex-shrink: 0 で UI が押し潰されるのを防ぐ */
+  #header { flex-shrink: 0; padding: max(10px, var(--sat)) 10px 5px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
   .top-row { display: flex; justify-content: space-between; width: 100%; align-items: center; }
   .level-box { background: rgba(255,255,255,0.9); padding: 5px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #c0392b; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
   .score-box { background: rgba(255,255,255,0.9); padding: 5px 12px; border-radius: 20px; font-size: 16px; font-weight: 900; color: #d35400; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
   .goal-box { width: 100%; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; box-sizing: border-box; }
   
   /* お弁当箱（盤面 9x9） */
-  #board-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 10px; position: relative; }
+  /* 💡 min-height: 0 で余った空間内で正しく縮小されるようにする */
+  #board-container { flex: 1; min-height: 0; display: flex; justify-content: center; align-items: center; padding: 10px; position: relative; }
   #board {
     display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr);
-    width: 100%; max-width: 400px; aspect-ratio: 1 / 1;
+    /* 💡 widthとheightはJavaScriptで正確に計算して設定します */
     background: #d35400; border: 8px solid #8e44ad; border-radius: 15px; padding: 4px;
     box-shadow: inset 0 0 10px rgba(0,0,0,0.6), 0 10px 15px rgba(0,0,0,0.2);
-    position: relative; box-sizing: border-box; gap: 2px;
+    position: relative; box-sizing: border-box; gap: 2px; margin: 0 auto;
   }
   
   .cell { background: rgba(255, 255, 255, 0.3); border-radius: 4px; transition: background 0.2s; box-sizing: border-box; }
@@ -41,7 +43,8 @@
   .cell.clearing { animation: flash 0.4s ease-out; }
 
   /* 候補置き場＆チェンジボタン */
-  #tray-container { background: rgba(255,255,255,0.5); border-top: 4px solid white; padding-bottom: max(10px, var(--sab)); display: flex; flex-direction: column; }
+  /* 💡 flex-shrink: 0 で絶対に高さを死守する */
+  #tray-container { flex-shrink: 0; background: rgba(255,255,255,0.5); border-top: 4px solid white; padding-bottom: max(10px, var(--sab)); display: flex; flex-direction: column; }
   .tray-header { display: flex; justify-content: flex-end; padding: 8px 15px 0 15px; }
   .change-btn { background: #bdc3c7; border: none; border-radius: 10px; padding: 6px 12px; font-weight: bold; color: white; transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .change-btn.ready { background: #e67e22; cursor: pointer; box-shadow: 0 4px 0 #d35400; }
@@ -210,6 +213,22 @@ let candidates = [null, null, null];
 const boardEl = document.getElementById('board');
 const boardContainer = document.getElementById('board-container');
 
+// 💡 動的サイズ計算：ブラウザの高さに関わらず確実に画面に収まるようにする
+const updateCellSize = () => {
+  const containerRect = boardContainer.getBoundingClientRect();
+  // コンテナの幅と高さのうち、短い方に合わせて正方形のサイズを決定
+  let size = Math.min(containerRect.width, containerRect.height) - 10;
+  if (size > 400) size = 400; // 最大サイズ制限
+  if (size < 200) size = 200; // 最小サイズ制限
+  
+  boardEl.style.width = `${size}px`;
+  boardEl.style.height = `${size}px`;
+
+  // 枠線やパディングを差し引いて1マスのサイズを計算
+  const boardRect = boardEl.getBoundingClientRect();
+  cellSize = (boardRect.width - 24 - 16) / BOARD_SIZE; 
+};
+
 function initBoard() {
   board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
   boardEl.innerHTML = '';
@@ -223,10 +242,7 @@ function initBoard() {
       boardEl.appendChild(cell);
     }
   }
-  const updateCellSize = () => {
-    const boardRect = boardEl.getBoundingClientRect();
-    cellSize = (boardRect.width - 24 - 16) / BOARD_SIZE; 
-  };
+  
   updateCellSize();
   window.addEventListener('resize', updateCellSize);
   setTimeout(updateCellSize, 100);
@@ -264,7 +280,6 @@ function updateUI() {
   }
   document.getElementById('ui-recipe').innerHTML = recipeHtml;
   
-  // ゲージ更新
   let gaugeEl = document.getElementById('change-gauge');
   gaugeEl.style.width = `${Math.min(100, changeGauge)}%`;
   let changeBtn = document.getElementById('change-btn');
@@ -305,14 +320,12 @@ function showFloatingText(text, color) {
   setTimeout(() => el.remove(), 1500);
 }
 
-// 💡 レベルごとのクリア目標調整
 function loadLevel(level) {
   currentLevel = level;
   if(level === 1) score = 0; 
   changeGauge = 0;
   combo = 0;
   
-  // 難易度カーブの調整
   let typesCount, count;
   if (level === 1) { typesCount = 1; count = 2; }
   else if (level === 2) { typesCount = 1; count = 4; }
@@ -335,7 +348,6 @@ function loadLevel(level) {
   initBoard();
   candidates = [null, null, null];
   
-  // お邪魔ブロック（ピーマン）の配置 (チュートリアル期間はなし)
   let numObstacles = level <= 2 ? 0 : Math.floor((currentLevel - 2) * 1.5);
   let placed = 0;
   while(placed < numObstacles) {
@@ -352,16 +364,13 @@ function loadLevel(level) {
   generateCandidates();
 }
 
-// 💡 常に補充＆出現率の補正
 function generateCandidates() {
   let emptyCount = 0;
   for (let i = 0; i < 3; i++) {
     if (!candidates[i]) {
-      // レシピに残っているおかずが選ばれやすくなるように重み付け
       let weightedShapes = [...SHAPES];
       for (let icon in recipe) {
         if (recipe[icon] > 0) {
-          // 目標に残っているおかずの形状を確率プールに追加（約3倍出やすくなる）
           let matchingShapes = SHAPES.filter(s => s.icon === icon);
           weightedShapes.push(...matchingShapes);
           weightedShapes.push(...matchingShapes);
@@ -416,6 +425,9 @@ function setupDrag(blockEl, index, shapeDef) {
     initAudio();
     blockEl.classList.add('dragging');
     
+    // 💡 画面サイズ変更対応のため、掴む直前にもセルサイズを再計算
+    updateCellSize();
+    
     const rows = shapeDef.shape.length;
     const cols = shapeDef.shape[0].length;
 
@@ -465,7 +477,6 @@ function setupDrag(blockEl, index, shapeDef) {
         addGauge(10); 
         checkLines();
         
-        // 💡 1つ使ったら即座に補充
         generateCandidates();
       } else {
         playSound('error');
@@ -560,124 +571,3 @@ function checkLines() {
     });
     linesToClear.cols.forEach(c => {
       for (let r = 0; r < BOARD_SIZE; r++) cellsToClear.add(`${r},${c}`);
-    });
-    linesToClear.areas.forEach(pos => {
-      for (let r = 0; r < 3; r++) {
-        for (let c = 0; c < 3; c++) cellsToClear.add(`${pos.r + r},${pos.c + c}`);
-      }
-    });
-
-    let pimanCount = 0;
-    let nonPimanIcons = new Set();
-
-    cellsToClear.forEach(coord => {
-      let [r, c] = coord.split(',').map(Number);
-      let cellData = board[r][c];
-      if (cellData) {
-        if (recipe[cellData.icon] !== undefined) {
-          recipe[cellData.icon]--;
-        }
-        if (cellData.isObstacle) {
-          pimanCount++;
-        } else {
-          nonPimanIcons.add(cellData.icon);
-        }
-        document.getElementById(`cell-${r}-${c}`).classList.add('clearing');
-      }
-    });
-
-    let gainedScore = totalClears * 100 * combo; 
-    
-    if (combo > 1) {
-      setTimeout(() => { showFloatingText(`${combo}連鎖！`, '#e74c3c'); }, 100);
-    }
-    
-    if (pimanCount > 0) {
-      setTimeout(() => { playSound('bonus'); showFloatingText(`ピーマン克服！ +${pimanCount * 50}`, '#27ae60'); }, 400);
-      gainedScore += pimanCount * 50;
-    }
-    
-    if (nonPimanIcons.size === 1 && cellsToClear.size > pimanCount) {
-      setTimeout(() => { playSound('bonus'); showFloatingText('同じおかずボーナス！ +300', '#f39c12'); }, 700);
-      gainedScore += 300;
-    }
-
-    score += gainedScore;
-    let isClear = updateUI();
-
-    setTimeout(() => {
-      cellsToClear.forEach(coord => {
-        let [r, c] = coord.split(',').map(Number);
-        board[r][c] = null;
-        document.getElementById(`cell-${r}-${c}`).classList.remove('clearing');
-      });
-      
-      updateBoardView();
-      
-      if (isClear) {
-        setTimeout(() => {
-          document.getElementById('clear-score').innerText = score;
-          document.getElementById('level-clear').classList.add('show');
-        }, 300);
-      } else {
-        checkGameOver();
-      }
-    }, 400);
-  } else {
-    combo = 0;
-  }
-}
-
-function checkGameOver() {
-  let isClear = true;
-  for(let icon in recipe) { if(recipe[icon] > 0) isClear = false; }
-  if (isClear) return; 
-  
-  let canPlay = false;
-  for (let i = 0; i < 3; i++) {
-    if (candidates[i]) {
-      for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-          if (canPlace(candidates[i].shape, r, c)) {
-            canPlay = true; break;
-          }
-        }
-        if (canPlay) break;
-      }
-    }
-    if (canPlay) break;
-  }
-
-  if (!canPlay && changeGauge < 100) {
-    setTimeout(() => {
-      document.getElementById('result-score').innerText = score;
-      document.getElementById('game-over').classList.add('show');
-    }, 500);
-  } else if (!canPlay && changeGauge >= 100) {
-    document.getElementById('change-btn').style.transform = 'scale(1.1)';
-    setTimeout(() => { document.getElementById('change-btn').style.transform = 'scale(1)'; }, 200);
-  }
-}
-
-function startGame() {
-  initAudio();
-  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
-  let selected = parseInt(document.getElementById('level-slider').value);
-  loadLevel(selected);
-}
-
-function retryGame() {
-  startGame(currentLevel);
-}
-
-function nextLevel() {
-  currentLevel++;
-  if (currentLevel > 10) currentLevel = 10; // Max level
-  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
-  loadLevel(currentLevel);
-}
-
-initBoard();
-</script>
-</body>
-</html>
