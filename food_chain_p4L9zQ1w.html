@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>パクパク食物連鎖 - 海のサバイバル</title>
+<title>パクパク食物連鎖 - 算数サバイバル</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #020617; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -11,12 +11,10 @@
   
   #game-wrapper {
     position: relative; width: 100%; max-width: 450px; height: 100%; max-height: 850px;
-    /* 海の中を表現するグラデーション */
     background: linear-gradient(180deg, #0284c7 0%, #0369a1 40%, #0f172a 100%);
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
   }
 
-  /* 泡のアニメーション */
   .bubbles { position: absolute; inset: 0; background-image: radial-gradient(3px 3px at 20px 30px, rgba(255,255,255,0.4), transparent), radial-gradient(4px 4px at 60px 80px, rgba(255,255,255,0.2), transparent), radial-gradient(5px 5px at 120px 150px, rgba(255,255,255,0.3), transparent); background-size: 200px 200px; animation: bubbleUp 6s infinite linear; z-index: 0; pointer-events: none; }
   @keyframes bubbleUp { 0% { transform: translateY(200px); } 100% { transform: translateY(-200px); } }
 
@@ -29,10 +27,10 @@
   .rank-item { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 3px; }
   .rank-item.is-me { color: #3498db; font-size: 16px; }
 
-  /* 現在の姿表示 */
   .evo-box { background: rgba(255, 255, 255, 0.9); color: #2c3e50; padding: 5px 10px; border-radius: 10px; font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
-  .timer-box { background: rgba(231, 76, 60, 0.9); padding: 8px 20px; border-radius: 20px; font-size: 24px; font-weight: 900; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; }
+  .timer-box { background: rgba(231, 76, 60, 0.9); padding: 8px 20px; border-radius: 20px; font-size: 24px; font-weight: 900; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; text-align: center; }
+  .mode-label { font-size: 10px; margin-bottom: 2px; }
   
   /* キャンバスエリア */
   #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; cursor: crosshair; z-index: 5; }
@@ -48,16 +46,22 @@
   .floating-text {
     position: absolute; pointer-events: none; font-weight: 900; font-size: 24px;
     text-shadow: 2px 2px 0 white, -2px -2px 0 white, 2px -2px 0 white, -2px 2px 0 white;
-    animation: floatUp 1.5s ease-out forwards; z-index: 150; text-align: center; width: 100%; top: 30%;
+    animation: floatUp 1s ease-out forwards; z-index: 150; text-align: center; width: 100%; top: 40%;
   }
   @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 20% { transform: translateY(-20px) scale(1.2); opacity: 1; } 80% { transform: translateY(-60px) scale(1); opacity: 1; } 100% { transform: translateY(-80px) scale(1); opacity: 0; } }
 
   /* オーバーレイ画面 */
   .overlay { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
   .overlay.show { opacity: 1; pointer-events: auto; }
-  .title { font-size: 34px; color: #3498db; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 0 #2980b9, -2px -2px 0 #fff; text-align: center; line-height: 1.4; }
-  .desc { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color:white; padding:20px; border-radius:15px; font-weight:bold; width:85%; text-align:left; line-height:1.6; font-size: 14px; }
-  .btn { padding: 15px 50px; font-size: 22px; font-weight: bold; color: white; background: #e67e22; border: none; border-radius: 30px; box-shadow: 0 6px 0 #d35400; cursor: pointer; margin-top: 20px; transition: 0.1s; }
+  .title { font-size: 30px; color: #3498db; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 0 #2980b9, -2px -2px 0 #fff; text-align: center; line-height: 1.4; }
+  .desc { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color:white; padding:15px; border-radius:15px; font-weight:bold; width:85%; text-align:left; line-height:1.5; font-size: 14px; box-sizing: border-box; }
+  
+  /* 設定UI */
+  .settings-box { background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; margin-top: 15px; width: 85%; box-sizing: border-box; }
+  .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: bold; }
+  select { font-size: 16px; padding: 5px; border-radius: 5px; font-family: inherit; font-weight: bold; }
+
+  .btn { padding: 15px 40px; font-size: 20px; font-weight: bold; color: white; background: #e67e22; border: none; border-radius: 30px; box-shadow: 0 6px 0 #d35400; cursor: pointer; margin-top: 15px; transition: 0.1s; }
   .btn:active { transform: translateY(6px); box-shadow: none; }
 </style>
 </head>
@@ -68,12 +72,15 @@
   <div id="header">
     <div class="status-board">
       <div class="leaderboard" id="leaderboard">
-        <div class="leaderboard-title">👑 生態系ランキング</div>
+        <div class="leaderboard-title">👑 強さ(数字)ランキング</div>
         <div id="rank-list"></div>
       </div>
-      <div class="evo-box">あなたの姿: <span id="ui-evo">🦠 プランクトン</span></div>
+      <div class="evo-box">姿: <span id="ui-evo">🦠 プランクトン</span></div>
     </div>
-    <div class="timer-box" id="ui-timer">60</div>
+    <div class="timer-box" id="timer-container">
+      <div class="mode-label" id="ui-mode-label">タイム</div>
+      <div id="ui-timer">60</div>
+    </div>
   </div>
   
   <div id="canvas-container">
@@ -82,26 +89,41 @@
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title">🐟 パクパク<br>食物連鎖パズル</div>
+    <div class="title">🐟 パクパク食物連鎖<br>〜算数サバイバル〜</div>
     <div class="desc">
-      自分より<b>小さい生き物</b>を食べて<br>
-      どんどん進化しよう！<br><br>
-      <b>【進化のヒエラルキー】</b><br>
-      🦠プランクトン → 🦐エビ →<br>
-      🐟小魚 → 🦑イカ → 🦭アザラシ →<br>
-      🐋シャチ（最強！）<br><br>
-      ⚠️ <b>自分より大きいライバル</b>に<br>
-      近づくと食べられちゃうぞ！
+      数字の<b>足し算バトル！</b><br>
+      自分より<b>小さい（または同じ）数字</b>の生き物を食べて、自分の数字を大きくしよう！<br><br>
+      ⚠️ 自分より<b>1でも大きい数字</b>の敵にぶつかると食べられちゃうぞ！<br>
+      あなたは「3」からスタート！
     </div>
+    
+    <div class="settings-box">
+      <div class="setting-row">
+        <label>モード:</label>
+        <select id="mode-select" onchange="toggleTimeSelect()">
+          <option value="time">⏱ タイムアタック</option>
+          <option value="royal">👑 全CPU捕食クリア</option>
+        </select>
+      </div>
+      <div class="setting-row" id="time-row">
+        <label>じかん:</label>
+        <select id="time-select">
+          <option value="60">1分</option>
+          <option value="120" selected>2分</option>
+          <option value="180">3分</option>
+        </select>
+      </div>
+    </div>
+
     <button class="btn" onclick="startGame()">海へダイブ！</button>
   </div>
 
   <div id="game-over" class="overlay">
-    <h1 style="color:#f1c40f; font-size:40px; margin-bottom:10px;">タイムアップ！</h1>
+    <h1 id="result-title" style="color:#f1c40f; font-size:40px; margin-bottom:10px;">結果発表！</h1>
     <div class="desc" style="text-align:center; font-size:20px; margin-bottom:20px; background:transparent; border:none;">
       最終順位: <span id="result-rank" style="font-size:48px; color:#e74c3c;">1</span> 位<br>
       最終形態: <span id="result-evo" style="font-size:32px;">🐋</span><br>
-      重さ: <span id="result-score">0</span>
+      最終的な数字: <span id="result-score" style="font-size:28px; font-weight:900;">0</span>
     </div>
     <button class="btn" style="background:#e67e22; box-shadow:0 6px 0 #d35400;" onclick="showStartScreen()">もういっかい</button>
   </div>
@@ -125,40 +147,44 @@ function playSound(type) {
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
   } else if (type === 'die') {
-    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); osc.frequency.linearRampToValueAtTime(50, t + 0.5);
-    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.5);
-    osc.start(t); osc.stop(t + 0.5);
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, t); osc.frequency.linearRampToValueAtTime(50, t + 0.6);
+    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.6);
+    osc.start(t); osc.stop(t + 0.6);
   } else if (type === 'evolve') {
-    // 進化時のファンファーレ風
     osc.type = 'triangle'; osc.frequency.setValueAtTime(523.25, t); osc.frequency.setValueAtTime(659.25, t+0.1); osc.frequency.setValueAtTime(783.99, t+0.2); osc.frequency.setValueAtTime(1046.50, t+0.3);
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
     osc.start(t); osc.stop(t + 0.5);
+  } else if (type === 'clear') {
+    osc.type = 'square'; osc.frequency.setValueAtTime(523.25, t); osc.frequency.setValueAtTime(659.25, t+0.2); osc.frequency.setValueAtTime(783.99, t+0.4); osc.frequency.setValueAtTime(1046.50, t+0.6);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 1.0);
+    osc.start(t); osc.stop(t + 1.0);
   }
 }
 
 // --- ゲーム設定 ---
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
-const GAME_TIME = 60; 
-const FIELD_SIZE = 3000; // 海の広さ
+let GAME_TIME = 120; 
+let currentMode = 'time'; // 'time' or 'royal'
+const FIELD_SIZE = 3500; 
 
-// 💡 生き物の進化段階とサイズ定義（食物連鎖）
+// 💡 算数ベースの進化段階
 const EVO_STAGES = [
-  { icon: '🦠', name: 'プランクトン', minRadius: 10, color: '#1abc9c' }, // Lv 0
-  { icon: '🦐', name: 'エビ', minRadius: 25, color: '#e67e22' },      // Lv 1
-  { icon: '🐟', name: '小魚', minRadius: 50, color: '#3498db' },      // Lv 2
-  { icon: '🦑', name: 'イカ', minRadius: 100, color: '#9b59b6' },     // Lv 3
-  { icon: '🦭', name: 'アザラシ', minRadius: 200, color: '#ecf0f1' },   // Lv 4
-  { icon: '🐋', name: 'シャチ', minRadius: 350, color: '#34495e' }      // Lv 5
+  { icon: '🦠', name: 'プランクトン', minNum: 1, color: '#1abc9c' },
+  { icon: '🦐', name: 'エビ', minNum: 20, color: '#e67e22' },
+  { icon: '🐟', name: '小魚', minNum: 100, color: '#3498db' },
+  { icon: '🦑', name: 'イカ', minNum: 400, color: '#9b59b6' },
+  { icon: '🦭', name: 'アザラシ', minNum: 1000, color: '#ecf0f1' },
+  { icon: '🐋', name: 'シャチ', minNum: 3000, color: '#34495e' }
 ];
 
-// エサとなる生き物（自動生成用）
+// エサとなる生き物の生成設定
 const PREY_TYPES = [
-  { stage: 0, radius: 10, mass: 5, prob: 60 },
-  { stage: 1, radius: 25, mass: 20, prob: 25 },
-  { stage: 2, radius: 50, mass: 80, prob: 10 },
-  { stage: 3, radius: 100, mass: 200, prob: 4 },
-  { stage: 4, radius: 200, mass: 500, prob: 1 }
+  { stage: 0, minN: 1, maxN: 5, prob: 50 },     // プランクトン (1~5)
+  { stage: 1, minN: 10, maxN: 30, prob: 30 },   // エビ (10~30)
+  { stage: 2, minN: 50, maxN: 150, prob: 12 },  // 小魚 (50~150)
+  { stage: 3, minN: 200, maxN: 500, prob: 6 },  // イカ (200~500)
+  { stage: 4, minN: 800, maxN: 1500, prob: 2 }  // アザラシ (800~1500)
 ];
 
 let gameState = 'menu'; 
@@ -180,13 +206,18 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
+function toggleTimeSelect() {
+  const mode = document.getElementById('mode-select').value;
+  document.getElementById('time-row').style.display = mode === 'time' ? 'flex' : 'none';
+}
+
 function showFloatingText(text, color) {
   const el = document.createElement('div');
   el.className = 'floating-text';
   el.style.color = color;
   el.innerText = text;
   document.getElementById('canvas-container').appendChild(el);
-  setTimeout(() => el.remove(), 1500);
+  setTimeout(() => el.remove(), 1000);
 }
 
 // --- クラス定義 ---
@@ -196,15 +227,20 @@ class Predator {
     this.isPlayer = isPlayer;
     this.name = name;
     this.baseColor = colorCode;
+    
+    // リスポーン位置は安全な場所をなるべく選ぶ
     this.x = Math.random() * FIELD_SIZE;
     this.y = Math.random() * FIELD_SIZE;
-    this.baseRadius = 15;
-    this.mass = 0;
-    this.radius = this.baseRadius;
-    this.targetRadius = this.baseRadius;
-    this.speed = 220; 
     
-    this.evoLevel = 0; // 現在の進化レベル
+    // 💡 初期数字（プレイヤーは3スタート、CPUは3〜10）
+    this.number = isPlayer ? 3 : Math.floor(Math.random() * 8) + 3;
+    
+    this.calcRadius();
+    this.targetRadius = this.radius;
+    this.speed = isPlayer ? 250 : 160; // 💡 CPUの速度を大幅に減速（ナーフ）
+    
+    this.evoLevel = 0;
+    this.checkEvolution();
 
     this.targetX = this.x;
     this.targetY = this.y;
@@ -213,17 +249,21 @@ class Predator {
     this.respawnTimer = 0;
   }
 
-  addMass(m) {
-    this.mass += m;
-    this.targetRadius = this.baseRadius + Math.pow(this.mass, 0.65); 
+  // 数字から表示用の半径を計算（大きくなりすぎないようにルート計算）
+  calcRadius() {
+    this.targetRadius = 25 + Math.sqrt(this.number) * 4;
+  }
+
+  addNumber(n) {
+    this.number += n;
+    this.calcRadius();
     this.checkEvolution();
   }
 
-  // 💡 質量（半径）による進化のチェック
   checkEvolution() {
     let newLevel = 0;
     for (let i = EVO_STAGES.length - 1; i >= 0; i--) {
-      if (this.targetRadius >= EVO_STAGES[i].minRadius) {
+      if (this.number >= EVO_STAGES[i].minNum) {
         newLevel = i;
         break;
       }
@@ -241,22 +281,25 @@ class Predator {
 
   update(dt) {
     if (this.isDead) {
-      this.respawnTimer -= dt;
-      if (this.respawnTimer <= 0) {
-        this.isDead = false;
-        this.x = Math.random() * FIELD_SIZE;
-        this.y = Math.random() * FIELD_SIZE;
-        this.mass = Math.max(0, this.mass * 0.4); // 死ぬと小さくなる
-        this.targetRadius = this.baseRadius + Math.pow(this.mass, 0.65);
-        this.radius = this.targetRadius;
-        this.evoLevel = 0;
-        this.checkEvolution();
+      // タイムアタックモードのみCPUが復活する。バトルロイヤルでは復活しない
+      if (currentMode === 'time' || this.isPlayer) {
+        this.respawnTimer -= dt;
+        if (this.respawnTimer <= 0 && !this.isPlayer) {
+          this.isDead = false;
+          this.x = Math.random() * FIELD_SIZE;
+          this.y = Math.random() * FIELD_SIZE;
+          this.number = Math.max(3, Math.floor(this.number * 0.3)); // 死ぬと数字が激減
+          this.calcRadius();
+          this.radius = this.targetRadius;
+          this.evoLevel = 0;
+          this.checkEvolution();
+        }
       }
       return;
     }
 
     this.radius += (this.targetRadius - this.radius) * 8 * dt;
-    let currentSpeed = Math.max(90, this.speed - this.radius * 0.15); // 大きいほど遅い
+    let currentSpeed = Math.max(80, this.speed - this.radius * 0.1); 
 
     let dx = 0;
     let dy = 0;
@@ -274,10 +317,10 @@ class Predator {
         }
       }
     } else {
-      // AIの挙動
+      // 💡 AIの挙動（弱体化）
       this.aiTimer -= dt;
       if (this.aiTimer <= 0) {
-        this.aiTimer = 0.5;
+        this.aiTimer = 1.0 + Math.random(); // 1〜2秒に1回しか思考しない（スキだらけにする）
         let bestTarget = null;
         let bestDist = Infinity;
         let escapeVector = {x: 0, y: 0};
@@ -286,8 +329,8 @@ class Predator {
         const allPredators = [player, ...enemies].filter(p => !p.isDead && p !== this);
         for (let p of allPredators) {
           let dist = Math.hypot(this.x - p.x, this.y - p.y);
-          // 自分より1.2倍以上デカい敵からは逃げる
-          if (dist < 500 && p.radius > this.radius * 1.2) {
+          // 視野を300に縮小。自分より大きい数字の敵から逃げる
+          if (dist < 300 && p.number > this.number) {
             escapeVector.x += this.x - p.x;
             escapeVector.y += this.y - p.y;
             isEscaping = true;
@@ -299,9 +342,10 @@ class Predator {
           this.targetX = this.x + (escapeVector.x / eDist) * 300;
           this.targetY = this.y + (escapeVector.y / eDist) * 300;
         } else {
+          // エサを探す（視野300）
           for (let p of preys) {
             let dist = Math.hypot(this.x - p.x, this.y - p.y);
-            if (dist < 500 && this.radius > p.radius * 1.1 && dist < bestDist) {
+            if (dist < 300 && this.number >= p.number && dist < bestDist) {
               bestDist = dist;
               bestTarget = p;
             }
@@ -310,8 +354,8 @@ class Predator {
             this.targetX = bestTarget.x;
             this.targetY = bestTarget.y;
           } else {
-            this.targetX = this.x + (Math.random() - 0.5) * 600;
-            this.targetY = this.y + (Math.random() - 0.5) * 600;
+            this.targetX = this.x + (Math.random() - 0.5) * 400;
+            this.targetY = this.y + (Math.random() - 0.5) * 400;
           }
         }
       }
@@ -339,26 +383,33 @@ class Predator {
     // テリトリー（オーラ）
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.fillStyle = this.isPlayer ? 'rgba(255, 255, 255, 0.2)' : 'rgba(231, 76, 60, 0.2)';
+    ctx.fillStyle = this.isPlayer ? 'rgba(52, 152, 219, 0.3)' : 'rgba(231, 76, 60, 0.3)';
     ctx.fill();
     ctx.lineWidth = 3;
-    ctx.strokeStyle = this.isPlayer ? stageInfo.color : '#e74c3c';
+    ctx.strokeStyle = this.isPlayer ? '#3498db' : '#e74c3c';
     ctx.stroke();
 
-    // 現在の生き物アイコン
-    ctx.font = `${this.radius * 1.2}px sans-serif`;
+    // アイコン描画
+    ctx.font = `${this.radius * 1.0}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(stageInfo.icon, this.x, this.y + this.radius * 0.1);
     
+    // 💡 「数字」をデカデカと表示！
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 4;
+    ctx.font = `900 ${Math.max(20, this.radius * 0.8)}px 'Rounded M+ 1c', sans-serif`;
+    ctx.strokeText(this.number, this.x, this.y - this.radius * 0.5);
+    ctx.fillText(this.number, this.x, this.y - this.radius * 0.5);
+    
     // 名前
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.font = `bold ${Math.max(12, this.radius * 0.3)}px sans-serif`;
-    ctx.fillText(this.name, this.x, this.y - this.radius * 0.8);
+    ctx.fillText(this.name, this.x, this.y + this.radius * 0.8);
   }
 }
 
-// 海の生き物（エサ）
 class Prey {
   constructor() {
     this.spawn();
@@ -378,13 +429,14 @@ class Prey {
         break;
       }
     }
-    this.radius = this.type.radius;
-    this.mass = this.type.mass;
+    
+    // 💡 指定範囲内でランダムな数字を付与
+    this.number = Math.floor(Math.random() * (this.type.maxN - this.type.minN + 1)) + this.type.minN;
+    this.radius = 15 + Math.sqrt(this.number) * 3;
     this.icon = EVO_STAGES[this.type.stage].icon;
     
-    // エサもゆっくり漂う
-    this.vx = (Math.random() - 0.5) * 20;
-    this.vy = (Math.random() - 0.5) * 20;
+    this.vx = (Math.random() - 0.5) * 30;
+    this.vy = (Math.random() - 0.5) * 30;
     this.isDead = false;
   }
 
@@ -397,37 +449,36 @@ class Prey {
 
   draw(ctx) {
     if (this.isDead) return;
-    ctx.font = `${this.radius * 1.5}px sans-serif`;
+    
+    ctx.font = `${this.radius * 1.2}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(this.icon, this.x, this.y);
+    ctx.fillText(this.icon, this.x, this.y + this.radius * 0.1);
+    
+    // 💡 エサの数字も分かりやすく表示
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.font = `900 ${Math.max(16, this.radius * 0.6)}px 'Rounded M+ 1c', sans-serif`;
+    ctx.strokeText(this.number, this.x, this.y - this.radius * 0.5);
+    ctx.fillText(this.number, this.x, this.y - this.radius * 0.5);
   }
 }
-
-// --- 入力処理 ---
-const container = document.getElementById('canvas-container');
-
-function setInput(e) {
-  const rect = canvas.getBoundingClientRect();
-  let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  input.x = clientX - rect.left;
-  input.y = clientY - rect.top;
-  input.active = true;
-}
-
-container.addEventListener('mousedown', setInput);
-container.addEventListener('mousemove', (e) => { if(input.active) setInput(e); });
-container.addEventListener('mouseup', () => { input.active = false; });
-container.addEventListener('mouseleave', () => { input.active = false; });
-container.addEventListener('touchstart', (e) => { setInput(e); e.preventDefault(); }, {passive: false});
-container.addEventListener('touchmove', (e) => { setInput(e); e.preventDefault(); }, {passive: false});
-container.addEventListener('touchend', () => { input.active = false; });
 
 // --- ゲームロジック ---
 
 function initGame() {
   resize();
+  
+  currentMode = document.getElementById('mode-select').value;
+  if (currentMode === 'time') {
+    GAME_TIME = parseInt(document.getElementById('time-select').value);
+    document.getElementById('ui-mode-label').innerText = 'のこり時間';
+  } else {
+    GAME_TIME = 9999; // ロイヤルモードは実質無制限
+    document.getElementById('ui-mode-label').innerText = 'ライバル残数';
+  }
+
   player = new Predator(true, "あなた", "#3498db");
   document.getElementById('ui-evo').innerText = `${EVO_STAGES[0].icon} ${EVO_STAGES[0].name}`;
   
@@ -437,10 +488,6 @@ function initGame() {
     new Predator(false, "ライバル3", "#e67e22"),
     new Predator(false, "ライバル4", "#f1c40f")
   ];
-
-  // 敵の初期サイズを少しばらけさせる
-  enemies[0].addMass(50);
-  enemies[1].addMass(150);
 
   preys = [];
   for (let i = 0; i < 250; i++) {
@@ -457,25 +504,31 @@ function initGame() {
 }
 
 function updateRankings() {
-  let allPredators = [player, ...enemies];
-  allPredators.sort((a, b) => b.mass - a.mass); 
+  let allPredators = [player, ...enemies].filter(p => !p.isDead || p.isPlayer);
+  allPredators.sort((a, b) => b.number - a.number); 
   
   let html = '';
   let myRank = 1;
   allPredators.forEach((p, index) => {
-    let isMe = p.isPlayer;
-    if (isMe) myRank = index + 1;
+    if (p.isPlayer) myRank = index + 1;
     let stageIcon = EVO_STAGES[p.evoLevel].icon;
-    html += `<div class="rank-item ${isMe ? 'is-me' : ''}">
+    html += `<div class="rank-item ${p.isPlayer ? 'is-me' : ''}">
                <span>${index + 1}. ${stageIcon} ${p.name}</span>
-               <span>${Math.floor(p.mass)}</span>
+               <span>${p.number}</span>
              </div>`;
   });
   document.getElementById('rank-list').innerHTML = html;
+  
+  if (currentMode === 'royal') {
+    let aliveEnemies = enemies.filter(e => !e.isDead).length;
+    document.getElementById('ui-timer').innerText = aliveEnemies + ' 匹';
+  }
+  
   return myRank;
 }
 
 function checkCollisions() {
+  if (player.isDead) return;
   const allPredators = [player, ...enemies].filter(p => !p.isDead);
 
   // 捕食者 vs エサ
@@ -487,15 +540,16 @@ function checkCollisions() {
       let dy = pred.y - prey.y;
       let dist = Math.hypot(dx, dy);
       
-      // 1.1倍以上デカければ食べられる
-      if (dist < pred.radius && pred.radius > prey.radius * 1.1) {
+      // 💡 数字が同じか小さい場合のみ食べられる！
+      if (dist < pred.radius && pred.number >= prey.number) {
         prey.isDead = true;
-        pred.addMass(prey.mass);
+        pred.addNumber(prey.number); // 足し算！
         if (pred.isPlayer) {
-          playSound(prey.mass >= 80 ? 'eat_big' : 'eat_small');
+          playSound('eat_small');
           document.getElementById('drag-hint').style.display = 'none'; 
+          showFloatingText(`+${prey.number}`, '#2ecc71');
         }
-        prey.spawn(); // 新しいエサを補充
+        prey.spawn(); 
       }
     }
   }
@@ -509,24 +563,56 @@ function checkCollisions() {
       let dy = p1.y - p2.y;
       let dist = Math.hypot(dx, dy);
 
-      if (dist < Math.max(p1.radius, p2.radius)) {
-        // 1.2倍のサイズ差があれば捕食可能
-        if (p1.radius > p2.radius * 1.2) {
-          p1.addMass(p2.mass);
+      // 触れた場合
+      if (dist < Math.max(p1.radius, p2.radius) * 0.8) {
+        // 💡 厳密に数字が大きい方が勝つ！
+        if (p1.number > p2.number) {
+          p1.addNumber(p2.number);
           p2.isDead = true;
-          p2.respawnTimer = 3; 
-          if (p2.isPlayer) playSound('die');
-          else if (p1.isPlayer) playSound('eat_big');
-        } else if (p2.radius > p1.radius * 1.2) {
-          p2.addMass(p1.mass);
+          if (p2.isPlayer) { gameOverSequence(false); return; }
+          else if (p1.isPlayer) { playSound('eat_big'); showFloatingText(`+${p2.number}撃破!`, '#f1c40f'); }
+        } else if (p2.number > p1.number) {
+          p2.addNumber(p1.number);
           p1.isDead = true;
-          p1.respawnTimer = 3;
-          if (p1.isPlayer) playSound('die');
-          else if (p2.isPlayer) playSound('eat_big');
+          if (p1.isPlayer) { gameOverSequence(false); return; }
+          else if (p2.isPlayer) { playSound('eat_big'); showFloatingText(`+${p1.number}撃破!`, '#f1c40f'); }
         }
       }
     }
   }
+}
+
+function gameOverSequence(isTimeUp) {
+  gameState = 'gameover';
+  playSound(isTimeUp ? 'eat_big' : 'die');
+  
+  if (!isTimeUp) {
+    document.getElementById('result-title').innerText = "食べられちゃった…";
+    document.getElementById('result-title').style.color = "#e74c3c";
+  } else {
+    document.getElementById('result-title').innerText = "タイムアップ！";
+    document.getElementById('result-title').style.color = "#f1c40f";
+  }
+  
+  let finalRank = updateRankings();
+  document.getElementById('result-rank').innerText = finalRank;
+  document.getElementById('result-evo').innerText = EVO_STAGES[player.evoLevel].icon;
+  document.getElementById('result-score').innerText = player.number;
+  
+  document.getElementById('game-over').classList.add('show');
+}
+
+function gameClearSequence() {
+  gameState = 'gameover';
+  playSound('clear');
+  document.getElementById('result-title').innerText = "完全制覇クリア！！";
+  document.getElementById('result-title').style.color = "#2ecc71";
+  
+  document.getElementById('result-rank').innerText = 1;
+  document.getElementById('result-evo').innerText = EVO_STAGES[player.evoLevel].icon;
+  document.getElementById('result-score').innerText = player.number;
+  
+  document.getElementById('game-over').classList.add('show');
 }
 
 function gameLoop(currentTime) {
@@ -536,17 +622,20 @@ function gameLoop(currentTime) {
   if (dt > 0.1) dt = 0.1; 
   lastTime = currentTime;
 
-  timeLeft -= dt;
-  document.getElementById('ui-timer').innerText = Math.ceil(Math.max(0, timeLeft));
-  
-  if (timeLeft <= 0) {
-    gameState = 'gameover';
-    let finalRank = updateRankings();
-    document.getElementById('result-rank').innerText = finalRank;
-    document.getElementById('result-evo').innerText = EVO_STAGES[player.evoLevel].icon;
-    document.getElementById('result-score').innerText = Math.floor(player.mass);
-    document.getElementById('game-over').classList.add('show');
-    return;
+  if (currentMode === 'time') {
+    timeLeft -= dt;
+    document.getElementById('ui-timer').innerText = Math.ceil(Math.max(0, timeLeft));
+    if (timeLeft <= 0) {
+      gameOverSequence(true);
+      return;
+    }
+  } else {
+    // ロイヤルモードクリア判定
+    let aliveEnemies = enemies.filter(e => !e.isDead).length;
+    if (aliveEnemies === 0) {
+      gameClearSequence();
+      return;
+    }
   }
 
   player.update(dt);
@@ -555,16 +644,14 @@ function gameLoop(currentTime) {
   checkCollisions();
   updateRankings();
 
-  // 💡 カメラ制御（プレイヤーが大きくなるほどズームアウトして視野を広げる）
-  let targetZoom = 35 / player.radius; 
+  let targetZoom = 45 / player.radius; 
   if (targetZoom > 1.2) targetZoom = 1.2;
-  if (targetZoom < 0.3) targetZoom = 0.3;
+  if (targetZoom < 0.2) targetZoom = 0.2;
   camera.zoom += (targetZoom - camera.zoom) * 3 * dt; 
   
   camera.x = player.x;
   camera.y = player.y;
 
-  // --- 描画 ---
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   ctx.save();
@@ -572,7 +659,6 @@ function gameLoop(currentTime) {
   ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-camera.x, -camera.y);
 
-  // 海のグリッド線
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
   ctx.lineWidth = 2;
   const gridSize = 150;
@@ -581,14 +667,13 @@ function gameLoop(currentTime) {
   for (let y = 0; y <= FIELD_SIZE; y += gridSize) { ctx.moveTo(0, y); ctx.lineTo(FIELD_SIZE, y); }
   ctx.stroke();
 
-  // フィールド境界
   ctx.strokeStyle = '#3498db';
   ctx.lineWidth = 10;
   ctx.strokeRect(0, 0, FIELD_SIZE, FIELD_SIZE);
 
   preys.forEach(p => p.draw(ctx));
   enemies.forEach(e => e.draw(ctx));
-  player.draw(ctx);
+  if (!player.isDead) player.draw(ctx);
 
   ctx.restore();
 
@@ -607,9 +692,6 @@ function startGame() {
 }
 
 resize();
-ctx.fillStyle = '#0f172a';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
-
 </script>
 </body>
 </html>
