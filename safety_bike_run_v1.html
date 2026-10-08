@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>交通安全チャリ走 - リアルイベント版</title>
+<title>交通安全チャリ走 - 危険予測シミュレーター</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -35,16 +35,16 @@
   .btn-brake:active { transform: translateY(6px); box-shadow: none; background: #c0392b; }
 
   .floating-text {
-    position: absolute; pointer-events: none; font-weight: 900; font-size: 30px;
+    position: absolute; pointer-events: none; font-weight: 900; font-size: 28px;
     text-shadow: 2px 2px 0 white, -2px -2px 0 white, 2px -2px 0 white, -2px 2px 0 white;
-    animation: popUp 1.5s ease-out forwards; z-index: 150; text-align: center; width: 100%; top: 40%;
+    animation: popUp 1.5s ease-out forwards; z-index: 150; text-align: center; width: 100%; top: 35%;
   }
   @keyframes popUp { 0% { transform: translateY(20px) scale(0.5); opacity: 0; } 10% { transform: translateY(0px) scale(1.2); opacity: 1; } 80% { transform: translateY(-30px) scale(1); opacity: 1; } 100% { transform: translateY(-40px) scale(1); opacity: 0; } }
 
   .overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
   .overlay.show { opacity: 1; pointer-events: auto; }
-  .title { font-size: 34px; color: #f1c40f; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 0 #d35400; text-align: center; line-height: 1.3; }
-  .desc { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color:white; padding:15px; border-radius:15px; font-weight:bold; width:85%; text-align:left; line-height:1.6; font-size: 13px; box-sizing: border-box; }
+  .title { font-size: 32px; color: #f1c40f; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 0 #d35400; text-align: center; line-height: 1.3; }
+  .desc { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color:white; padding:15px; border-radius:15px; font-weight:bold; width:85%; text-align:left; line-height:1.5; font-size: 13px; box-sizing: border-box; }
   .btn { padding: 15px 40px; font-size: 22px; font-weight: bold; color: white; background: #2ecc71; border: none; border-radius: 30px; box-shadow: 0 6px 0 #27ae60; cursor: pointer; margin-top: 15px; transition: 0.1s; }
   .btn:active { transform: translateY(6px); box-shadow: none; }
 </style>
@@ -69,16 +69,17 @@
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title">🚲 交通安全<br>チャリ走 DX</div>
+    <div class="title">🚲 交通安全<br>チャリ走 危険予測</div>
     <div class="desc">
-      自転車で安全に街を駆け抜けよう！<br>
+      都会の道路は危険がいっぱい！<br>
       <b>◀️ 左 / 右 ▶️</b>：ハンドル操作<br>
       <b>🛑 ブレーキ</b>：長押しで止まる<br><br>
-      💡 <b>2026年 交通ルール</b><br>
+      💡 <b>生き残るためのルール</b><br>
       ・自転車は<b>「車道の左側端」</b>を走る！<br>
-      ・<b>信号、踏切</b>、<b>「止まれ」標識</b>では必ず止まる！<br>
-      ・交差点での<b>飛び出し</b>や<b>対向車の右折</b>に注意！<br>
-      危険を予測してブレーキをかけよう⚠️
+      ・走っている車の<b>右側を抜くのは違反！</b><br>
+      ・<b>5秒に一度、何かが飛び出してくる！</b><br>
+      ・交差点や踏切では必ず減速して、<br>
+      　マナーの悪い車に気をつけよう🚗💨
     </div>
     <button class="btn" onclick="startGame()">しゅっぱつ！</button>
   </div>
@@ -139,13 +140,16 @@ let gameState = 'menu';
 let lastTime = 0;
 let animationId;
 let distance = 0; 
-let timeUntilNextEvent = 2.0; // 💡 イベント発生タイマー
+
+// 💡 5秒ごとのイベントタイマーと、車（トラフィック）のタイマー
+let timeUntilNextEvent = 5.0; 
+let trafficTimer = 2.0;
 
 const ROAD_WIDTH = 240; 
 let roadLeft, roadRight;
 
 const player = {
-  x: -80, // 左端からスタート
+  x: -80, 
   y: 0, 
   width: 20, height: 40,
   baseSpeed: 80, 
@@ -156,6 +160,7 @@ const player = {
 let centerViolationTimer = 0; 
 
 let mapObjects = [];
+let nextSpawnDistance = 0;
 const keys = { left: false, right: false, brake: false };
 
 function resize() {
@@ -206,66 +211,93 @@ function randomColor() {
   return colors[Math.floor(Math.random() * colors.length)];
 }
 
-// 💡 5秒〜10秒に一度のイベント生成
-function spawnEvent() {
-  let r = Math.random();
-  let yPos = distance + ch + 300; // 画面の奥に生成
-
-  if (r < 0.15) {
-    // 対向車（右車線を走ってくる）
+// 💡 都会の車（トラフィック）を生成する関数
+function spawnTraffic(urbanLevel) {
+  let yPos = distance + ch + 100;
+  
+  // 対向車（都会度が高いほど頻繁に）
+  if (Math.random() < 0.3 + urbanLevel * 0.5) {
     mapObjects.push({
-      type: 'oncoming_car', y: yPos, x: 60, width: 30, height: 60, speed: -200, color: randomColor()
-    });
-  } 
-  else if (r < 0.3) {
-    // 駐車車両（左端）
-    mapObjects.push({
-      type: 'parked_car', y: yPos, x: -90, width: 30, height: 60, color: randomColor()
-    });
-  } 
-  else if (r < 0.6) {
-    // 💡 信号あり交差点（対向車が右折してくるかも）
-    let obj = {
-      type: 'intersection', control: 'traffic_light', y: yPos, height: 120, stopLineY: yPos - 60,
-      timer: 0, state: 'green', cleared: false
-    };
-    if (Math.random() < 0.6) {
-      obj.event = 'right_turn';
-      obj.rightCar = {
-        x: 60, y: yPos + 400, speed: -250, state: 'straight', 
-        isBadManner: Math.random() > 0.4, color: randomColor() // 40%で待ってくれる、60%で突っ込む
-      };
-    }
-    mapObjects.push(obj);
-  } 
-  else if (r < 0.85) {
-    // 💡 止まれ標識あり交差点（横切り車 or 歩行者）
-    let obj = {
-      type: 'intersection', control: 'stop_sign', y: yPos, height: 100, stopLineY: yPos - 60,
-      stopTime: 0, stopZoneStart: yPos - 120, stopZoneEnd: yPos - 60, cleared: false
-    };
-    if (Math.random() < 0.5) {
-      obj.event = 'cross_car';
-      let fromLeft = Math.random() > 0.5;
-      obj.crossCar = {
-        x: fromLeft ? -cw : cw, speedX: 0, triggered: false, color: randomColor(), isLeft: fromLeft
-      };
-    } else {
-      obj.event = 'pedestrian';
-      let fromLeft = Math.random() > 0.5;
-      obj.ped = {
-        x: fromLeft ? -cw/2 : cw/2, speedX: 0, triggered: false, isLeft: fromLeft
-      };
-    }
-    mapObjects.push(obj);
-  } 
-  else {
-    // 踏切
-    mapObjects.push({
-      type: 'railroad', y: yPos, height: 100, stopLineY: yPos - 50,
-      timer: 0, state: 'open', trainX: -cw, cleared: false
+      type: 'oncoming_car', y: yPos + Math.random()*200, x: 60, width: 30, height: 60, 
+      speed: -250 - urbanLevel * 200, color: randomColor()
     });
   }
+  
+  // 順走車（プレイヤーの前方を走り、プレイヤーより少し遅い）
+  if (Math.random() < 0.3 + urbanLevel * 0.4) {
+    mapObjects.push({
+      type: 'car', y: yPos + Math.random()*200, x: -50, width: 30, height: 60, 
+      speed: player.baseSpeed * (0.6 + Math.random()*0.3), color: randomColor(), violationTimer: 0
+    });
+  }
+
+  // 駐車車両（左端に停まっている）
+  if (Math.random() < 0.2 + urbanLevel * 0.3) {
+    mapObjects.push({
+      type: 'parked_car', y: yPos + Math.random()*200, x: -90, width: 30, height: 60, color: randomColor()
+    });
+  }
+}
+
+// 💡 5秒に一度の確定イベント（マナー違反の歩行者など）
+function spawnDangerEvent() {
+  let yPos = distance + ch + 200;
+  mapObjects.push({
+    type: 'jaywalker', y: yPos, x: Math.random() > 0.5 ? cw/2 : -cw/2, 
+    speedX: 0, triggered: false
+  });
+  showFloatingText("⚠️ 危険予測！", "#e74c3c");
+}
+
+// 💡 交差点・踏切などの固定施設を生成する関数
+function spawnFacility(urbanLevel) {
+  let type = Math.random() < 0.8 ? 'intersection' : 'railroad';
+  let yPos = nextSpawnDistance + ch;
+  let obj = { type: type, y: yPos, cleared: false };
+
+  if (type === 'intersection') {
+    obj.height = 120;
+    obj.control = Math.random() < 0.5 ? 'traffic_light' : 'stop_sign';
+    
+    if (obj.control === 'traffic_light') {
+      obj.stopLineY = yPos - 60;
+      obj.timer = 0; obj.state = 'green';
+      
+      // 💡 信号交差点では対向車が右折してくるかも
+      if (Math.random() < 0.4 + urbanLevel * 0.4) {
+        obj.event = 'right_turn';
+        obj.rightCar = {
+          x: 50, y: yPos + 300, speed: -200, state: 'straight',
+          isBadManner: Math.random() > 0.3, // 70%の確率で強引に突っ込んでくる！
+          color: randomColor()
+        };
+      }
+    } else {
+      obj.stopTime = 0;
+      obj.stopLineY = yPos - 60;
+      obj.stopZoneStart = yPos - 120;
+      obj.stopZoneEnd = yPos - 60;
+      
+      // 止まれ交差点では必ず歩行者か車が横切る
+      if (Math.random() < 0.5) {
+        obj.event = 'cross_car';
+        let fromLeft = Math.random() > 0.5;
+        obj.crossCar = { x: fromLeft ? -cw : cw, speedX: 0, triggered: false, color: randomColor(), isLeft: fromLeft };
+      } else {
+        obj.event = 'pedestrian';
+        let fromLeft = Math.random() > 0.5;
+        obj.ped = { x: fromLeft ? -cw/2 : cw/2, speedX: 0, triggered: false, isLeft: fromLeft };
+      }
+    }
+    // 都会度が高いほど交差点の間隔が短くなる（最低300m）
+    nextSpawnDistance = yPos + Math.max(300, 800 - urbanLevel * 500); 
+  } else {
+    obj.height = 100;
+    obj.timer = 0; obj.state = 'open'; obj.trainX = -cw; obj.stopLineY = yPos - 50;
+    nextSpawnDistance = yPos + 800;
+  }
+  
+  mapObjects.push(obj);
 }
 
 function gameOver(reasonText, reasonType) {
@@ -288,18 +320,28 @@ function gameLoop(currentTime) {
   if (dt > 0.1) dt = 0.1; 
   lastTime = currentTime;
 
-  // 💡 時間ベースのイベント発火
+  // 💡 都会度レベル（3000mでMAXの混雑度になる）
+  let urbanLevel = Math.min(1.0, distance / 3000);
+
+  // 💡 5秒ごとの危険予測イベント
   timeUntilNextEvent -= dt;
   if (timeUntilNextEvent <= 0) {
-    spawnEvent();
-    timeUntilNextEvent = 5.0 + Math.random() * 3.0; // 5秒〜8秒に一度
+    timeUntilNextEvent = 5.0;
+    spawnDangerEvent();
+  }
+
+  // 💡 トラフィック（通常車両）の生成
+  trafficTimer -= dt;
+  if (trafficTimer <= 0) {
+    trafficTimer = (2.0 - urbanLevel * 1.5) + Math.random() * 0.5; // 都会なら0.5秒〜1秒ごとに車が出る
+    spawnTraffic(urbanLevel);
   }
 
   // アクセル・ブレーキ
   if (keys.brake) {
     player.currentSpeed = Math.max(0, player.currentSpeed - 1200 * dt);
   } else {
-    player.baseSpeed = Math.min(600, 80 + distance * 0.05); // 徐々に加速
+    player.baseSpeed = Math.min(500, 80 + distance * 0.08); // 徐々に加速
     player.currentSpeed = Math.min(player.baseSpeed, player.currentSpeed + 400 * dt);
   }
 
@@ -326,28 +368,66 @@ function gameLoop(currentTime) {
   distance += player.currentSpeed * dt;
   document.getElementById('ui-score').innerText = Math.floor(distance / 10);
 
-  // オブジェクトの更新と判定
+  // 💡 交差点・踏切の生成
+  if (distance > nextSpawnDistance - ch * 1.5) {
+    spawnFacility(urbanLevel);
+  }
+
+  // --- オブジェクトの更新と判定 ---
   for (let i = mapObjects.length - 1; i >= 0; i--) {
     let obj = mapObjects[i];
     let screenY = player.y - (obj.y - distance); 
 
     if (screenY > ch + 200) { mapObjects.splice(i, 1); continue; }
 
-    // 1. 対向車・駐車車両
-    if (obj.type === 'oncoming_car' || obj.type === 'parked_car') {
+    // 1. 車（順走・対向・駐車）
+    if (obj.type === 'car' || obj.type === 'oncoming_car' || obj.type === 'parked_car') {
       if (obj.speed) obj.y += obj.speed * dt; 
       let carScreenY = player.y - (obj.y - distance);
       
-      // 当たり判定
       if (
         Math.abs(player.x - obj.x) < (player.width + obj.width) / 2 * 0.8 &&
         Math.abs(player.y - carScreenY) < (player.height + obj.height) / 2 * 0.8
       ) {
         gameOver("車にぶつかった！", "crash"); return;
       }
+
+      // 順走車の右側追い越し禁止
+      if (obj.type === 'car') {
+        let overlapY = Math.abs(player.y - carScreenY) < 60; 
+        if (overlapY && player.x > obj.x) { 
+          obj.violationTimer += dt;
+          if (obj.violationTimer > 0.3) { 
+            gameOver("走っている車の右側を追い越した！\n（巻き込み事故の危険大！）", "violation");
+            return;
+          }
+        } else {
+          obj.violationTimer = 0;
+        }
+      }
     }
 
-    // 2. 交差点（信号あり / 止まれ標識）
+    // 2. 飛び出し歩行者（マナー違反）
+    if (obj.type === 'jaywalker') {
+      let distToIntersect = obj.y - distance;
+      // プレイヤーが近づいたら飛び出す
+      if (distToIntersect < 300 && !obj.triggered) {
+        obj.triggered = true;
+        // プレイヤーが今の速度のままなら、ちょうど当たるスピードで歩く
+        let timeToReach = 300 / Math.max(player.currentSpeed, 10);
+        obj.speedX = (cw/2) / timeToReach;
+        if (obj.x > 0) obj.speedX *= -1; // 右からなら左へ
+        playSound('whistle'); // 危ない！という注意音
+      }
+      if (obj.triggered) obj.x += obj.speedX * dt;
+
+      let pedScreenY = player.y - (obj.y - distance);
+      if (Math.abs(player.x - obj.x) < 20 && Math.abs(player.y - pedScreenY) < 20) {
+        gameOver("飛び出してきた歩行者にぶつかった！", "crash"); return;
+      }
+    }
+
+    // 3. 交差点
     if (obj.type === 'intersection') {
       let stopScreenY = player.y - (obj.stopLineY - distance);
 
@@ -385,18 +465,13 @@ function gameLoop(currentTime) {
         }
       }
 
-      // --- 💡 イベント：横切り車（ピタリとぶつかる計算） ---
+      // --- 横切り車（絶妙なタイミング） ---
       if (obj.event === 'cross_car' && obj.crossCar) {
         let car = obj.crossCar;
         let distToIntersect = obj.y - distance;
-        
-        // プレイヤーが交差点に近づいたら動き出す
-        if (distToIntersect < ch * 0.8 && !car.triggered) {
+        if (distToIntersect < 300 && !car.triggered) {
           car.triggered = true;
-          // プレイヤーが今の速度で交差点に着くまでの時間
-          let timeToReach = distToIntersect / Math.max(player.currentSpeed, 50);
-          // その時間で車が交差点中央に到達する速度を設定
-          let targetX = car.isLeft ? cw : -cw; 
+          let timeToReach = 300 / Math.max(player.currentSpeed, 10);
           car.speedX = (cw/2 + 20) / timeToReach;
           if (!car.isLeft) car.speedX *= -1;
         }
@@ -404,18 +479,17 @@ function gameLoop(currentTime) {
 
         let carScreenY = player.y - (obj.y - distance);
         if (Math.abs(player.x - car.x) < 40 && Math.abs(player.y - carScreenY) < 30) {
-          gameOver("飛び出してきた車とぶつかった！", "crash"); return;
+          gameOver("交差点で車と出会い頭にぶつかった！", "crash"); return;
         }
       }
 
-      // --- 💡 イベント：歩行者 ---
+      // --- 横断歩道の歩行者 ---
       if (obj.event === 'pedestrian' && obj.ped) {
         let ped = obj.ped;
         let distToIntersect = obj.y - distance;
-        
-        if (distToIntersect < ch * 0.8 && !ped.triggered) {
+        if (distToIntersect < 300 && !ped.triggered) {
           ped.triggered = true;
-          let timeToReach = distToIntersect / Math.max(player.currentSpeed, 50);
+          let timeToReach = 300 / Math.max(player.currentSpeed, 10);
           ped.speedX = (cw/2) / timeToReach;
           if (!ped.isLeft) ped.speedX *= -1;
         }
@@ -423,24 +497,23 @@ function gameLoop(currentTime) {
 
         let pedScreenY = player.y - (obj.y - distance);
         if (Math.abs(player.x - ped.x) < 20 && Math.abs(player.y - pedScreenY) < 20) {
-          gameOver("横断中の歩行者にぶつかった！", "crash"); return;
+          gameOver("横断歩道を渡る歩行者にぶつかった！", "crash"); return;
         }
       }
 
-      // --- 💡 イベント：右折対向車 ---
+      // --- 右折対向車 ---
       if (obj.event === 'right_turn' && obj.rightCar) {
         let rCar = obj.rightCar;
         if (rCar.state === 'straight') {
           rCar.y += rCar.speed * dt;
-          // 交差点中心に到達
           if (rCar.y <= obj.y) {
             if (rCar.isBadManner) {
               rCar.state = 'turning';
-              rCar.speed = -80;   // 前進を減速
-              rCar.speedX = -200; // 左（プレイヤー側）へ曲がる
+              rCar.speed = -80;   
+              rCar.speedX = -200; // プレイヤー側へ曲がる
             } else {
               rCar.state = 'waiting';
-              rCar.speed = 0; // 行かせてくれる
+              rCar.speed = 0; 
               showFloatingText('お先にどうぞ！', '#3498db');
             }
           }
@@ -456,7 +529,7 @@ function gameLoop(currentTime) {
       }
     }
 
-    // 3. 踏切
+    // 4. 踏切
     if (obj.type === 'railroad') {
       obj.timer += dt;
       if (screenY > -ch * 0.8 && obj.state === 'open' && !obj.triggered) {
@@ -489,42 +562,45 @@ function gameLoop(currentTime) {
   ctx.fillStyle = 'white';
   let lineYOffset = distance % 60;
   for (let y = -lineYOffset; y < ch; y += 60) {
-    ctx.fillRect(cw / 2 - 2, y, 4, 30); // センターライン
+    ctx.fillRect(cw / 2 - 2, y, 4, 30); 
   }
-  ctx.fillRect(roadLeft + 15, 0, 4, ch); // 左路側帯
-  ctx.fillRect(roadRight - 15, 0, 4, ch); // 右路側帯
+  ctx.fillRect(roadLeft + 15, 0, 4, ch); 
+  ctx.fillRect(roadRight - 15, 0, 4, ch); 
 
   // オブジェクトの描画
   for (let obj of mapObjects) {
     let screenY = player.y - (obj.y - distance);
     if (screenY > ch + 100 || screenY < -300) continue;
 
-    if (obj.type === 'parked_car') {
+    if (obj.type === 'parked_car' || obj.type === 'car') {
       drawCar(ctx, cw / 2 + obj.x, screenY, obj.color, 0);
     }
     else if (obj.type === 'oncoming_car') {
-      drawCar(ctx, cw / 2 + obj.x, screenY, obj.color, Math.PI); // 180度回転
+      drawCar(ctx, cw / 2 + obj.x, screenY, obj.color, Math.PI); 
+    }
+    else if (obj.type === 'jaywalker') {
+      // 飛び出し歩行者（赤服）
+      ctx.fillStyle = '#e74c3c'; 
+      ctx.beginPath(); ctx.arc(cw / 2 + obj.x, screenY - 15, 8, 0, Math.PI*2); ctx.fill();
+      ctx.fillRect(cw / 2 + obj.x - 6, screenY - 7, 12, 14);
     }
     else if (obj.type === 'intersection') {
-      // 交差する道路
       ctx.fillStyle = '#7f8c8d'; ctx.fillRect(0, screenY - obj.height/2, cw, obj.height);
-      // 横断歩道
       ctx.fillStyle = 'white';
       for(let x = roadLeft + 10; x < roadRight; x += 30) { ctx.fillRect(x, screenY - obj.height/2 + 5, 20, 25); }
       for(let x = roadLeft + 10; x < roadRight; x += 30) { ctx.fillRect(x, screenY + obj.height/2 - 30, 20, 25); }
 
       if (obj.control === 'traffic_light') {
-        ctx.fillRect(roadLeft, player.y - (obj.stopLineY - distance), ROAD_WIDTH, 5); // 停止線
+        ctx.fillRect(roadLeft, player.y - (obj.stopLineY - distance), ROAD_WIDTH, 5); 
         
-        // 💡 リアルな3色信号
         ctx.fillStyle = '#34495e'; ctx.fillRect(roadLeft - 40, screenY - 100, 80, 25);
         ctx.beginPath(); ctx.arc(roadLeft - 25, screenY - 87, 8, 0, Math.PI*2);
-        ctx.fillStyle = obj.state === 'green' ? '#2ecc71' : '#555'; ctx.fill(); // 青
+        ctx.fillStyle = obj.state === 'green' ? '#2ecc71' : '#555'; ctx.fill(); 
         ctx.beginPath(); ctx.arc(roadLeft, screenY - 87, 8, 0, Math.PI*2);
-        ctx.fillStyle = obj.state === 'yellow' ? '#f1c40f' : '#555'; ctx.fill(); // 黄
+        ctx.fillStyle = obj.state === 'yellow' ? '#f1c40f' : '#555'; ctx.fill(); 
         ctx.beginPath(); ctx.arc(roadLeft + 25, screenY - 87, 8, 0, Math.PI*2);
-        ctx.fillStyle = obj.state === 'red' ? '#e74c3c' : '#555'; ctx.fill(); // 赤
-        ctx.fillStyle = '#7f8c8d'; ctx.fillRect(roadLeft - 5, screenY - 75, 10, 75); // ポール
+        ctx.fillStyle = obj.state === 'red' ? '#e74c3c' : '#555'; ctx.fill(); 
+        ctx.fillStyle = '#7f8c8d'; ctx.fillRect(roadLeft - 5, screenY - 75, 10, 75); 
       }
 
       if (obj.control === 'stop_sign') {
@@ -533,7 +609,6 @@ function gameLoop(currentTime) {
         ctx.font = 'bold 30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText("止まれ", cw / 2, stopLineScreenY + 30);
         
-        // 💡 止まれの標識
         ctx.save();
         ctx.translate(roadLeft - 20, stopLineScreenY - 30);
         ctx.fillStyle = '#7f8c8d'; ctx.fillRect(-4, 0, 8, 40); 
@@ -543,7 +618,6 @@ function gameLoop(currentTime) {
         ctx.restore();
       }
 
-      // イベントアクターの描画
       if (obj.event === 'cross_car' && obj.crossCar) {
         drawCar(ctx, cw / 2 + obj.crossCar.x, screenY, obj.crossCar.color, obj.crossCar.speedX > 0 ? Math.PI/2 : -Math.PI/2);
       }
@@ -586,21 +660,21 @@ function gameLoop(currentTime) {
     }
   }
 
-  // 💡 自転車の描画（上向き固定のグラフィック）
+  // 自転車の描画
   ctx.save();
   ctx.translate(cw / 2 + player.x, player.y);
   if (keys.brake) { ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 10; }
   
   ctx.fillStyle = '#333';
-  ctx.fillRect(-3, -15, 6, 12); // 前輪
-  ctx.fillRect(-3, 8, 6, 12);  // 後輪
+  ctx.fillRect(-3, -15, 6, 12); 
+  ctx.fillRect(-3, 8, 6, 12);  
   ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(0, 10); ctx.stroke(); // フレーム
-  ctx.beginPath(); ctx.moveTo(-12, -10); ctx.lineTo(12, -10); ctx.stroke(); // ハンドル
+  ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(0, 10); ctx.stroke(); 
+  ctx.beginPath(); ctx.moveTo(-12, -10); ctx.lineTo(12, -10); ctx.stroke(); 
   
-  ctx.fillStyle = '#3498db'; // 服
+  ctx.fillStyle = '#3498db'; 
   ctx.beginPath(); ctx.ellipse(0, 2, 8, 6, 0, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#f1c40f'; // ヘルメット
+  ctx.fillStyle = '#f1c40f'; 
   ctx.beginPath(); ctx.arc(0, -2, 7, 0, Math.PI*2); ctx.fill();
   
   ctx.restore();
@@ -619,7 +693,7 @@ function drawCar(ctx, x, y, color, rotation = 0) {
   ctx.fillRect(-12, 12, 24, 8);  
   ctx.fillStyle = '#e74c3c';
   ctx.fillRect(-12, 22, 6, 3); ctx.fillRect(6, 22, 6, 3);
-  ctx.fillStyle = '#f1c40f'; // ヘッドライト
+  ctx.fillStyle = '#f1c40f'; 
   ctx.fillRect(-12, -25, 6, 3); ctx.fillRect(6, -25, 6, 3);
   ctx.restore();
 }
@@ -631,7 +705,7 @@ function initGame() {
   player.currentSpeed = 0;
   player.baseSpeed = 80; 
   centerViolationTimer = 0;
-  timeUntilNextEvent = 2.0;
+  timeUntilNextEvent = 5.0; // 💡 イベントタイマーリセット
   
   mapObjects = [];
   nextSpawnDistance = ch; 
