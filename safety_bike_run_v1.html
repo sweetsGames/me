@@ -3,53 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>交通安全チャリ走 - めー＆SEパパ</title>
+<title>交通安全チャリ走 - 縦スクロール版</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
   body { position: fixed; inset: 0; width: 100%; height: 100dvh; display: flex; justify-content: center; align-items: center; }
   
   #game-wrapper {
-    position: relative; width: 100%; max-width: 600px; height: 100%; max-height: 850px;
-    background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 60%, #8B4513 60%, #654321 100%);
+    position: relative; width: 100%; max-width: 500px; height: 100%; max-height: 850px;
+    background: #27ae60; /* 周りの芝生 */
     display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.8);
   }
 
-  /* 遠景の街並みや雲（CSSで簡易表現） */
-  .bg-city { position: absolute; top: 30%; left: 0; width: 200%; height: 30%; background: repeating-linear-gradient(90deg, transparent 0, transparent 20px, rgba(255,255,255,0.3) 20px, rgba(255,255,255,0.3) 40px); z-index: 1; pointer-events: none; }
-
   #header { position: absolute; top: var(--sat); left: 0; width: 100%; padding: 15px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; box-sizing: border-box; pointer-events: none; }
-  .score-box { background: rgba(255,255,255,0.9); padding: 8px 20px; border-radius: 20px; font-size: 24px; font-weight: 900; color: #2980b9; box-shadow: 0 4px 6px rgba(0,0,0,0.2); pointer-events: auto; }
+  .score-box { background: rgba(255,255,255,0.95); padding: 8px 20px; border-radius: 20px; font-size: 24px; font-weight: 900; color: #2980b9; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; }
   
   #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; z-index: 5; }
   canvas { display: block; width: 100%; height: 100%; }
 
-  /* コントローラーUI（下部固定） */
-  #controls { position: absolute; bottom: var(--sab); left: 0; width: 100%; padding: 15px; display: flex; justify-content: space-between; gap: 15px; box-sizing: border-box; z-index: 20; }
+  /* コントローラーUI（左右とブレーキ） */
+  #controls { position: absolute; bottom: calc(10px + var(--sab)); left: 0; width: 100%; padding: 0 10px; display: flex; justify-content: space-between; gap: 8px; box-sizing: border-box; z-index: 20; }
   .control-btn {
-    flex: 1; height: 80px; border-radius: 20px; font-size: 28px; font-weight: bold; color: white;
-    border: none; display: flex; justify-content: center; align-items: center; gap: 10px;
-    box-shadow: 0 8px 0 rgba(0,0,0,0.3); touch-action: none; user-select: none; -webkit-user-select: none;
+    height: 75px; border-radius: 15px; font-size: 24px; font-weight: bold; color: white;
+    border: none; display: flex; justify-content: center; align-items: center;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.3); touch-action: none; user-select: none; -webkit-user-select: none;
   }
-  .btn-brake { background: #e74c3c; box-shadow: 0 8px 0 #c0392b; }
-  .btn-brake:active { transform: translateY(8px); box-shadow: none; background: #c0392b; }
-  .btn-jump { background: #3498db; box-shadow: 0 8px 0 #2980b9; }
-  .btn-jump:active { transform: translateY(8px); box-shadow: none; background: #2980b9; }
+  .btn-side { flex: 1; background: #3498db; box-shadow: 0 6px 0 #2980b9; }
+  .btn-side:active { transform: translateY(6px); box-shadow: none; }
+  .btn-brake { flex: 1.5; background: #e74c3c; box-shadow: 0 6px 0 #c0392b; font-size: 26px; }
+  .btn-brake:active { transform: translateY(6px); box-shadow: none; background: #c0392b; }
 
-  /* フローティングテキスト（OK!や違反!など） */
+  /* フローティングテキスト */
   .floating-text {
     position: absolute; pointer-events: none; font-weight: 900; font-size: 32px;
     text-shadow: 2px 2px 0 white, -2px -2px 0 white, 2px -2px 0 white, -2px 2px 0 white;
-    animation: popUp 1s ease-out forwards; z-index: 150; text-align: center; width: 100%; top: 30%;
+    animation: popUp 1s ease-out forwards; z-index: 150; text-align: center; width: 100%; top: 40%;
   }
   @keyframes popUp { 0% { transform: translateY(20px) scale(0.5); opacity: 0; } 20% { transform: translateY(0px) scale(1.2); opacity: 1; } 80% { transform: translateY(-30px) scale(1); opacity: 1; } 100% { transform: translateY(-40px) scale(1); opacity: 0; } }
 
   /* オーバーレイ画面 */
   .overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
   .overlay.show { opacity: 1; pointer-events: auto; }
-  .title { font-size: 36px; color: #f1c40f; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 0 #d35400; text-align: center; line-height: 1.2; }
+  .title { font-size: 34px; color: #f1c40f; font-weight: 900; margin-bottom: 15px; text-shadow: 2px 2px 0 #d35400; text-align: center; line-height: 1.3; }
   .desc { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color:white; padding:15px; border-radius:15px; font-weight:bold; width:85%; text-align:left; line-height:1.6; font-size: 14px; box-sizing: border-box; }
-  
   .btn { padding: 15px 40px; font-size: 22px; font-weight: bold; color: white; background: #2ecc71; border: none; border-radius: 30px; box-shadow: 0 6px 0 #27ae60; cursor: pointer; margin-top: 20px; transition: 0.1s; }
   .btn:active { transform: translateY(6px); box-shadow: none; }
 </style>
@@ -57,7 +53,6 @@
 <body>
 
 <div id="game-wrapper">
-  <div class="bg-city" id="bg-layer"></div>
   <div id="header">
     <div class="score-box">走行距離: <span id="ui-score">0</span> m</div>
   </div>
@@ -67,19 +62,20 @@
   </div>
 
   <div id="controls">
+    <button class="control-btn btn-side" id="btn-left">◀️ 左</button>
     <button class="control-btn btn-brake" id="btn-brake">🛑 ブレーキ</button>
-    <button class="control-btn btn-jump" id="btn-jump">⬆️ ジャンプ</button>
+    <button class="control-btn btn-side" id="btn-right">右 ▶️</button>
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title">🚲 交通安全<br>チャリ走</div>
+    <div class="title">🚲 交通安全<br>チャリ走 DX</div>
     <div class="desc">
-      自転車に乗って、安全に遠くまで走ろう！<br><br>
-      <b>⬆️ ジャンプ</b>：障害物や穴を避ける<br>
+      自転車に乗って街を駆け抜けよう！<br><br>
+      <b>◀️ 左 / 右 ▶️</b>：車や障害物をよける<br>
       <b>🛑 ブレーキ</b>：長押しで止まる<br><br>
-      ⚠️ <b>赤信号</b>で進んだり、<br>
-      ⚠️ <b>「止まれ」</b>で一時停止しないと<br>
-      警察に怒られてゲームオーバーだよ！🚓💨
+      ⚠️ <b>赤信号</b>や<b>踏切の遮断機</b>、<br>
+      ⚠️ <b>「止まれ」標識</b>では必ず止まろう！<br>
+      違反したり車にぶつかるとゲームオーバー🚓
     </div>
     <button class="btn" onclick="startGame()">しゅっぱつ！</button>
   </div>
@@ -103,31 +99,33 @@ function playSound(type) {
   const t = actx.currentTime; const osc = actx.createOscillator(); const gain = actx.createGain();
   osc.connect(gain); gain.connect(actx.destination);
   
-  if (type === 'jump') { 
-    osc.type = 'sine'; osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(800, t + 0.2);
-    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
-    osc.start(t); osc.stop(t + 0.2);
-  } else if (type === 'brake') { 
-    // キキーッというブレーキ音
+  if (type === 'brake') { 
     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(1000, t); osc.frequency.exponentialRampToValueAtTime(800, t + 0.3);
-    gain.gain.setValueAtTime(0.1, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.3);
+    gain.gain.setValueAtTime(0.05, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
   } else if (type === 'crash') {
     osc.type = 'square'; osc.frequency.setValueAtTime(100, t); osc.frequency.exponentialRampToValueAtTime(40, t + 0.5);
     gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.5);
     osc.start(t); osc.stop(t + 0.5);
   } else if (type === 'whistle') {
-    // ピピピッ！（警察の笛）
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(1200, t); 
+    osc.type = 'sine'; osc.frequency.setValueAtTime(1200, t); 
     gain.gain.setValueAtTime(0.3, t); gain.gain.setValueAtTime(0.01, t + 0.1);
     gain.gain.setValueAtTime(0.3, t+0.15); gain.gain.setValueAtTime(0.01, t + 0.4);
     osc.start(t); osc.stop(t + 0.5);
   } else if (type === 'ok') {
-    // 正解・一時停止クリア音
     osc.type = 'triangle'; osc.frequency.setValueAtTime(600, t); osc.frequency.setValueAtTime(900, t + 0.1);
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
     osc.start(t); osc.stop(t + 0.3);
+  } else if (type === 'crossing') {
+    // 踏切のカンカン音
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(700, t);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+    osc.start(t); osc.stop(t + 0.4);
+  } else if (type === 'train') {
+    // 電車の通過音（低音ノイズ風）
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(50, t);
+    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t + 1.0);
+    osc.start(t); osc.stop(t + 1.0);
   }
 }
 
@@ -135,22 +133,24 @@ function playSound(type) {
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 let cw, ch;
-let groundY;
 
 let gameState = 'menu';
 let lastTime = 0;
 let animationId;
-let distance = 0; // 走行距離
-let bgOffset = 0; // 背景スクロール用
+let distance = 0; 
 
-// プレイヤー設定
+// 道路の設定
+const ROAD_WIDTH = 240; 
+let roadLeft, roadRight;
+
+// プレイヤー（自転車）
 const player = {
-  x: 80, y: 0, width: 40, height: 40,
-  vy: 0, gravity: 1500, jumpPower: -650,
-  isJumping: false,
-  baseSpeed: 300, currentSpeed: 0,
-  isBraking: false,
-  icon: '🚲'
+  x: 0, // 画面中央を0とする相対座標
+  y: 0, // 画面下からのオフセット（描画位置）
+  width: 20, height: 40,
+  baseSpeed: 100, // 💡 初期スピードを遅く修正
+  currentSpeed: 0,
+  moveSpeed: 200 // 左右移動のスピード
 };
 
 // マップ生成用
@@ -158,7 +158,7 @@ let mapObjects = [];
 let nextSpawnDistance = 0;
 
 // 入力状態
-const keys = { jump: false, brake: false };
+const keys = { left: false, right: false, brake: false };
 
 function resize() {
   const container = document.getElementById('canvas-container');
@@ -166,7 +166,9 @@ function resize() {
   ch = container.clientHeight;
   canvas.width = cw;
   canvas.height = ch;
-  groundY = ch * 0.7; // 画面の下30%を地面にする
+  roadLeft = cw / 2 - ROAD_WIDTH / 2;
+  roadRight = cw / 2 + ROAD_WIDTH / 2;
+  player.y = ch * 0.75; // 画面の下の方に固定
 }
 window.addEventListener('resize', resize);
 
@@ -179,116 +181,81 @@ function showFloatingText(text, color) {
   setTimeout(() => el.remove(), 1000);
 }
 
-// --- 入力イベント（スマホ＆PC対応） ---
-const btnJump = document.getElementById('btn-jump');
-const btnBrake = document.getElementById('btn-brake');
+// --- 入力イベント ---
+const bindBtn = (id, key) => {
+  const btn = document.getElementById(id);
+  const down = (e) => { e.preventDefault(); if (gameState==='playing') keys[key] = true; if(key==='brake') playSound('brake'); };
+  const up = (e) => { e.preventDefault(); keys[key] = false; };
+  btn.addEventListener('touchstart', down, {passive:false}); btn.addEventListener('touchend', up, {passive:false});
+  btn.addEventListener('mousedown', down); btn.addEventListener('mouseup', up);
+};
+bindBtn('btn-left', 'left');
+bindBtn('btn-right', 'right');
+bindBtn('btn-brake', 'brake');
 
-const handleJumpDown = (e) => { e.preventDefault(); if (gameState==='playing') { keys.jump = true; doJump(); } };
-const handleJumpUp = (e) => { e.preventDefault(); keys.jump = false; };
-const handleBrakeDown = (e) => { e.preventDefault(); if (gameState==='playing' && !keys.brake) { keys.brake = true; playSound('brake'); } };
-const handleBrakeUp = (e) => { e.preventDefault(); keys.brake = false; };
-
-btnJump.addEventListener('touchstart', handleJumpDown, {passive:false});
-btnJump.addEventListener('touchend', handleJumpUp, {passive:false});
-btnJump.addEventListener('mousedown', handleJumpDown);
-btnJump.addEventListener('mouseup', handleJumpUp);
-
-btnBrake.addEventListener('touchstart', handleBrakeDown, {passive:false});
-btnBrake.addEventListener('touchend', handleBrakeUp, {passive:false});
-btnBrake.addEventListener('mousedown', handleBrakeDown);
-btnBrake.addEventListener('mouseup', handleBrakeUp);
-
-// PCデバッグ用
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'Space' && gameState==='playing' && !keys.jump) { keys.jump = true; doJump(); }
+  if (e.code === 'ArrowLeft' && gameState==='playing') keys.left = true;
+  if (e.code === 'ArrowRight' && gameState==='playing') keys.right = true;
   if (e.code === 'ArrowDown' && gameState==='playing' && !keys.brake) { keys.brake = true; playSound('brake'); }
 });
 window.addEventListener('keyup', (e) => {
-  if (e.code === 'Space') keys.jump = false;
+  if (e.code === 'ArrowLeft') keys.left = false;
+  if (e.code === 'ArrowRight') keys.right = false;
   if (e.code === 'ArrowDown') keys.brake = false;
 });
 
-function doJump() {
-  if (!player.isJumping) {
-    player.vy = player.jumpPower;
-    player.isJumping = true;
-    playSound('jump');
-  }
-}
-
-// --- ゲームロジック ---
-
-function initGame() {
-  resize();
-  distance = 0;
-  bgOffset = 0;
-  
-  player.y = groundY - player.height;
-  player.vy = 0;
-  player.isJumping = false;
-  player.currentSpeed = player.baseSpeed;
-  
-  mapObjects = [];
-  nextSpawnDistance = cw; // 最初のスポーン位置
-
-  document.getElementById('ui-score').innerText = '0';
-  
-  lastTime = performance.now();
-  gameState = 'playing';
-  
-  cancelAnimationFrame(animationId);
-  animationId = requestAnimationFrame(gameLoop);
-}
-
-// オブジェクトの生成（ランダム）
+// --- マップオブジェクトの生成 ---
 function spawnMapObject() {
-  // 距離に応じて難易度を少し上げる
-  player.baseSpeed = Math.min(500, 300 + distance * 0.1);
+  // スピードの徐行アップ
+  player.baseSpeed = Math.min(600, 100 + distance * 0.05);
 
-  // 1: 障害物(岩), 2: 穴, 3: 信号機, 4: 止まれ標識
-  let typeIndex = Math.random();
-  let type = 'rock';
-  
-  if (typeIndex < 0.3) type = 'rock';
-  else if (typeIndex < 0.5) type = 'hole';
-  else if (typeIndex < 0.75) type = 'traffic_light';
-  else type = 'stop_sign';
+  let r = Math.random();
+  let type = 'car';
+  if (r < 0.4) type = 'car';
+  else if (r < 0.65) type = 'traffic_light';
+  else if (r < 0.85) type = 'stop_sign';
+  else type = 'railroad';
 
   let obj = {
     type: type,
-    x: nextSpawnDistance + cw, // 画面外右から
-    width: 0, height: 0,
-    cleared: false // ルールを守ったかどうかのフラグ
+    y: nextSpawnDistance + ch, // 画面外の奥（上）
+    x: 0, width: 0, height: 0,
+    cleared: false
   };
 
-  if (type === 'rock') {
-    obj.width = 40; obj.height = 40;
-    obj.y = groundY - obj.height;
-    obj.icon = '🪨';
-    nextSpawnDistance = obj.x + 300 + Math.random() * 200;
-  } 
-  else if (type === 'hole') {
-    obj.width = 120 + Math.random() * 80;
-    obj.height = ch - groundY;
-    obj.y = groundY;
-    nextSpawnDistance = obj.x + obj.width + 300;
+  if (type === 'car') {
+    // 💡 車の追加（駐車中 or 走っている）
+    obj.width = 40; obj.height = 70;
+    // 左車線か右車線か
+    let lane = Math.random() > 0.5 ? -1 : 1;
+    obj.x = lane * (ROAD_WIDTH / 4);
+    // 速度（0なら駐車中、プラスなら走っている）
+    obj.speed = Math.random() > 0.5 ? 0 : player.baseSpeed * 0.6;
+    obj.color = ['#e74c3c', '#3498db', '#f1c40f', '#9b59b6'][Math.floor(Math.random()*4)];
+    nextSpawnDistance = obj.y + 300 + Math.random() * 300;
   }
   else if (type === 'traffic_light') {
-    obj.width = 30; obj.height = 100;
-    obj.y = groundY - obj.height;
-    // 信号のサイクル用タイマー（最初は青からスタートし、プレイヤーが近づくと赤になる）
-    obj.timer = 0; 
-    obj.state = 'green';
-    nextSpawnDistance = obj.x + 500 + Math.random() * 300; // 信号の後は少し間を空ける
+    obj.height = 60;
+    obj.timer = 0; obj.state = 'green';
+    // 停止線は信号の少し手前
+    obj.stopLineY = obj.y - 40;
+    nextSpawnDistance = obj.y + 600;
   }
   else if (type === 'stop_sign') {
-    obj.width = 40; obj.height = 80;
-    obj.y = groundY - obj.height;
-    // 一時停止ゾーン（標識の手前 100px）
-    obj.stopZoneStart = obj.x - 120;
-    obj.stopZoneEnd = obj.x;
-    obj.stopTime = 0; // 何秒停止したか
-    nextSpawnDistance = obj.x + 500;
+    obj.height = 40;
+    obj.stopTime = 0;
+    obj.stopZoneStart = obj.y - 100;
+    obj.stopZoneEnd = obj.y;
+    nextSpawnDistance = obj.y + 500;
+  }
+  else if (type === 'railroad') {
+    // 💡 踏切の追加
+    obj.height = 100;
+    obj.timer = 0; 
+    obj.state = 'open'; // open -> warning -> closed -> train -> open
+    obj.trainX = -cw; // 電車のX座標
+    obj.stopLineY = obj.y - 50;
+    nextSpawnDistance = obj.y + 800;
   }
 
   mapObjects.push(obj);
@@ -305,6 +272,7 @@ function gameOver(reasonText, reasonType) {
   document.getElementById('game-over').classList.add('show');
 }
 
+// --- ゲームループ ---
 function gameLoop(currentTime) {
   if (gameState !== 'playing') return;
   
@@ -312,142 +280,115 @@ function gameLoop(currentTime) {
   if (dt > 0.1) dt = 0.1; 
   lastTime = currentTime;
 
-  // ブレーキ処理とスピード計算
+  // アクセル・ブレーキ
   if (keys.brake) {
-    // ブレーキをかけると急減速
-    player.currentSpeed = Math.max(0, player.currentSpeed - 800 * dt);
+    player.currentSpeed = Math.max(0, player.currentSpeed - 1200 * dt);
   } else {
-    // ブレーキを離すと加速
-    player.currentSpeed = Math.min(player.baseSpeed, player.currentSpeed + 600 * dt);
+    player.currentSpeed = Math.min(player.baseSpeed, player.currentSpeed + 400 * dt);
   }
 
-  // 距離の更新
-  let moveX = player.currentSpeed * dt;
-  distance += moveX;
+  // 左右移動
+  if (keys.left) player.x -= player.moveSpeed * dt;
+  if (keys.right) player.x += player.moveSpeed * dt;
+  
+  // 道路からはみ出ないように制限
+  let limit = ROAD_WIDTH / 2 - player.width / 2;
+  player.x = Math.max(-limit, Math.min(limit, player.x));
+
+  distance += player.currentSpeed * dt;
   document.getElementById('ui-score').innerText = Math.floor(distance / 10);
 
-  // 背景のスクロール
-  bgOffset -= (player.currentSpeed * 0.2) * dt;
-  if (bgOffset <= -100) bgOffset += 100;
-  document.getElementById('bg-layer').style.transform = `translateX(${bgOffset}px)`;
-
-  // --- プレイヤーの物理演算（ジャンプと落下） ---
-  player.vy += player.gravity * dt;
-  player.y += player.vy * dt;
-
-  // 足元のオブジェクト（地面か穴か）を判定
-  let currentGroundY = ch; // デフォルトは奈落
-  let onGround = false;
-
-  // 基本の地面判定
-  if (player.y + player.height >= groundY) {
-    // 穴の上にいるかチェック
-    let inHole = false;
-    for (let obj of mapObjects) {
-      if (obj.type === 'hole') {
-        // プレイヤーの中心のX座標が穴の中にあるか
-        let playerCenterX = player.x + player.width / 2;
-        let absObjX = obj.x - distance; // オブジェクトの画面上のX座標
-        if (playerCenterX > absObjX && playerCenterX < absObjX + obj.width) {
-          inHole = true;
-          break;
-        }
-      }
-    }
-    
-    if (!inHole) {
-      player.y = groundY - player.height;
-      player.vy = 0;
-      player.isJumping = false;
-      onGround = true;
-    }
-  }
-
-  // 穴に落ちて画面外に行ったらゲームオーバー
-  if (player.y > ch) {
-    gameOver("穴に落ちてしまった！", "crash");
-    return;
-  }
-
-  // --- オブジェクトの更新と当たり判定・ルール判定 ---
-  
-  if (distance > nextSpawnDistance - cw) {
-    spawnMapObject();
-  }
+  // オブジェクトの更新と判定
+  if (distance > nextSpawnDistance - ch * 1.5) spawnMapObject();
 
   for (let i = mapObjects.length - 1; i >= 0; i--) {
     let obj = mapObjects[i];
-    let absX = obj.x - distance; // 画面上のX座標
+    // 画面上のY座標（プレイヤーの位置を基準に計算）
+    let screenY = player.y - (obj.y - distance); 
 
-    // 画面外に消えたら削除
-    if (absX + obj.width < -100) {
+    if (screenY > ch + 200) {
       mapObjects.splice(i, 1);
       continue;
     }
 
-    // 1. 障害物（岩）との衝突判定
-    if (obj.type === 'rock') {
+    // 1. 車（障害物）
+    if (obj.type === 'car') {
+      obj.y += obj.speed * dt; // 車も進む
+      let carScreenY = player.y - (obj.y - distance);
+      
+      // 当たり判定 (矩形)
       if (
-        player.x < absX + obj.width - 10 &&
-        player.x + player.width > absX + 10 &&
-        player.y < obj.y + obj.height &&
-        player.y + player.height > obj.y + 10
+        Math.abs(player.x - obj.x) < (player.width + obj.width) / 2 * 0.8 &&
+        Math.abs(player.y - carScreenY) < (player.height + obj.height) / 2 * 0.8
       ) {
-        gameOver("障害物にぶつかった！", "crash");
-        return;
+        gameOver("車にぶつかった！", "crash"); return;
       }
     }
 
-    // 2. 信号機（赤信号無視の判定）
+    // 2. 信号機
     if (obj.type === 'traffic_light') {
       obj.timer += dt;
-      // プレイヤーが近づいた時（画面内に入ったくらい）に黄色→赤に変わる演出
-      if (absX < cw * 0.8 && !obj.triggered) {
-        obj.triggered = true;
-        obj.state = 'yellow';
-        obj.timer = 0;
+      // 画面に入ってきたら黄色→赤のシーケンス開始
+      if (screenY > -ch * 0.5 && !obj.triggered) {
+        obj.triggered = true; obj.state = 'yellow'; obj.timer = 0;
       }
-      
-      if (obj.state === 'yellow' && obj.timer > 1.0) {
-        obj.state = 'red';
-        obj.timer = 0;
-      } else if (obj.state === 'red' && obj.timer > 3.0) {
-        obj.state = 'green';
-      }
+      if (obj.state === 'yellow' && obj.timer > 1.5) { obj.state = 'red'; obj.timer = 0; }
+      else if (obj.state === 'red' && obj.timer > 4.0) { obj.state = 'green'; }
 
-      // 信号機を通過した瞬間（プレイヤーの前輪が信号を超えた時）
-      if (!obj.cleared && player.x + player.width / 2 > absX) {
+      let stopScreenY = player.y - (obj.stopLineY - distance);
+      
+      // 停止線を越えた瞬間
+      if (!obj.cleared && stopScreenY > player.y) {
         if (obj.state === 'red' || obj.state === 'yellow') {
-          // 赤（または黄）で突っ込んだら違反！
-          gameOver("赤信号を無視した！", "violation");
-          return;
+          gameOver("赤信号を無視した！", "violation"); return;
         } else {
-          // 青ならクリア
           obj.cleared = true;
         }
       }
     }
 
-    // 3. 止まれ標識（一時停止の判定）
+    // 3. 止まれ標識
     if (obj.type === 'stop_sign') {
-      let absZoneStart = obj.stopZoneStart - distance;
-      let absZoneEnd = obj.stopZoneEnd - distance;
+      let zoneStartScreenY = player.y - (obj.stopZoneStart - distance);
+      let zoneEndScreenY = player.y - (obj.stopZoneEnd - distance);
 
-      // 停止ゾーン内にいて、スピードがほぼゼロなら停止時間をカウント
-      if (player.x + player.width > absZoneStart && player.x < absZoneEnd) {
+      if (player.y > zoneEndScreenY && player.y < zoneStartScreenY) {
         if (player.currentSpeed < 10) {
           obj.stopTime += dt;
-          if (obj.stopTime > 0.5 && !obj.cleared) { // 0.5秒止まればOK
-            obj.cleared = true;
-            playSound('ok');
-            showFloatingText('安全確認OK!', '#2ecc71');
+          if (obj.stopTime > 0.5 && !obj.cleared) {
+            obj.cleared = true; playSound('ok'); showFloatingText('安全確認OK!', '#2ecc71');
           }
         }
       }
+      if (player.y < zoneEndScreenY && !obj.cleared) {
+        gameOver("「止まれ」で止まらなかった！", "violation"); return;
+      }
+    }
 
-      // 標識（停止線）を越えた時の判定
-      if (player.x > absZoneEnd && !obj.cleared) {
-        gameOver("「止まれ」で止まらなかった！", "violation");
+    // 4. 踏切
+    if (obj.type === 'railroad') {
+      obj.timer += dt;
+      
+      if (screenY > -ch * 0.8 && obj.state === 'open' && !obj.triggered) {
+        obj.triggered = true; obj.state = 'warning'; obj.timer = 0;
+      }
+      
+      if (obj.state === 'warning') {
+        if (obj.timer % 1.0 < 0.1) playSound('crossing'); // カンカン音
+        if (obj.timer > 2.0) { obj.state = 'closed'; obj.timer = 0; playSound('train'); }
+      }
+      else if (obj.state === 'closed') {
+        // 電車が横切る
+        obj.trainX += 800 * dt; 
+        if (obj.trainX > cw + 500) { obj.state = 'open'; obj.cleared = true; }
+      }
+
+      let stopScreenY = player.y - (obj.stopLineY - distance);
+      
+      // 遮断機が下りている、または警報が鳴っているのに進入したらアウト
+      if (stopScreenY > player.y && (obj.state === 'warning' || obj.state === 'closed')) {
+        if (obj.state === 'closed') gameOver("電車とぶつかった！", "crash");
+        else gameOver("踏切の警報を無視した！", "violation");
         return;
       }
     }
@@ -456,87 +397,155 @@ function gameLoop(currentTime) {
   // --- 描画処理 ---
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 地面の描画
-  ctx.fillStyle = '#8B4513';
-  ctx.fillRect(0, groundY, cw, ch - groundY);
-  ctx.fillStyle = '#654321';
-  ctx.fillRect(0, groundY + 10, cw, ch - groundY - 10);
+  // 道路の描画
+  ctx.fillStyle = '#95a5a6'; // アスファルト
+  ctx.fillRect(roadLeft, 0, ROAD_WIDTH, ch);
   
-  // 地面のライン（スピード感を出すため）
-  ctx.strokeStyle = '#A0522D';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  let lineOffset = -(distance % 40);
-  for(let lx = lineOffset; lx < cw; lx += 40) {
-    ctx.moveTo(lx, groundY); ctx.lineTo(lx - 20, ch);
+  // 道路の白線（スクロールアニメーション）
+  ctx.fillStyle = 'white';
+  let lineYOffset = distance % 60;
+  for (let y = -lineYOffset; y < ch; y += 60) {
+    ctx.fillRect(cw / 2 - 2, y, 4, 30); // センターライン
+    ctx.fillRect(roadLeft, y, 4, 60);    // 左端線
+    ctx.fillRect(roadRight - 4, y, 4, 60); // 右端線
   }
-  ctx.stroke();
 
   // オブジェクトの描画
   for (let obj of mapObjects) {
-    let absX = obj.x - distance;
+    let screenY = player.y - (obj.y - distance);
+    if (screenY > ch || screenY < -300) continue;
 
-    if (obj.type === 'hole') {
-      // 穴の描画（背景色で塗りつぶす）
-      let gradient = ctx.createLinearGradient(0, groundY, 0, ch);
-      gradient.addColorStop(0, '#1a1a1a');
-      gradient.addColorStop(1, '#000000');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(absX, groundY, obj.width, ch - groundY);
-    }
-    else if (obj.type === 'rock') {
-      ctx.font = '40px sans-serif';
-      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-      ctx.fillText(obj.icon, absX, obj.y);
+    if (obj.type === 'car') {
+      drawCar(ctx, cw / 2 + obj.x, screenY, obj.color);
     }
     else if (obj.type === 'traffic_light') {
-      // 信号機のポール
-      ctx.fillStyle = '#7f8c8d';
-      ctx.fillRect(absX + 10, obj.y + 40, 10, groundY - (obj.y + 40));
+      // 横断歩道
+      ctx.fillStyle = 'white';
+      for(let x = roadLeft + 10; x < roadRight; x += 30) { ctx.fillRect(x, screenY - 20, 20, 40); }
+      // 停止線
+      ctx.fillRect(roadLeft, player.y - (obj.stopLineY - distance), ROAD_WIDTH, 5);
+      
       // 信号機本体
-      ctx.fillStyle = '#2c3e50';
-      ctx.fillRect(absX, obj.y, 30, 40);
-      // ランプ
-      ctx.beginPath(); ctx.arc(absX + 15, obj.y + 10, 8, 0, Math.PI*2);
+      ctx.fillStyle = '#34495e';
+      ctx.fillRect(roadLeft - 20, screenY - 50, 40, 20); // 左側
+      ctx.beginPath(); ctx.arc(roadLeft - 10, screenY - 40, 6, 0, Math.PI*2);
       ctx.fillStyle = obj.state === 'red' ? '#e74c3c' : '#555'; ctx.fill();
-      ctx.beginPath(); ctx.arc(absX + 15, obj.y + 30, 8, 0, Math.PI*2);
+      ctx.beginPath(); ctx.arc(roadLeft + 5, screenY - 40, 6, 0, Math.PI*2);
       ctx.fillStyle = obj.state === 'green' ? '#2ecc71' : (obj.state === 'yellow' ? '#f1c40f' : '#555'); ctx.fill();
     }
     else if (obj.type === 'stop_sign') {
-      // 停止線
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.fillRect(obj.stopZoneEnd - distance, groundY, 15, ch - groundY);
-      // ポール
-      ctx.fillStyle = '#7f8c8d';
-      ctx.fillRect(absX + 15, obj.y + 30, 10, groundY - (obj.y + 30));
-      // 標識（三角形）
-      ctx.fillStyle = '#e74c3c';
-      ctx.beginPath();
-      ctx.moveTo(absX + 20, obj.y + 30);
-      ctx.lineTo(absX, obj.y);
-      ctx.lineTo(absX + 40, obj.y);
-      ctx.closePath();
-      ctx.fill();
+      let stopLineScreenY = player.y - (obj.stopZoneEnd - distance);
       ctx.fillStyle = 'white';
-      ctx.font = 'bold 12px sans-serif';
+      ctx.fillRect(roadLeft, stopLineScreenY, ROAD_WIDTH, 5);
+      
+      // 道路に「止まれ」の文字
+      ctx.font = 'bold 30px sans-serif';
+      ctx.fillStyle = 'white';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText("止", absX + 20, obj.y + 10);
+      ctx.fillText("止まれ", cw / 2, stopLineScreenY + 40);
+    }
+    else if (obj.type === 'railroad') {
+      // 線路
+      ctx.fillStyle = '#7f8c8d';
+      ctx.fillRect(0, screenY - 20, cw, 40);
+      ctx.fillStyle = '#2c3e50';
+      ctx.fillRect(0, screenY - 15, cw, 5);
+      ctx.fillRect(0, screenY + 10, cw, 5);
+      
+      // 停止線
+      let stopLineScreenY = player.y - (obj.stopLineY - distance);
+      ctx.fillStyle = 'white'; ctx.fillRect(roadLeft, stopLineScreenY, ROAD_WIDTH, 5);
+
+      // 遮断機とランプ
+      ctx.fillStyle = '#333';
+      ctx.fillRect(roadLeft - 20, screenY - 40, 10, 80);
+      
+      // 警報機ランプ（交互に点滅）
+      if (obj.state === 'warning' || obj.state === 'closed') {
+        let blink = Math.floor(obj.timer * 4) % 2 === 0;
+        ctx.fillStyle = blink ? '#e74c3c' : '#555';
+        ctx.beginPath(); ctx.arc(roadLeft - 25, screenY - 30, 6, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = !blink ? '#e74c3c' : '#555';
+        ctx.beginPath(); ctx.arc(roadLeft - 5, screenY - 30, 6, 0, Math.PI*2); ctx.fill();
+      }
+
+      // 遮断機のバー
+      ctx.save();
+      ctx.translate(roadLeft - 15, screenY - 20);
+      let angle = obj.state === 'closed' ? 0 : (obj.state === 'warning' ? -Math.PI/4 : -Math.PI/2);
+      ctx.rotate(angle);
+      ctx.fillStyle = '#f1c40f';
+      ctx.fillRect(0, -2, ROAD_WIDTH + 30, 4);
+      // トラ模様
+      ctx.fillStyle = '#000';
+      for(let x=10; x<ROAD_WIDTH+30; x+=20) ctx.fillRect(x, -2, 10, 4);
+      ctx.restore();
+
+      // 電車本体
+      if (obj.state === 'closed' && obj.trainX > -300) {
+        ctx.fillStyle = '#e67e22'; // オレンジの電車
+        ctx.fillRect(obj.trainX, screenY - 25, 400, 50);
+        ctx.fillStyle = '#34495e'; // 窓
+        for(let wx = obj.trainX + 20; wx < obj.trainX + 380; wx += 40) ctx.fillRect(wx, screenY - 15, 30, 30);
+      }
     }
   }
 
-  // プレイヤーの描画
+  // プレイヤー（自転車）の描画 💡 上から見下ろしたリアルなデザイン
   ctx.save();
-  ctx.translate(player.x + player.width/2, player.y + player.height/2);
+  ctx.translate(cw / 2 + player.x, player.y);
   
-  // ジャンプ中は少し前傾姿勢に、ブレーキ中は後傾姿勢になる演出
-  if (player.isJumping) ctx.rotate(-Math.PI / 8);
-  else if (keys.brake) ctx.rotate(Math.PI / 12);
+  // ブレーキ中は少し赤く光る演出
+  if (keys.brake) {
+    ctx.shadowColor = '#e74c3c'; ctx.shadowBlur = 10;
+  }
   
-  ctx.font = '50px sans-serif';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(player.icon, 0, 0);
+  // タイヤ
+  ctx.fillStyle = '#333';
+  ctx.fillRect(-2, -20, 4, 12); // 前輪
+  ctx.fillRect(-2, 8, 4, 12);  // 後輪
+  // フレームとハンドル
+  ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(0, 10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(10, -10); ctx.stroke();
+  // ヘルメット（人）
+  ctx.fillStyle = '#f1c40f';
+  ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
+  
   ctx.restore();
 
+  animationId = requestAnimationFrame(gameLoop);
+}
+
+// 💡 敵の車を真上から描画する関数
+function drawCar(ctx, x, y, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.roundRect(-15, -25, 30, 50, 5); ctx.fill(); // ボディ
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; // 窓
+  ctx.fillRect(-12, -15, 24, 12); // フロントガラス
+  ctx.fillRect(-12, 12, 24, 8);  // リアガラス
+  // テールランプ
+  ctx.fillStyle = '#e74c3c';
+  ctx.fillRect(-12, 22, 6, 3); ctx.fillRect(6, 22, 6, 3);
+  ctx.restore();
+}
+
+function initGame() {
+  resize();
+  distance = 0;
+  player.x = 0;
+  player.currentSpeed = 0;
+  player.baseSpeed = 100; // 初期スピード
+  
+  mapObjects = [];
+  nextSpawnDistance = ch; 
+  document.getElementById('ui-score').innerText = '0';
+  
+  lastTime = performance.now();
+  gameState = 'playing';
+  cancelAnimationFrame(animationId);
   animationId = requestAnimationFrame(gameLoop);
 }
 
@@ -551,7 +560,6 @@ function startGame() {
   initGame();
 }
 
-// 初回起動時の背景用
 resize();
 </script>
 </body>
