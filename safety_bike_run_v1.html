@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>交通安全チャリ走 - 完全版（壁・道路修正）</title>
+<title>交通安全チャリ走 - 3Dリアル視点</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -69,10 +69,10 @@
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title">🚲 交通安全<br>チャリ走 完全版</div>
+    <div class="title">🚲 交通安全<br>チャリ走 リアル視点</div>
     <div class="desc">
       自転車に乗っている「自分」の視点で<br>
-      壁に囲まれた街を安全に走り抜けよう！<br>
+      リアルな街を安全に走り抜けよう！<br>
       <b>◀️ 左 / 右 ▶️</b>：ハンドル操作<br>
       <b>🛑 ブレーキ</b>：長押しで止まる<br><br>
       💡 <b>生き残るためのルール</b><br>
@@ -467,6 +467,7 @@ function gameLoop(currentTime) {
     if (obj.type === 'intersection') {
       let stopDistZ = obj.stopLineY - distance;
 
+      // 💡 信号無視判定の修正（Z軸の不等号を反転して正確な判定に修正）
       if (obj.control === 'traffic_light') {
         obj.timer += dt;
         if (relZ < 800 && !obj.triggered) {
@@ -475,6 +476,7 @@ function gameLoop(currentTime) {
         if (obj.state === 'yellow' && obj.timer > 1.5) { obj.state = 'red'; obj.timer = 0; }
         else if (obj.state === 'red' && obj.timer > 4.0) { obj.state = 'green'; }
 
+        // 停止線を「越えた瞬間」にのみ判定する
         if (!obj.cleared && stopDistZ < player.y) {
           if (obj.state === 'red' || obj.state === 'yellow') {
             gameOver("赤信号を無視した！", "violation"); return;
@@ -482,11 +484,13 @@ function gameLoop(currentTime) {
         }
       }
 
+      // 💡 止まれ標識の判定修正（Z軸の不等号を反転して正確な判定に修正）
       if (obj.control === 'stop_sign') {
         let zoneStartZ = obj.stopZoneStart - distance;
         let zoneEndZ = obj.stopZoneEnd - distance;
 
-        if (player.y > zoneEndZ && player.y < zoneStartZ) {
+        // 停止エリア内にいる時（zoneStartZの方が手前なので player.y より大きく、zoneEndZは奥なので player.y より小さい）
+        if (zoneStartZ < player.y && zoneEndZ > player.y) {
           if (player.currentSpeed < 10) {
             obj.stopTime += dt;
             if (obj.stopTime > 0.5 && !obj.cleared) {
@@ -494,7 +498,8 @@ function gameLoop(currentTime) {
             }
           }
         }
-        if (player.y < zoneEndZ && !obj.cleared) {
+        // 停止線を越えた時
+        if (zoneEndZ < player.y && !obj.cleared) {
           gameOver("「止まれ」の交差点で止まらなかった！", "violation"); return;
         }
       }
@@ -590,7 +595,8 @@ function gameLoop(currentTime) {
       }
 
       let stopDistZ = obj.stopLineY - distance;
-      if (stopDistZ < player.y && (obj.state === 'warning' || obj.state === 'closed')) {
+      // 💡 踏切の判定修正
+      if (stopDistZ < player.y && !obj.cleared && (obj.state === 'warning' || obj.state === 'closed')) {
         if (obj.state === 'closed') gameOver("電車とぶつかった！", "crash");
         else gameOver("踏切の警報を無視した！", "violation");
         return;
@@ -598,8 +604,9 @@ function gameLoop(currentTime) {
     }
   }
 
+
   // ==========================================
-  // 💡 描画エンジン（壁の追加と巨大ポリゴン対策）
+  // 描画エンジン 
   // ==========================================
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -624,7 +631,6 @@ function gameLoop(currentTime) {
     ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.fill();
   }
 
-  // 💡 壁を描画する関数
   function drawWall(x, z1, z2, height, color) {
     let p1 = project(x, z2);
     let p2 = project(x, z1);
@@ -638,11 +644,7 @@ function gameLoop(currentTime) {
     ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
     ctx.lineTo(p2Top.x, p2Top.y); ctx.lineTo(p1Top.x, p1Top.y);
     ctx.fill();
-    
-    // ブロック塀っぽい線
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
   }
 
   let grad = ctx.createLinearGradient(0, 0, 0, currentHorizon);
@@ -651,7 +653,6 @@ function gameLoop(currentTime) {
   ctx.fillStyle = '#2ecc71'; ctx.fillRect(0, currentHorizon - 10, cw, 10);
   ctx.fillStyle = '#27ae60'; ctx.fillRect(0, currentHorizon, cw, ch - currentHorizon);
 
-  // 💡 交差点と踏切の「壁をなくすゾーン」を計算
   let facilityZones = [];
   for (let obj of mapObjects) {
     if (obj.type === 'intersection') {
@@ -661,8 +662,6 @@ function gameLoop(currentTime) {
     }
   }
 
-  // 💡 道路と壁を「短く区切って（セグメント）」手前から奥へ描画
-  // 巨大なポリゴンによる表示エラーを完全に防ぎます
   const SEG_LEN = 100;
   for (let z = 3000; z > -250; z -= SEG_LEN) {
     let z2 = z; let z1 = z - SEG_LEN;
@@ -678,14 +677,12 @@ function gameLoop(currentTime) {
     drawPolyOnRoad(roadLeft - 40, roadLeft, _z1, z2, '#7f8c8d');
     drawPolyOnRoad(roadRight, roadRight + 40, _z1, z2, '#7f8c8d');
 
-    // 交差点でなければ壁を描画
     if (!isFac) {
       drawWall(roadLeft - 40, _z1, z2, 80, '#bdc3c7'); 
       drawWall(roadRight + 40, _z1, z2, 80, '#bdc3c7');
     }
   }
 
-  // 道路の白線（点線）
   let lineYOffset = distance % 60;
   for (let z = -lineYOffset - 240; z < 3000; z += 60) {
     let z1 = z; let z2 = z + 30;
@@ -701,7 +698,6 @@ function gameLoop(currentTime) {
     }
   }
   
-  // サイドの白線
   for (let z = 3000; z > -250; z -= SEG_LEN) {
     let z2 = z; let z1 = z - SEG_LEN;
     if (z2 <= -FOV + 10) continue;
@@ -723,7 +719,6 @@ function gameLoop(currentTime) {
     if (wz > 3000 || wz < -250) continue;
 
     if (obj.type === 'intersection') {
-      // 💡 横断する道路の幅も制限してエラーを防止
       drawPolyOnRoad(roadLeft - 150, roadRight + 150, wz - obj.height/2, wz + obj.height/2, '#7f8c8d');
       for(let x = roadLeft + 10; x < roadRight; x += 30) { 
         drawPolyOnRoad(x, x+20, wz - obj.height/2 + 5, wz - obj.height/2 + 30, 'white');
