@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>交通安全チャリ走 - 一人称リアル視点</title>
+<title>交通安全チャリ走 - 3Dリアル視点</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -145,12 +145,17 @@ let distance = 0;
 let timeUntilNextEvent = 5.0; 
 let trafficTimer = 2.0;
 
-const ROAD_WIDTH = 240; 
+const ROAD_WIDTH = 300; 
 let roadLeft, roadRight;
 
+// 💡 視点の高さやパースの定数（より低く、リアルな目線に）
+let FOV = 250;
+let HORIZON = 0;
+let CAM_H = 65; // カメラの高さを下げる（車の屋根とほぼ同じ）
+
 const player = {
-  x: -80, 
-  y: 0, 
+  x: -100, 
+  y: 0, // 💡 resize関数で、画面下部ピッタリの論理座標に自動計算されます
   width: 20, height: 40,
   baseSpeed: 80, 
   currentSpeed: 0,
@@ -171,7 +176,13 @@ function resize() {
   canvas.height = ch;
   roadLeft = -ROAD_WIDTH / 2; 
   roadRight = ROAD_WIDTH / 2;
-  player.y = 0; 
+  
+  // 💡 判定タイミングのズレを解消！
+  // 画面の85%の位置（ハンドルが表示される場所）の論理的なZ座標を逆算し、プレイヤー位置とする
+  HORIZON = ch * 0.45;
+  let targetY = ch * 0.85; 
+  let targetScale = (targetY - HORIZON) / CAM_H;
+  player.y = FOV / targetScale - FOV; 
 }
 window.addEventListener('resize', resize);
 
@@ -225,16 +236,16 @@ function spawnTraffic(urbanLevel) {
   if (!isSafeSpawnY(yPos)) return; 
 
   if (Math.random() < 0.05 + urbanLevel * 0.05) {
-    mapObjects.push({ type: 'parked_car', y: yPos, x: -90, width: 30, height: 60, color: randomColor() });
+    mapObjects.push({ type: 'parked_car', y: yPos, x: -110, width: 30, height: 60, color: randomColor() });
     return; 
   }
   if (Math.random() < 0.3 + urbanLevel * 0.5) {
     let speed = 200 + Math.random() * 400; 
-    mapObjects.push({ type: 'oncoming_car', y: yPos, x: 60, width: 30, height: 60, baseSpeed: -speed, speed: -speed, color: randomColor() });
+    mapObjects.push({ type: 'oncoming_car', y: yPos, x: 75, width: 30, height: 60, baseSpeed: -speed, speed: -speed, color: randomColor() });
   }
   if (Math.random() < 0.4 + urbanLevel * 0.4) {
     let speed = 50 + Math.random() * 350; 
-    mapObjects.push({ type: 'car', y: yPos, x: -40, width: 30, height: 60, baseSpeed: speed, speed: speed, color: randomColor(), violationTimer: 0 });
+    mapObjects.push({ type: 'car', y: yPos, x: -50, width: 30, height: 60, baseSpeed: speed, speed: speed, color: randomColor(), violationTimer: 0 });
   }
 }
 
@@ -250,11 +261,11 @@ function spawnFacility(urbanLevel) {
   let obj = { type: type, y: yPos, cleared: false };
 
   if (type === 'intersection') {
-    obj.height = 120;
+    obj.height = 140;
     obj.control = Math.random() < 0.6 ? 'traffic_light' : 'stop_sign';
     
     if (obj.control === 'traffic_light') {
-      obj.stopLineY = yPos - 60;
+      obj.stopLineY = yPos - 70;
       obj.timer = 0; obj.state = 'green';
       
       let randEvent = Math.random();
@@ -272,9 +283,9 @@ function spawnFacility(urbanLevel) {
       }
     } else {
       obj.stopTime = 0;
-      obj.stopLineY = yPos - 60;
-      obj.stopZoneStart = yPos - 120;
-      obj.stopZoneEnd = yPos - 60;
+      obj.stopLineY = yPos - 70;
+      obj.stopZoneStart = yPos - 130;
+      obj.stopZoneEnd = yPos - 70;
       
       if (Math.random() < 0.5) {
         obj.event = 'cross_car';
@@ -360,11 +371,14 @@ function gameLoop(currentTime) {
     spawnFacility(urbanLevel);
   }
 
-  // --- オブジェクトの更新 ---
+  // --- オブジェクトの更新とAI ---
   for (let i = mapObjects.length - 1; i >= 0; i--) {
     let obj = mapObjects[i];
-    let objDistZ = obj.y - distance;
-    if (objDistZ < -200) { mapObjects.splice(i, 1); continue; }
+    let objDistZ = obj.y - distance; 
+    if (objDistZ < -250) { mapObjects.splice(i, 1); continue; }
+
+    // 💡 プレイヤーから対象物までの相対距離（これを使ってタイミングを計る）
+    let relZ = objDistZ - player.y;
 
     if (obj.type === 'car' || obj.type === 'oncoming_car') {
       let targetSpeed = obj.baseSpeed;
@@ -388,7 +402,7 @@ function gameLoop(currentTime) {
           if (Math.abs(obj.x - other.x) < 30) {
             let d = other.y - obj.y; 
             if (d > 0 && d < minStopDist) {
-              minStopDist = d - 90; 
+              minStopDist = d - 100; 
               targetSpeed = Math.min(targetSpeed, (other.speed || 0));
             }
           }
@@ -396,7 +410,7 @@ function gameLoop(currentTime) {
           if (Math.abs(obj.x - other.x) < 30) {
             let d = obj.y - other.y; 
             if (d > 0 && d < minStopDist) {
-              minStopDist = d - 90;
+              minStopDist = d - 100;
               targetSpeed = Math.max(targetSpeed, (other.speed || 0)); 
             }
           }
@@ -415,17 +429,16 @@ function gameLoop(currentTime) {
 
       obj.y += obj.speed * dt; 
       
-      let currentZ = obj.y - distance;
+      // 💡 当たり判定のZ軸距離（40px以内なら衝突）
       if (
         Math.abs(player.x - obj.x) < (player.width + obj.width) / 2 * 0.8 &&
-        Math.abs(player.y - currentZ) < (player.height + obj.height) / 2 * 0.8
+        Math.abs(relZ) < 40
       ) {
         gameOver("車にぶつかった！（前方不注意）", "crash"); return;
       }
 
       if (obj.type === 'car' && obj.speed > 10) {
-        let overlapZ = Math.abs(player.y - currentZ) < 60; 
-        if (overlapZ && player.x > obj.x) { 
+        if (Math.abs(relZ) < 60 && player.x > obj.x) { 
           obj.violationTimer += dt;
           if (obj.violationTimer > 0.3) { 
             gameOver("走っている車の右側を追い越した！\n（巻き込み事故の危険大！）", "violation"); return;
@@ -436,20 +449,22 @@ function gameLoop(currentTime) {
       }
     } 
     else if (obj.type === 'parked_car') {
-      if (Math.abs(player.x - obj.x) < (player.width + obj.width) / 2 * 0.8 && Math.abs(player.y - objDistZ) < (player.height + obj.height) / 2 * 0.8) {
+      if (Math.abs(player.x - obj.x) < (player.width + obj.width) / 2 * 0.8 && Math.abs(relZ) < 40) {
         gameOver("駐車車両にぶつかった！", "crash"); return;
       }
     }
 
     if (obj.type === 'jaywalker') {
-      if (objDistZ < 300 && !obj.triggered) {
+      if (relZ < 400 && !obj.triggered) {
         obj.triggered = true;
-        obj.speedX = (obj.x > 0 ? -1 : 1) * (150 + Math.random() * 100);
+        let timeToReach = Math.max(10, relZ) / Math.max(player.currentSpeed, 10);
+        obj.speedX = (cw/2) / timeToReach;
+        if (obj.x > 0) obj.speedX *= -1;
         playSound('whistle'); 
       }
       if (obj.triggered) obj.x += obj.speedX * dt;
 
-      if (Math.abs(player.x - obj.x) < 20 && Math.abs(player.y - objDistZ) < 20) {
+      if (Math.abs(player.x - obj.x) < 20 && Math.abs(relZ) < 20) {
         gameOver("飛び出してきた歩行者にぶつかった！", "crash"); return;
       }
     }
@@ -459,7 +474,7 @@ function gameLoop(currentTime) {
 
       if (obj.control === 'traffic_light') {
         obj.timer += dt;
-        if (objDistZ < 800 && !obj.triggered) {
+        if (relZ < 800 && !obj.triggered) {
           obj.triggered = true; obj.state = 'yellow'; obj.timer = 0;
         }
         if (obj.state === 'yellow' && obj.timer > 1.5) { obj.state = 'red'; obj.timer = 0; }
@@ -492,9 +507,9 @@ function gameLoop(currentTime) {
       let shouldCross = false;
       if (obj.control === 'traffic_light') {
         if (obj.state === 'red') shouldCross = true; 
-        else if (obj.ped && obj.ped.isBadManner && objDistZ < 300) shouldCross = true; 
+        else if (obj.ped && obj.ped.isBadManner && relZ < 400) shouldCross = true; 
       } else {
-        if (objDistZ < 400) shouldCross = true; 
+        if (relZ < 500) shouldCross = true; 
       }
 
       if (obj.event === 'cross_car' && obj.crossCar) {
@@ -506,16 +521,15 @@ function gameLoop(currentTime) {
         }
         if (car.triggered) {
           let pdx = player.x - car.x;
-          let pdy = player.y - objDistZ;
           car.speedX = car.baseSpeedX; 
-          if (Math.abs(pdy) < 60) {
+          if (Math.abs(relZ) < 60) {
             if ((car.speedX > 0 && pdx > 0) || (car.speedX < 0 && pdx < 0)) {
               if (Math.abs(pdx) < 80) car.speedX = 0; 
             }
           }
           car.x += car.speedX * dt;
 
-          if (Math.abs(player.x - car.x) < 40 && Math.abs(player.y - objDistZ) < 30) {
+          if (Math.abs(player.x - car.x) < 40 && Math.abs(relZ) < 30) {
             gameOver("交差点の車に自らぶつかった！", "crash"); return;
           }
         }
@@ -525,12 +539,14 @@ function gameLoop(currentTime) {
         let ped = obj.ped;
         if (shouldCross && !ped.triggered) {
           ped.triggered = true;
-          ped.speedX = (ped.isLeft ? 1 : -1) * 80;
+          let timeToReach = Math.max(10, relZ) / Math.max(player.currentSpeed, 10);
+          ped.speedX = (cw/2) / timeToReach;
+          if (!ped.isLeft) ped.speedX *= -1;
           if (ped.isBadManner && obj.control === 'traffic_light') playSound('whistle');
         }
         if (ped.triggered) ped.x += ped.speedX * dt;
 
-        if (Math.abs(player.x - ped.x) < 20 && Math.abs(player.y - objDistZ) < 20) {
+        if (Math.abs(player.x - ped.x) < 20 && Math.abs(relZ) < 20) {
           gameOver("横断中の歩行者にぶつかった！", "crash"); return;
         }
       }
@@ -548,17 +564,16 @@ function gameLoop(currentTime) {
           }
         } 
         if (rCar.state === 'turning') {
-          let rCarZ = rCar.y - distance;
+          let rCarZ = rCar.y - distance - player.y;
           let pdx = player.x - rCar.x; 
-          let pdy = player.y - rCarZ; 
           rCar.speedX = rCar.baseSpeedX; rCar.speed = rCar.baseSpeed;
-          if (Math.abs(pdx) < 60 && Math.abs(pdy) < 80) {
+          if (Math.abs(pdx) < 60 && Math.abs(rCarZ) < 80) {
             rCar.speedX = 0; rCar.speed = 0; 
           }
           rCar.x += rCar.speedX * dt;
           rCar.y += rCar.speed * dt;
           
-          if (Math.abs(player.x - rCar.x) < 30 && Math.abs(player.y - rCarZ) < 40) {
+          if (Math.abs(player.x - rCar.x) < 30 && Math.abs(rCarZ) < 40) {
             gameOver("右折車に自らぶつかった！", "crash"); return;
           }
         }
@@ -567,7 +582,7 @@ function gameLoop(currentTime) {
 
     if (obj.type === 'railroad') {
       obj.timer += dt;
-      if (objDistZ < 800 && obj.state === 'open' && !obj.triggered) {
+      if (relZ < 800 && obj.state === 'open' && !obj.triggered) {
         obj.triggered = true; obj.state = 'warning'; obj.timer = 0;
       }
       if (obj.state === 'warning') {
@@ -590,66 +605,54 @@ function gameLoop(currentTime) {
 
 
   // ==========================================
-  // 💡 修正版：リアルな子供の目線（カメラの高さを下げる）
+  // 描画エンジン (カメラ調整・オブジェクトスケール修正)
   // ==========================================
-  
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const FOV = 250; 
-  // 💡 地平線を少し下げて空を広く見せる
-  const HORIZON = ch * 0.55 + (keys.brake ? 5 : 0); 
-  // 💡 カメラの物理的な高さを下げて地面に近づける
-  const CAM_H = 120; 
+  let currentHorizon = HORIZON + (keys.brake ? 5 : 0);
 
+  // 3D座標の投影
   function project(worldX, worldZ) {
-    let z = worldZ;
-    // 💡 カメラの背後（-FOV付近）の描画でおかしくならないようクリップ
-    if (z <= -FOV + 10) return null; 
-    let scale = FOV / (FOV + z);
+    if (worldZ <= -FOV + 5) return null; 
+    let scale = FOV / (FOV + worldZ);
     let x = cw / 2 + (worldX - player.x) * scale;
-    let y = HORIZON + CAM_H * scale;
+    let y = currentHorizon + CAM_H * scale;
     return { x: x, y: y, scale: scale };
   }
 
   function drawPolyOnRoad(rx1, rx2, z1, z2, color) {
-    if (z2 <= -FOV + 10) return; // 奥側が手前すぎる場合は描画しない
-    let _z1 = Math.max(-FOV + 10, z1); // 手前側をクリップ
-    let p1 = project(rx1, z2);
-    let p2 = project(rx2, z2);
-    let p3 = project(rx2, _z1);
-    let p4 = project(rx1, _z1);
+    if (z2 <= -FOV + 5) return; 
+    let _z1 = Math.max(-FOV + 5, z1); 
+    let p1 = project(rx1, z2); let p2 = project(rx2, z2);
+    let p3 = project(rx2, _z1); let p4 = project(rx1, _z1);
     if(!p1||!p2||!p3||!p4) return;
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
     ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.fill();
   }
 
-  // 背景（空のグラデーション）
-  let grad = ctx.createLinearGradient(0, 0, 0, HORIZON);
-  grad.addColorStop(0, '#3498db');
-  grad.addColorStop(1, '#87CEEB');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, cw, HORIZON);
-  
-  ctx.fillStyle = '#2ecc71'; ctx.fillRect(0, HORIZON - 10, cw, 10);
-  ctx.fillStyle = '#27ae60'; ctx.fillRect(0, HORIZON, cw, ch - HORIZON);
+  // 背景
+  let grad = ctx.createLinearGradient(0, 0, 0, currentHorizon);
+  grad.addColorStop(0, '#3498db'); grad.addColorStop(1, '#87CEEB');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, cw, currentHorizon);
+  ctx.fillStyle = '#2ecc71'; ctx.fillRect(0, currentHorizon - 10, cw, 10);
+  ctx.fillStyle = '#27ae60'; ctx.fillRect(0, currentHorizon, cw, ch - currentHorizon);
 
-  // 道路のベース（手前まで描画するためにZをマイナスから始める）
-  drawPolyOnRoad(roadLeft - 100, roadRight + 100, -200, 3000, '#7f8c8d'); 
-  drawPolyOnRoad(roadLeft, roadRight, -200, 3000, '#95a5a6'); 
-
+  // 道路
+  drawPolyOnRoad(roadLeft - 100, roadRight + 100, -250, 3000, '#7f8c8d'); 
+  drawPolyOnRoad(roadLeft, roadRight, -250, 3000, '#95a5a6'); 
   let lineYOffset = distance % 60;
-  for (let z = -lineYOffset - 180; z < 3000; z += 60) {
-    if (z + 30 > -200) drawPolyOnRoad(-2, 2, Math.max(-200, z), z + 30, 'white'); 
+  for (let z = -lineYOffset - 240; z < 3000; z += 60) {
+    if (z + 30 > -250) drawPolyOnRoad(-2, 2, Math.max(-250, z), z + 30, 'white'); 
   }
-  drawPolyOnRoad(roadLeft + 12, roadLeft + 16, -200, 3000, 'white'); 
-  drawPolyOnRoad(roadRight - 16, roadRight - 12, -200, 3000, 'white'); 
+  drawPolyOnRoad(roadLeft + 12, roadLeft + 16, -250, 3000, 'white'); 
+  drawPolyOnRoad(roadRight - 16, roadRight - 12, -250, 3000, 'white'); 
 
   let renderables = [];
 
   for (let obj of mapObjects) {
     let wz = obj.y - distance;
-    if (wz > 3000 || wz < -200) continue;
+    if (wz > 3000 || wz < -250) continue;
 
     if (obj.type === 'intersection') {
       drawPolyOnRoad(-1000, 1000, wz - obj.height/2, wz + obj.height/2, '#7f8c8d');
@@ -701,10 +704,8 @@ function gameLoop(currentTime) {
     }
   }
 
-  // Z値でソート
   renderables.sort((a, b) => b.z - a.z);
 
-  // 立体物の描画
   for (let r of renderables) {
     let p = project(r.x, r.z);
     if (!p) continue;
@@ -712,7 +713,7 @@ function gameLoop(currentTime) {
     let px = p.x; let py = p.y;
 
     if (r.type === 'car_back' || r.type === 'car_front') {
-      let w = 60 * s; let h = 55 * s; // 💡 スケールアップ
+      let w = 70 * s; let h = 60 * s; // 車のサイズ
       ctx.fillStyle = r.color;
       ctx.beginPath(); ctx.roundRect(px - w/2, py - h, w, h, 3*s); ctx.fill();
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(px - w*0.4, py - h*0.8, w*0.8, h*0.3);
@@ -725,13 +726,14 @@ function gameLoop(currentTime) {
       }
     }
     else if (r.type === 'car_side' || r.type === 'car_angled') {
-      let w = 120 * s; let h = 45 * s;
+      let w = 140 * s; let h = 50 * s;
       ctx.fillStyle = r.color;
       ctx.beginPath(); ctx.roundRect(px - w/2, py - h, w, h, 3*s); ctx.fill();
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(px - w*0.2, py - h*0.8, w*0.4, h*0.3);
     }
     else if (r.type === 'ped' || r.type === 'ped_bad') {
-      let headR = 6 * s; let bodyW = 10 * s; let bodyH = 20 * s;
+      // 💡 歩行者を車の屋根くらいまで大きく修正
+      let headR = 10 * s; let bodyW = 14 * s; let bodyH = 35 * s;
       ctx.fillStyle = r.type === 'ped_bad' ? '#e74c3c' : '#3498db';
       ctx.fillRect(px - bodyW/2, py - bodyH, bodyW, bodyH); 
       ctx.fillStyle = '#f1c40f';
@@ -748,7 +750,7 @@ function gameLoop(currentTime) {
       ctx.beginPath(); ctx.arc(px + boxW*0.3, boxY + boxH/2, rRad, 0, Math.PI*2); ctx.fillStyle = r.state==='red'?'#e74c3c':'#555'; ctx.fill();
     }
     else if (r.type === 'stop_sign') {
-      let poleH = 80 * s; let signS = 30 * s;
+      let poleH = 100 * s; let signS = 35 * s;
       ctx.fillStyle = '#7f8c8d'; ctx.fillRect(px - 2*s, py - poleH, 4*s, poleH); 
       ctx.fillStyle = '#e74c3c';
       ctx.beginPath(); ctx.moveTo(px - signS, py - poleH); ctx.lineTo(px + signS, py - poleH); ctx.lineTo(px, py - poleH + signS); ctx.fill();
@@ -774,28 +776,28 @@ function gameLoop(currentTime) {
       ctx.restore();
     }
     else if (r.type === 'train') {
-      let w = 500 * s; let h = 80 * s;
+      let w = 600 * s; let h = 90 * s;
       ctx.fillStyle = '#e67e22'; ctx.fillRect(px - w/2, py - h, w, h);
       ctx.fillStyle = '#34495e';
-      for(let wx = px - w/2 + 20*s; wx < px + w/2; wx += 60*s) ctx.fillRect(wx, py - h + 15*s, 40*s, 35*s);
+      for(let wx = px - w/2 + 20*s; wx < px + w/2; wx += 60*s) ctx.fillRect(wx, py - h + 15*s, 40*s, 40*s);
     }
   }
 
-  // 💡 自転車のハンドル（画面の手前に大きく描画）
+  // 自分の手とハンドルを描画
   ctx.save();
   let tilt = (keys.right ? 20 : 0) - (keys.left ? 20 : 0);
   ctx.translate(cw/2 + tilt, ch + 10); 
   
   ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 20;
   ctx.beginPath();
-  ctx.moveTo(-150, 40); ctx.lineTo(-60, -80); 
-  ctx.moveTo(150, 40); ctx.lineTo(60, -80);  
-  ctx.moveTo(-60, -80); ctx.lineTo(60, -80); 
+  ctx.moveTo(-150, 40); ctx.lineTo(-60, -90); 
+  ctx.moveTo(150, 40); ctx.lineTo(60, -90);  
+  ctx.moveTo(-60, -90); ctx.lineTo(60, -90); 
   ctx.stroke();
 
   ctx.fillStyle = keys.brake ? '#e67e22' : '#f1c40f';
-  ctx.beginPath(); ctx.arc(-60, -80, 25, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(60, -80, 25, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-60, -90, 25, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(60, -90, 25, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 
   animationId = requestAnimationFrame(gameLoop);
