@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>交通安全チャリ走 - 3Dリアル視点</title>
+<title>交通安全チャリ走 - 完全版（壁・道路修正）</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -69,10 +69,10 @@
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title">🚲 交通安全<br>チャリ走 リアル視点</div>
+    <div class="title">🚲 交通安全<br>チャリ走 完全版</div>
     <div class="desc">
       自転車に乗っている「自分」の視点で<br>
-      リアルな街を安全に走り抜けよう！<br>
+      壁に囲まれた街を安全に走り抜けよう！<br>
       <b>◀️ 左 / 右 ▶️</b>：ハンドル操作<br>
       <b>🛑 ブレーキ</b>：長押しで止まる<br><br>
       💡 <b>生き残るためのルール</b><br>
@@ -145,17 +145,16 @@ let distance = 0;
 let timeUntilNextEvent = 5.0; 
 let trafficTimer = 2.0;
 
-const ROAD_WIDTH = 300; 
+const ROAD_WIDTH = 240; 
 let roadLeft, roadRight;
 
-// 💡 視点の高さやパースの定数（より低く、リアルな目線に）
 let FOV = 250;
 let HORIZON = 0;
-let CAM_H = 65; // カメラの高さを下げる（車の屋根とほぼ同じ）
+let CAM_H = 65; 
 
 const player = {
-  x: -100, 
-  y: 0, // 💡 resize関数で、画面下部ピッタリの論理座標に自動計算されます
+  x: -80, 
+  y: 0, 
   width: 20, height: 40,
   baseSpeed: 80, 
   currentSpeed: 0,
@@ -177,8 +176,6 @@ function resize() {
   roadLeft = -ROAD_WIDTH / 2; 
   roadRight = ROAD_WIDTH / 2;
   
-  // 💡 判定タイミングのズレを解消！
-  // 画面の85%の位置（ハンドルが表示される場所）の論理的なZ座標を逆算し、プレイヤー位置とする
   HORIZON = ch * 0.45;
   let targetY = ch * 0.85; 
   let targetScale = (targetY - HORIZON) / CAM_H;
@@ -377,7 +374,6 @@ function gameLoop(currentTime) {
     let objDistZ = obj.y - distance; 
     if (objDistZ < -250) { mapObjects.splice(i, 1); continue; }
 
-    // 💡 プレイヤーから対象物までの相対距離（これを使ってタイミングを計る）
     let relZ = objDistZ - player.y;
 
     if (obj.type === 'car' || obj.type === 'oncoming_car') {
@@ -429,7 +425,6 @@ function gameLoop(currentTime) {
 
       obj.y += obj.speed * dt; 
       
-      // 💡 当たり判定のZ軸距離（40px以内なら衝突）
       if (
         Math.abs(player.x - obj.x) < (player.width + obj.width) / 2 * 0.8 &&
         Math.abs(relZ) < 40
@@ -603,17 +598,15 @@ function gameLoop(currentTime) {
     }
   }
 
-
   // ==========================================
-  // 描画エンジン (カメラ調整・オブジェクトスケール修正)
+  // 💡 描画エンジン（壁の追加と巨大ポリゴン対策）
   // ==========================================
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   let currentHorizon = HORIZON + (keys.brake ? 5 : 0);
 
-  // 3D座標の投影
   function project(worldX, worldZ) {
-    if (worldZ <= -FOV + 5) return null; 
+    if (worldZ <= -FOV + 10) return null; 
     let scale = FOV / (FOV + worldZ);
     let x = cw / 2 + (worldX - player.x) * scale;
     let y = currentHorizon + CAM_H * scale;
@@ -621,8 +614,8 @@ function gameLoop(currentTime) {
   }
 
   function drawPolyOnRoad(rx1, rx2, z1, z2, color) {
-    if (z2 <= -FOV + 5) return; 
-    let _z1 = Math.max(-FOV + 5, z1); 
+    if (z2 <= -FOV + 10) return; 
+    let _z1 = Math.max(-FOV + 10, z1); 
     let p1 = project(rx1, z2); let p2 = project(rx2, z2);
     let p3 = project(rx2, _z1); let p4 = project(rx1, _z1);
     if(!p1||!p2||!p3||!p4) return;
@@ -631,22 +624,97 @@ function gameLoop(currentTime) {
     ctx.lineTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.fill();
   }
 
-  // 背景
+  // 💡 壁を描画する関数
+  function drawWall(x, z1, z2, height, color) {
+    let p1 = project(x, z2);
+    let p2 = project(x, z1);
+    if(!p1 || !p2) return;
+    
+    let p1Top = { x: p1.x, y: p1.y - height * p1.scale };
+    let p2Top = { x: p2.x, y: p2.y - height * p2.scale };
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+    ctx.lineTo(p2Top.x, p2Top.y); ctx.lineTo(p1Top.x, p1Top.y);
+    ctx.fill();
+    
+    // ブロック塀っぽい線
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
   let grad = ctx.createLinearGradient(0, 0, 0, currentHorizon);
   grad.addColorStop(0, '#3498db'); grad.addColorStop(1, '#87CEEB');
   ctx.fillStyle = grad; ctx.fillRect(0, 0, cw, currentHorizon);
   ctx.fillStyle = '#2ecc71'; ctx.fillRect(0, currentHorizon - 10, cw, 10);
   ctx.fillStyle = '#27ae60'; ctx.fillRect(0, currentHorizon, cw, ch - currentHorizon);
 
-  // 道路
-  drawPolyOnRoad(roadLeft - 100, roadRight + 100, -250, 3000, '#7f8c8d'); 
-  drawPolyOnRoad(roadLeft, roadRight, -250, 3000, '#95a5a6'); 
+  // 💡 交差点と踏切の「壁をなくすゾーン」を計算
+  let facilityZones = [];
+  for (let obj of mapObjects) {
+    if (obj.type === 'intersection') {
+       facilityZones.push({ minZ: obj.y - distance - obj.height/2, maxZ: obj.y - distance + obj.height/2 });
+    } else if (obj.type === 'railroad') {
+       facilityZones.push({ minZ: obj.y - distance - 20, maxZ: obj.y - distance + 20 });
+    }
+  }
+
+  // 💡 道路と壁を「短く区切って（セグメント）」手前から奥へ描画
+  // 巨大なポリゴンによる表示エラーを完全に防ぎます
+  const SEG_LEN = 100;
+  for (let z = 3000; z > -250; z -= SEG_LEN) {
+    let z2 = z; let z1 = z - SEG_LEN;
+    if (z2 <= -FOV + 10) continue;
+    let _z1 = Math.max(-FOV + 10, z1);
+
+    let isFac = false;
+    for (let f of facilityZones) {
+       if (z2 > f.minZ && _z1 < f.maxZ) { isFac = true; break; }
+    }
+
+    drawPolyOnRoad(roadLeft, roadRight, _z1, z2, '#95a5a6'); 
+    drawPolyOnRoad(roadLeft - 40, roadLeft, _z1, z2, '#7f8c8d');
+    drawPolyOnRoad(roadRight, roadRight + 40, _z1, z2, '#7f8c8d');
+
+    // 交差点でなければ壁を描画
+    if (!isFac) {
+      drawWall(roadLeft - 40, _z1, z2, 80, '#bdc3c7'); 
+      drawWall(roadRight + 40, _z1, z2, 80, '#bdc3c7');
+    }
+  }
+
+  // 道路の白線（点線）
   let lineYOffset = distance % 60;
   for (let z = -lineYOffset - 240; z < 3000; z += 60) {
-    if (z + 30 > -250) drawPolyOnRoad(-2, 2, Math.max(-250, z), z + 30, 'white'); 
+    let z1 = z; let z2 = z + 30;
+    if (z2 <= -FOV + 10) continue;
+    let _z1 = Math.max(-FOV + 10, z1);
+    
+    let isFac = false;
+    for (let f of facilityZones) {
+       if (z2 > f.minZ && _z1 < f.maxZ) { isFac = true; break; }
+    }
+    if (!isFac) {
+      drawPolyOnRoad(-3, 3, _z1, z2, 'white'); 
+    }
   }
-  drawPolyOnRoad(roadLeft + 12, roadLeft + 16, -250, 3000, 'white'); 
-  drawPolyOnRoad(roadRight - 16, roadRight - 12, -250, 3000, 'white'); 
+  
+  // サイドの白線
+  for (let z = 3000; z > -250; z -= SEG_LEN) {
+    let z2 = z; let z1 = z - SEG_LEN;
+    if (z2 <= -FOV + 10) continue;
+    let _z1 = Math.max(-FOV + 10, z1);
+    let isFac = false;
+    for (let f of facilityZones) {
+       if (z2 > f.minZ && _z1 < f.maxZ) { isFac = true; break; }
+    }
+    if (!isFac) {
+      drawPolyOnRoad(roadLeft + 12, roadLeft + 16, _z1, z2, 'white'); 
+      drawPolyOnRoad(roadRight - 16, roadRight - 12, _z1, z2, 'white'); 
+    }
+  }
 
   let renderables = [];
 
@@ -655,7 +723,8 @@ function gameLoop(currentTime) {
     if (wz > 3000 || wz < -250) continue;
 
     if (obj.type === 'intersection') {
-      drawPolyOnRoad(-1000, 1000, wz - obj.height/2, wz + obj.height/2, '#7f8c8d');
+      // 💡 横断する道路の幅も制限してエラーを防止
+      drawPolyOnRoad(roadLeft - 150, roadRight + 150, wz - obj.height/2, wz + obj.height/2, '#7f8c8d');
       for(let x = roadLeft + 10; x < roadRight; x += 30) { 
         drawPolyOnRoad(x, x+20, wz - obj.height/2 + 5, wz - obj.height/2 + 30, 'white');
         drawPolyOnRoad(x, x+20, wz + obj.height/2 - 30, wz + obj.height/2 - 5, 'white');
@@ -683,9 +752,9 @@ function gameLoop(currentTime) {
       }
     }
     else if (obj.type === 'railroad') {
-      drawPolyOnRoad(-1000, 1000, wz - 20, wz + 20, '#7f8c8d'); 
-      drawPolyOnRoad(-1000, 1000, wz - 15, wz - 10, '#2c3e50'); 
-      drawPolyOnRoad(-1000, 1000, wz + 10, wz + 15, '#2c3e50'); 
+      drawPolyOnRoad(roadLeft - 150, roadRight + 150, wz - 20, wz + 20, '#7f8c8d'); 
+      drawPolyOnRoad(roadLeft - 150, roadRight + 150, wz - 15, wz - 10, '#2c3e50'); 
+      drawPolyOnRoad(roadLeft - 150, roadRight + 150, wz + 10, wz + 15, '#2c3e50'); 
       drawPolyOnRoad(roadLeft, roadRight, wz - 50, wz - 45, 'white'); 
       
       renderables.push({ type: 'railroad_pole', x: roadLeft - 20, z: wz, state: obj.state, timer: obj.timer });
@@ -713,7 +782,7 @@ function gameLoop(currentTime) {
     let px = p.x; let py = p.y;
 
     if (r.type === 'car_back' || r.type === 'car_front') {
-      let w = 70 * s; let h = 60 * s; // 車のサイズ
+      let w = 70 * s; let h = 60 * s; 
       ctx.fillStyle = r.color;
       ctx.beginPath(); ctx.roundRect(px - w/2, py - h, w, h, 3*s); ctx.fill();
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(px - w*0.4, py - h*0.8, w*0.8, h*0.3);
@@ -732,7 +801,6 @@ function gameLoop(currentTime) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(px - w*0.2, py - h*0.8, w*0.4, h*0.3);
     }
     else if (r.type === 'ped' || r.type === 'ped_bad') {
-      // 💡 歩行者を車の屋根くらいまで大きく修正
       let headR = 10 * s; let bodyW = 14 * s; let bodyH = 35 * s;
       ctx.fillStyle = r.type === 'ped_bad' ? '#e74c3c' : '#3498db';
       ctx.fillRect(px - bodyW/2, py - bodyH, bodyW, bodyH); 
@@ -776,14 +844,13 @@ function gameLoop(currentTime) {
       ctx.restore();
     }
     else if (r.type === 'train') {
-      let w = 600 * s; let h = 90 * s;
+      let w = 500 * s; let h = 80 * s;
       ctx.fillStyle = '#e67e22'; ctx.fillRect(px - w/2, py - h, w, h);
       ctx.fillStyle = '#34495e';
-      for(let wx = px - w/2 + 20*s; wx < px + w/2; wx += 60*s) ctx.fillRect(wx, py - h + 15*s, 40*s, 40*s);
+      for(let wx = px - w/2 + 20*s; wx < px + w/2; wx += 60*s) ctx.fillRect(wx, py - h + 15*s, 40*s, 35*s);
     }
   }
 
-  // 自分の手とハンドルを描画
   ctx.save();
   let tilt = (keys.right ? 20 : 0) - (keys.left ? 20 : 0);
   ctx.translate(cw/2 + tilt, ch + 10); 
