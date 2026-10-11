@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>交通安全チャリ走 - フードデリバリー完成版</title>
+<title>交通安全チャリ走 - スムーズ交通編</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -250,16 +250,17 @@ function spawnTraffic(urbanLevel) {
   if (!isSafeSpawnY(yPos)) return; 
 
   if (Math.random() < 0.05 + urbanLevel * 0.05) {
-    mapObjects.push({ type: 'parked_car', y: yPos, x: -110, width: 30, height: 60, color: randomColor() });
+    // 💡 駐車車両は左寄りに
+    mapObjects.push({ type: 'parked_car', y: yPos, x: -120, width: 30, height: 60, color: randomColor() });
     return; 
   }
   if (Math.random() < 0.3 + urbanLevel * 0.5) {
     let speed = 200 + Math.random() * 400; 
-    mapObjects.push({ type: 'oncoming_car', y: yPos, x: 75, width: 30, height: 60, baseSpeed: -speed, speed: -speed, color: randomColor() });
+    mapObjects.push({ type: 'oncoming_car', y: yPos, x: 75, width: 30, height: 60, baseSpeed: -speed, speed: -speed, color: randomColor(), targetX: 75 });
   }
   if (Math.random() < 0.4 + urbanLevel * 0.4) {
     let speed = 50 + Math.random() * 350; 
-    mapObjects.push({ type: 'car', y: yPos, x: -50, width: 30, height: 60, baseSpeed: speed, speed: speed, color: randomColor(), violationTimer: 0 });
+    mapObjects.push({ type: 'car', y: yPos, x: -50, width: 30, height: 60, baseSpeed: speed, speed: speed, color: randomColor(), violationTimer: 0, targetX: -50 });
   }
 }
 
@@ -405,7 +406,6 @@ function gameLoop(currentTime) {
   trafficTimer -= dt;
   if (trafficTimer <= 0) { trafficTimer = (1.5 - urbanLevel * 1.0) + Math.random() * 0.5; spawnTraffic(urbanLevel); }
 
-  // 💡 アクセル・ブレーキ処理
   if (keys.brake) {
     player.currentSpeed = Math.max(0, player.currentSpeed - 1500 * dt);
   } else if (keys.pedal) {
@@ -415,7 +415,6 @@ function gameLoop(currentTime) {
     player.currentSpeed = Math.max(0, player.currentSpeed - 100 * dt);
   }
 
-  // 💡 左右移動と遠心力
   if (keys.left) player.x -= player.moveSpeed * dt;
   if (keys.right) player.x += player.moveSpeed * dt;
   
@@ -423,7 +422,6 @@ function gameLoop(currentTime) {
     player.x -= currentCurve * player.currentSpeed * dt * 0.15;
   }
 
-  // 💡 壁による位置制限（弾きやペナルティはなし）
   let limit = ROAD_WIDTH / 2 - player.width / 2;
   player.x = Math.max(-limit, Math.min(limit, player.x));
 
@@ -490,7 +488,9 @@ function gameLoop(currentTime) {
     if (obj.type === 'car' || obj.type === 'oncoming_car') {
       let targetSpeed = obj.baseSpeed;
       let minStopDist = Infinity;
+      let blockingObstacle = null;
 
+      // 信号や踏切での停止判定
       for (let fac of mapObjects) {
         if ((fac.type === 'intersection' && fac.control === 'traffic_light') || fac.type === 'railroad') {
           let d = Infinity;
@@ -502,23 +502,50 @@ function gameLoop(currentTime) {
         }
       }
 
+      // 車間距離判定 ＆ 駐車車両の回避（車線変更）
       for (let other of mapObjects) {
         if (other === obj) continue;
         if (obj.type === 'car' && (other.type === 'car' || other.type === 'parked_car')) {
-          if (Math.abs(obj.x - other.x) < 30) {
+          // X座標が近い（同じ車線にいる）場合
+          if (Math.abs(obj.x - other.x) < 40) {
             let d = other.y - obj.y; 
             if (d > 0 && d < minStopDist) {
-              minStopDist = d - 100; targetSpeed = Math.min(targetSpeed, (other.speed || 0));
+              minStopDist = d - 120; // 💡 少し長めに車間距離を取る
+              targetSpeed = Math.min(targetSpeed, (other.speed || 0));
+              blockingObstacle = other;
             }
           }
         } else if (obj.type === 'oncoming_car' && other.type === 'oncoming_car') {
-          if (Math.abs(obj.x - other.x) < 30) {
+          if (Math.abs(obj.x - other.x) < 40) {
             let d = obj.y - other.y; 
             if (d > 0 && d < minStopDist) {
-              minStopDist = d - 100; targetSpeed = Math.max(targetSpeed, (other.speed || 0)); 
+              minStopDist = d - 120;
+              targetSpeed = Math.max(targetSpeed, (other.speed || 0)); 
             }
           }
         }
+      }
+
+      // 💡 駐車車両や遅い車を避ける（追い越し車線変更）
+      if (blockingObstacle && obj.type === 'car' && blockingObstacle.speed < obj.baseSpeed) {
+         // 右車線（中央寄り）に十分なスペースがあるか？
+         let canChangeLane = true;
+         for (let other of mapObjects) {
+             if (other === obj || other === blockingObstacle) continue;
+             if (other.type === 'car') {
+                 // 自分が移動したい先のX座標周辺に別の車がいないか
+                 if (Math.abs(other.x - 20) < 40 && Math.abs(other.y - obj.y) < 200) {
+                     canChangeLane = false; break;
+                 }
+             }
+         }
+         // 右に避ける
+         if (canChangeLane) obj.targetX = 20; 
+      }
+      
+      // X座標の滑らかな移動（車線変更）
+      if (obj.targetX !== undefined) {
+         obj.x += (obj.targetX - obj.x) * dt * 2.0;
       }
 
       let pdZ = obj.y - (player.y + distance);
@@ -535,6 +562,7 @@ function gameLoop(currentTime) {
       }
 
       if (minStopDist < 20) targetSpeed = 0; 
+      
       if (obj.type === 'car') {
         if (obj.speed < targetSpeed) obj.speed = Math.min(targetSpeed, obj.speed + 300 * dt);
         else obj.speed = Math.max(targetSpeed, obj.speed - 800 * dt);
@@ -933,7 +961,7 @@ function gameLoop(currentTime) {
   ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 20;
   ctx.beginPath(); ctx.moveTo(-150, 40); ctx.lineTo(-60, -90); ctx.moveTo(150, 40); ctx.lineTo(60, -90); ctx.moveTo(-60, -90); ctx.lineTo(60, -90); ctx.stroke();
   
-  ctx.fillStyle = keys.brake ? '#e67e22' : '#f1c40f';
+  ctx.fillStyle = player.stunTimer > 0 ? '#95a5a6' : (keys.brake ? '#e67e22' : '#f1c40f');
   ctx.beginPath(); ctx.arc(-60, -90, 25, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(60, -90, 25, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 
@@ -943,8 +971,7 @@ function gameLoop(currentTime) {
 function initGame() {
   resize();
   distance = 0; score = 0; timeLimit = 60.0;
-  player.x = -80; player.currentSpeed = 0; 
-  player.bag = [];
+  player.x = -80; player.currentSpeed = 0; player.stunTimer = 0; player.bag = [];
   centerViolationTimer = 0; timeUntilNextEvent = 5.0; trafficTimer = 2.0;
   targetCurve = 0; currentCurve = 0; curveTimer = 2.0;
   
