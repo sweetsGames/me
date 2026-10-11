@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>交通安全チャリ走 - フードデリバリー編</title>
+<title>交通安全チャリ走 - カーブ＆店舗配達編</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -14,7 +14,6 @@
     background: #000; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.8);
   }
 
-  /* 💡 デリバリー用UIの追加 */
   #header { position: absolute; top: var(--sat); left: 0; width: 100%; padding: 15px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; box-sizing: border-box; pointer-events: none; }
   .score-box { background: rgba(255,255,255,0.95); padding: 8px 15px; border-radius: 15px; font-size: 20px; font-weight: 900; color: #2980b9; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; display: flex; flex-direction: column; align-items: center; }
   .delivery-box { background: #f1c40f; color: #d35400; padding: 5px 15px; border-radius: 15px; font-size: 18px; font-weight: 900; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; display: flex; gap: 5px; align-items: center; }
@@ -51,7 +50,6 @@
       <span>スコア</span>
       <span id="ui-score" style="font-size:28px;">0</span>
     </div>
-    <!-- 💡 デリバリー用リュック表示とタイマー -->
     <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
       <div class="time-box">残り <span id="ui-time">60</span>秒</div>
       <div class="delivery-box">🎒 <span id="ui-bag">空っぽ</span></div>
@@ -73,15 +71,15 @@
   <div id="start-screen" class="overlay show">
     <div class="title">🚲 交通安全<br>チャリ走 デリバリー！</div>
     <div class="desc">
-      あなたはウーバー自転車配達員！<br>
       安全運転でフードを届けよう🍔🍕<br><br>
       💡 <b>配達のルール</b><br>
-      ① 道路に落ちているフードを拾う<br>
+      ① 左側にある<b>「お店（STORE）」</b>で集荷！<br>
+      　⚠️スピードを落として左に寄ってね。<br>
       ② <b>🏠 配達先（青いライン）</b>まで届ける！<br>
       ③ 届けると<b>時間回復＆スコアゲット！</b><br><br>
-      ⚠️ <b>交通ルールは絶対守ること！</b><br>
-      信号無視や、中央線の走行、車への衝突は<br>
-      即ゲームオーバーになります👮
+      ⚠️ <b>カーブの遠心力に注意！</b><br>
+      カーブでは外側に流されます。しっかり<br>
+      ハンドルを操作して車道を外れないように！
     </div>
     <button class="btn" onclick="startGame()">配達スタート！</button>
   </div>
@@ -128,12 +126,10 @@ function playSound(type) {
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
     osc.start(t); osc.stop(t + 0.4);
   } else if (type === 'get') {
-    // フードゲット音
     osc.type = 'sine'; osc.frequency.setValueAtTime(800, t); osc.frequency.setValueAtTime(1200, t + 0.1);
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
     osc.start(t); osc.stop(t + 0.2);
   } else if (type === 'deliver') {
-    // 配達完了音
     osc.type = 'square'; osc.frequency.setValueAtTime(523.25, t); osc.frequency.setValueAtTime(659.25, t+0.1); osc.frequency.setValueAtTime(783.99, t+0.2); osc.frequency.setValueAtTime(1046.50, t+0.3);
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
     osc.start(t); osc.stop(t + 0.5);
@@ -155,6 +151,11 @@ let timeLimit = 60.0;
 let timeUntilNextEvent = 5.0; 
 let trafficTimer = 2.0;
 
+// 💡 カーブ用変数
+let targetCurve = 0;
+let currentCurve = 0;
+let curveTimer = 2.0;
+
 const ROAD_WIDTH = 240; 
 let roadLeft, roadRight;
 
@@ -163,17 +164,12 @@ let HORIZON = 0;
 let CAM_H = 65; 
 
 const player = {
-  x: -80, 
-  y: 0, 
-  width: 20, height: 40,
-  baseSpeed: 80, 
-  currentSpeed: 0,
-  moveSpeed: 200,
-  bag: [] // 💡 配達リュック
+  x: -80, y: 0, width: 20, height: 40,
+  baseSpeed: 80, currentSpeed: 0, moveSpeed: 200,
+  bag: [] 
 };
 
 let centerViolationTimer = 0; 
-
 let mapObjects = [];
 let nextSpawnDistance = 0;
 const keys = { left: false, right: false, brake: false };
@@ -182,10 +178,8 @@ function resize() {
   const container = document.getElementById('canvas-container');
   cw = container.clientWidth;
   ch = container.clientHeight;
-  canvas.width = cw;
-  canvas.height = ch;
-  roadLeft = -ROAD_WIDTH / 2; 
-  roadRight = ROAD_WIDTH / 2;
+  canvas.width = cw; canvas.height = ch;
+  roadLeft = -ROAD_WIDTH / 2; roadRight = ROAD_WIDTH / 2;
   
   HORIZON = ch * 0.45;
   let targetY = ch * 0.85; 
@@ -197,8 +191,7 @@ window.addEventListener('resize', resize);
 function showFloatingText(text, color) {
   const el = document.createElement('div');
   el.className = 'floating-text';
-  el.style.color = color;
-  el.innerText = text;
+  el.style.color = color; el.innerText = text;
   document.getElementById('canvas-container').appendChild(el);
   setTimeout(() => el.remove(), 1200);
 }
@@ -210,9 +203,7 @@ const bindBtn = (id, key) => {
   btn.addEventListener('touchstart', down, {passive:false}); btn.addEventListener('touchend', up, {passive:false});
   btn.addEventListener('mousedown', down); btn.addEventListener('mouseup', up);
 };
-bindBtn('btn-left', 'left');
-bindBtn('btn-right', 'right');
-bindBtn('btn-brake', 'brake');
+bindBtn('btn-left', 'left'); bindBtn('btn-right', 'right'); bindBtn('btn-brake', 'brake');
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'ArrowLeft' && gameState==='playing') keys.left = true;
@@ -239,19 +230,9 @@ function isSafeSpawnY(yPos) {
   return true;
 }
 
-// 💡 トラフィックと「フード」の生成
 function spawnTraffic(urbanLevel) {
   let yPos = distance + 1000; 
   if (!isSafeSpawnY(yPos)) return; 
-
-  // フードの生成
-  if (Math.random() < 0.4) {
-    let foodIcons = ['🍔', '🍕', '🍣', '🍩', '🍟'];
-    mapObjects.push({
-      type: 'food', y: yPos + 100, x: (Math.random()-0.5) * ROAD_WIDTH * 0.8,
-      icon: foodIcons[Math.floor(Math.random()*foodIcons.length)], cleared: false
-    });
-  }
 
   if (Math.random() < 0.05 + urbanLevel * 0.05) {
     mapObjects.push({ type: 'parked_car', y: yPos, x: -110, width: 30, height: 60, color: randomColor() });
@@ -274,15 +255,23 @@ function spawnDangerEvent() {
 }
 
 function spawnFacility(urbanLevel) {
-  // 💡 定期的に「配達先の家（ゴールライン）」を生成する
-  let typeNum = Math.random();
-  let type = 'intersection';
-  if (typeNum < 0.2) type = 'house'; // 20%で配達先
-  else if (typeNum < 0.8) type = 'intersection';
+  // 💡 カーブがキツい時は交差点を生成しない（安全設計）
+  if (Math.abs(currentCurve) > 0.5) return;
+
+  let r = Math.random();
+  let type = '';
+  // 💡 お店（集荷）と 家（配達）を追加
+  if (r < 0.25) type = 'store';
+  else if (r < 0.5) type = 'house';
+  else if (r < 0.8) type = 'intersection';
   else type = 'railroad';
 
   let yPos = nextSpawnDistance + 1000;
   let obj = { type: type, y: yPos, cleared: false };
+
+  // 💡 交差点などが生成される時はカーブをリセットして直線にする
+  targetCurve = 0;
+  curveTimer = 5.0; // 5秒間は直線を維持
 
   if (type === 'intersection') {
     obj.height = 140;
@@ -291,7 +280,6 @@ function spawnFacility(urbanLevel) {
     if (obj.control === 'traffic_light') {
       obj.stopLineY = yPos - 70;
       obj.timer = 0; obj.state = 'green';
-      
       let randEvent = Math.random();
       if (randEvent < 0.4 + urbanLevel * 0.4) {
         obj.event = 'right_turn';
@@ -310,7 +298,6 @@ function spawnFacility(urbanLevel) {
       obj.stopLineY = yPos - 70;
       obj.stopZoneStart = yPos - 130;
       obj.stopZoneEnd = yPos - 70;
-      
       if (Math.random() < 0.5) {
         obj.event = 'cross_car';
         let fromLeft = Math.random() > 0.5;
@@ -326,8 +313,14 @@ function spawnFacility(urbanLevel) {
     obj.height = 100;
     obj.timer = 0; obj.state = 'open'; obj.trainX = -cw; obj.stopLineY = yPos - 50;
     nextSpawnDistance = yPos + 800;
+  } else if (type === 'store') {
+    let foodIcons = ['🍔', '🍕', '🍣', '🍩', '🍟'];
+    obj.icon = foodIcons[Math.floor(Math.random()*foodIcons.length)];
+    obj.height = 200;
+    obj.warningTime = 0;
+    nextSpawnDistance = yPos + 600;
   } else if (type === 'house') {
-    obj.height = 20; // 道路に引かれるラインの幅
+    obj.height = 20;
     nextSpawnDistance = yPos + 500;
   }
   
@@ -369,17 +362,31 @@ function gameLoop(currentTime) {
 
   let urbanLevel = Math.min(1.0, distance / 3000);
 
-  timeUntilNextEvent -= dt;
-  if (timeUntilNextEvent <= 0) {
-    timeUntilNextEvent = 5.0;
-    spawnDangerEvent();
+  // 💡 カーブの制御ロジック
+  curveTimer -= dt;
+  if (curveTimer <= 0) {
+    let hasFacilityNear = false;
+    for(let o of mapObjects) {
+      if(o.type === 'intersection' || o.type === 'railroad') {
+        if(o.y - distance < 1500) hasFacilityNear = true;
+      }
+    }
+    if(!hasFacilityNear) {
+      targetCurve = (Math.random() - 0.5) * 3.0; // -1.5 〜 1.5のカーブ
+      curveTimer = 4.0 + Math.random() * 4.0;
+    } else {
+      targetCurve = 0; // 交差点が近ければ直線に
+      curveTimer = 2.0;
+    }
   }
+  // 滑らかにカーブを遷移させる
+  currentCurve += (targetCurve - currentCurve) * dt * 0.8;
+
+  timeUntilNextEvent -= dt;
+  if (timeUntilNextEvent <= 0) { timeUntilNextEvent = 5.0; spawnDangerEvent(); }
 
   trafficTimer -= dt;
-  if (trafficTimer <= 0) {
-    trafficTimer = (1.5 - urbanLevel * 1.0) + Math.random() * 0.5; 
-    spawnTraffic(urbanLevel);
-  }
+  if (trafficTimer <= 0) { trafficTimer = (1.5 - urbanLevel * 1.0) + Math.random() * 0.5; spawnTraffic(urbanLevel); }
 
   if (keys.brake) {
     player.currentSpeed = Math.max(0, player.currentSpeed - 1200 * dt);
@@ -390,16 +397,25 @@ function gameLoop(currentTime) {
 
   if (keys.left) player.x -= player.moveSpeed * dt;
   if (keys.right) player.x += player.moveSpeed * dt;
+  
+  // 💡 遠心力（カーブ中は外側に流される）
+  if (Math.abs(currentCurve) > 0.1) {
+    player.x -= currentCurve * player.currentSpeed * dt * 0.15;
+  }
+
   let limit = ROAD_WIDTH / 2 - player.width / 2;
-  player.x = Math.max(-limit, Math.min(limit, player.x));
+  // 道から外れたら壁に衝突扱い
+  if (player.x < -limit - 10 || player.x > limit + 10) {
+    gameOver("壁に激突した！\n（カーブではしっかりハンドル操作して！）", "crash");
+    return;
+  }
 
   let isCenter = player.x > -20;
   if (isCenter) {
     centerViolationTimer += dt;
     document.getElementById('ui-warning').style.opacity = (Math.floor(currentTime / 200) % 2 === 0) ? 1 : 0;
     if (centerViolationTimer > 5.0) {
-      gameOver("車道の中央や右側を5秒以上走った！\n（自転車は車道の『左側端』を通行）", "violation");
-      return;
+      gameOver("車道の中央や右側を5秒以上走った！", "violation"); return;
     }
   } else {
     centerViolationTimer = 0;
@@ -418,34 +434,38 @@ function gameLoop(currentTime) {
     let obj = mapObjects[i];
     let objDistZ = obj.y - distance; 
     if (objDistZ < -250) { mapObjects.splice(i, 1); continue; }
-
     let relZ = objDistZ - player.y;
 
-    // 💡 フードの取得
-    if (obj.type === 'food') {
-      if (!obj.cleared && Math.abs(player.x - obj.x) < 30 && Math.abs(relZ) < 30) {
-        obj.cleared = true;
-        if (player.bag.length < 5) { // 最大5個まで持てる
-          player.bag.push(obj.icon);
-          playSound('get');
-          showFloatingText(obj.icon + ' ゲット!', '#f1c40f');
-          updateUI();
+    // 💡 お店（集荷）の処理
+    if (obj.type === 'store') {
+      if (!obj.cleared && Math.abs(relZ) < 80 && player.x < roadLeft + 80) { // 左路肩に寄っているか
+        if (player.currentSpeed < 120) { // スピードを落としているか
+          obj.cleared = true;
+          if (player.bag.length < 5) {
+            player.bag.push(obj.icon);
+            playSound('get');
+            showFloatingText(obj.icon + ' 集荷完了!', '#f1c40f');
+            updateUI();
+          }
+        } else {
+          // 速すぎると警告
+          if (Math.abs(relZ) < 20 && obj.warningTime !== Math.floor(currentTime/1000)) {
+            obj.warningTime = Math.floor(currentTime/1000);
+            showFloatingText("速すぎて取れない！減速！", '#e74c3c');
+          }
         }
       }
     }
 
-    // 💡 配達先（家）のライン通過
+    // 💡 配達先（家）の処理
     if (obj.type === 'house') {
       if (!obj.cleared && relZ < 0) {
         obj.cleared = true;
         if (player.bag.length > 0) {
           let pts = player.bag.length * 100;
           let bonusTime = player.bag.length * 5;
-          score += pts;
-          timeLimit += bonusTime;
-          player.bag = [];
-          playSound('deliver');
-          showFloatingText(`配達完了! +${pts}点 ⏰+${bonusTime}秒`, '#2ecc71');
+          score += pts; timeLimit += bonusTime; player.bag = [];
+          playSound('deliver'); showFloatingText(`配達完了! +${pts}点 ⏰+${bonusTime}秒`, '#2ecc71');
           updateUI();
         } else {
           showFloatingText(`届けるものがないよ！`, '#95a5a6');
@@ -458,42 +478,36 @@ function gameLoop(currentTime) {
       let targetSpeed = obj.baseSpeed;
       let minStopDist = Infinity;
 
-      // 信号や踏切での停止判定
       for (let fac of mapObjects) {
         if ((fac.type === 'intersection' && fac.control === 'traffic_light') || fac.type === 'railroad') {
           let d = Infinity;
           if (obj.type === 'car') d = fac.stopLineY - obj.y;
           else if (obj.type === 'oncoming_car') d = obj.y - (fac.y + 70);
-          
           if (d > 0 && d < minStopDist && (fac.state === 'red' || fac.state === 'yellow' || fac.state === 'closed' || fac.state === 'warning')) {
             minStopDist = d;
           }
         }
       }
 
-      // 車間距離判定
       for (let other of mapObjects) {
         if (other === obj) continue;
         if (obj.type === 'car' && (other.type === 'car' || other.type === 'parked_car')) {
           if (Math.abs(obj.x - other.x) < 30) {
             let d = other.y - obj.y; 
             if (d > 0 && d < minStopDist) {
-              minStopDist = d - 100; 
-              targetSpeed = Math.min(targetSpeed, (other.speed || 0));
+              minStopDist = d - 100; targetSpeed = Math.min(targetSpeed, (other.speed || 0));
             }
           }
         } else if (obj.type === 'oncoming_car' && other.type === 'oncoming_car') {
           if (Math.abs(obj.x - other.x) < 30) {
             let d = obj.y - other.y; 
             if (d > 0 && d < minStopDist) {
-              minStopDist = d - 100;
-              targetSpeed = Math.max(targetSpeed, (other.speed || 0)); 
+              minStopDist = d - 100; targetSpeed = Math.max(targetSpeed, (other.speed || 0)); 
             }
           }
         }
       }
 
-      // 💡 プレイヤーへの衝突防止センサー（車側から避ける）
       let pdZ = obj.y - (player.y + distance);
       if (obj.type === 'car') {
         if (pdZ > 0 && pdZ < 150 && Math.abs(player.x - obj.x) < 40) {
@@ -503,12 +517,11 @@ function gameLoop(currentTime) {
       } else if (obj.type === 'oncoming_car') {
         if (pdZ < 0 && pdZ > -150 && Math.abs(player.x - obj.x) < 40) {
           minStopDist = Math.min(minStopDist, Math.abs(pdZ) - 60);
-          targetSpeed = Math.max(targetSpeed, -player.currentSpeed); // 負の速度
+          targetSpeed = Math.max(targetSpeed, -player.currentSpeed); 
         }
       }
 
       if (minStopDist < 20) targetSpeed = 0; 
-
       if (obj.type === 'car') {
         if (obj.speed < targetSpeed) obj.speed = Math.min(targetSpeed, obj.speed + 300 * dt);
         else obj.speed = Math.max(targetSpeed, obj.speed - 800 * dt);
@@ -516,25 +529,18 @@ function gameLoop(currentTime) {
         if (obj.speed > targetSpeed) obj.speed = Math.max(targetSpeed, obj.speed - 300 * dt); 
         else obj.speed = Math.min(targetSpeed, obj.speed + 800 * dt); 
       }
-
       obj.y += obj.speed * dt; 
       
-      if (
-        Math.abs(player.x - obj.x) < (player.width + obj.width) / 2 * 0.8 &&
-        Math.abs(relZ) < 40
-      ) {
+      if (Math.abs(player.x - obj.x) < (player.width + obj.width) / 2 * 0.8 && Math.abs(relZ) < 40) {
         gameOver("車にぶつかった！（前方不注意）", "crash"); return;
       }
-
       if (obj.type === 'car' && obj.speed > 10) {
         if (Math.abs(relZ) < 60 && player.x > obj.x) { 
           obj.violationTimer += dt;
           if (obj.violationTimer > 0.3) { 
-            gameOver("走っている車の右側を追い越した！\n（巻き込み事故の危険大！）", "violation"); return;
+            gameOver("走っている車の右側を追い越した！", "violation"); return;
           }
-        } else {
-          obj.violationTimer = 0;
-        }
+        } else { obj.violationTimer = 0; }
       }
     } 
     else if (obj.type === 'parked_car') {
@@ -542,8 +548,7 @@ function gameLoop(currentTime) {
         gameOver("駐車車両にぶつかった！", "crash"); return;
       }
     }
-
-    if (obj.type === 'jaywalker') {
+    else if (obj.type === 'jaywalker') {
       if (relZ < 400 && !obj.triggered) {
         obj.triggered = true;
         let timeToReach = Math.max(10, relZ) / Math.max(player.currentSpeed, 10);
@@ -552,20 +557,16 @@ function gameLoop(currentTime) {
         playSound('whistle'); 
       }
       if (obj.triggered) obj.x += obj.speedX * dt;
-
       if (Math.abs(player.x - obj.x) < 20 && Math.abs(relZ) < 20) {
         gameOver("飛び出してきた歩行者にぶつかった！", "crash"); return;
       }
     }
-
-    if (obj.type === 'intersection') {
+    else if (obj.type === 'intersection') {
       let stopDistZ = obj.stopLineY - distance;
 
       if (obj.control === 'traffic_light') {
         obj.timer += dt;
-        if (relZ < 800 && !obj.triggered) {
-          obj.triggered = true; obj.state = 'yellow'; obj.timer = 0;
-        }
+        if (relZ < 800 && !obj.triggered) { obj.triggered = true; obj.state = 'yellow'; obj.timer = 0; }
         if (obj.state === 'yellow' && obj.timer > 1.5) { obj.state = 'red'; obj.timer = 0; }
         else if (obj.state === 'red' && obj.timer > 4.0) { obj.state = 'green'; }
 
@@ -579,7 +580,6 @@ function gameLoop(currentTime) {
       if (obj.control === 'stop_sign') {
         let zoneStartZ = obj.stopZoneStart - distance;
         let zoneEndZ = obj.stopZoneEnd - distance;
-
         if (zoneStartZ < player.y && zoneEndZ > player.y) {
           if (player.currentSpeed < 10) {
             obj.stopTime += dt;
@@ -604,20 +604,16 @@ function gameLoop(currentTime) {
       if (obj.event === 'cross_car' && obj.crossCar) {
         let car = obj.crossCar;
         if (shouldCross && !car.triggered) {
-          car.triggered = true;
-          car.baseSpeedX = (car.isLeft ? 1 : -1) * (150 + Math.random() * 100);
-          car.speedX = car.baseSpeedX;
+          car.triggered = true; car.baseSpeedX = (car.isLeft ? 1 : -1) * (150 + Math.random() * 100); car.speedX = car.baseSpeedX;
         }
         if (car.triggered) {
-          let pdx = player.x - car.x;
-          car.speedX = car.baseSpeedX; 
+          let pdx = player.x - car.x; car.speedX = car.baseSpeedX; 
           if (Math.abs(relZ) < 60) {
             if ((car.speedX > 0 && pdx > 0) || (car.speedX < 0 && pdx < 0)) {
               if (Math.abs(pdx) < 80) car.speedX = 0; 
             }
           }
           car.x += car.speedX * dt;
-
           if (Math.abs(player.x - car.x) < 40 && Math.abs(relZ) < 30) {
             gameOver("交差点の車に自らぶつかった！", "crash"); return;
           }
@@ -634,7 +630,6 @@ function gameLoop(currentTime) {
           if (ped.isBadManner && obj.control === 'traffic_light') playSound('whistle');
         }
         if (ped.triggered) ped.x += ped.speedX * dt;
-
         if (Math.abs(player.x - ped.x) < 20 && Math.abs(relZ) < 20) {
           gameOver("横断中の歩行者にぶつかった！", "crash"); return;
         }
@@ -653,29 +648,21 @@ function gameLoop(currentTime) {
           }
         } 
         if (rCar.state === 'waiting') {
-          // 💡 プレイヤーが通り過ぎたら再び走り出す
-          if (relZ < -100) {
-            rCar.state = 'turning'; rCar.baseSpeed = -80; rCar.baseSpeedX = -200; 
-          }
+          if (relZ < -100) { rCar.state = 'turning'; rCar.baseSpeed = -80; rCar.baseSpeedX = -200; }
         }
         if (rCar.state === 'turning') {
           let rCarZ = rCar.y - distance - player.y;
           let pdx = player.x - rCar.x; 
           rCar.speedX = rCar.baseSpeedX; rCar.speed = rCar.baseSpeed;
-          if (Math.abs(pdx) < 60 && Math.abs(rCarZ) < 80) {
-            rCar.speedX = 0; rCar.speed = 0; 
-          }
-          rCar.x += rCar.speedX * dt;
-          rCar.y += rCar.speed * dt;
-          
+          if (Math.abs(pdx) < 60 && Math.abs(rCarZ) < 80) { rCar.speedX = 0; rCar.speed = 0; }
+          rCar.x += rCar.speedX * dt; rCar.y += rCar.speed * dt;
           if (Math.abs(player.x - rCar.x) < 30 && Math.abs(rCarZ) < 40) {
             gameOver("右折車に自らぶつかった！", "crash"); return;
           }
         }
       }
     }
-
-    if (obj.type === 'railroad') {
+    else if (obj.type === 'railroad') {
       obj.timer += dt;
       if (relZ < 800 && obj.state === 'open' && !obj.triggered) {
         obj.triggered = true; obj.state = 'warning'; obj.timer = 0;
@@ -698,19 +685,26 @@ function gameLoop(currentTime) {
     }
   }
 
+
   // ==========================================
-  // 描画エンジン 
+  // 💡 描画エンジン (カーブ・遠近法の適用)
   // ==========================================
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   let currentHorizon = HORIZON + (keys.brake ? 5 : 0);
+
+  // Z距離に応じた「カーブの横ズレ」を計算する関数
+  function getCurveOffset(z) {
+    if (z < 0) return 0;
+    return currentCurve * (z * z) / 25000;
+  }
 
   function project(worldX, worldZ) {
     if (worldZ <= -FOV + 10) return null; 
     let scale = FOV / (FOV + worldZ);
-    let x = cw / 2 + (worldX - player.x) * scale;
+    let cx = getCurveOffset(worldZ);
+    let x = cw / 2 + (worldX - player.x + cx) * scale;
     let y = currentHorizon + CAM_H * scale;
-    return { x: x, y: y, scale: scale };
+    return { x: x, y: y, scale: scale, cx: cx };
   }
 
   function drawPolyOnRoad(rx1, rx2, z1, z2, color) {
@@ -725,18 +719,13 @@ function gameLoop(currentTime) {
   }
 
   function drawWall(x, z1, z2, height, color) {
-    let p1 = project(x, z2);
-    let p2 = project(x, z1);
+    let p1 = project(x, z2); let p2 = project(x, z1);
     if(!p1 || !p2) return;
-    
     let p1Top = { x: p1.x, y: p1.y - height * p1.scale };
     let p2Top = { x: p2.x, y: p2.y - height * p2.scale };
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
+    ctx.fillStyle = color; ctx.beginPath();
     ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
-    ctx.lineTo(p2Top.x, p2Top.y); ctx.lineTo(p1Top.x, p1Top.y);
-    ctx.fill();
+    ctx.lineTo(p2Top.x, p2Top.y); ctx.lineTo(p1Top.x, p1Top.y); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
   }
 
@@ -748,7 +737,7 @@ function gameLoop(currentTime) {
 
   let facilityZones = [];
   for (let obj of mapObjects) {
-    if (obj.type === 'intersection') {
+    if (obj.type === 'intersection' || obj.type === 'store') {
        facilityZones.push({ minZ: obj.y - distance - obj.height/2, maxZ: obj.y - distance + obj.height/2 });
     } else if (obj.type === 'railroad') {
        facilityZones.push({ minZ: obj.y - distance - 20, maxZ: obj.y - distance + 20 });
@@ -781,24 +770,16 @@ function gameLoop(currentTime) {
     let z1 = z; let z2 = z + 30;
     if (z2 <= -FOV + 10) continue;
     let _z1 = Math.max(-FOV + 10, z1);
-    
     let isFac = false;
-    for (let f of facilityZones) {
-       if (z2 > f.minZ && _z1 < f.maxZ) { isFac = true; break; }
-    }
-    if (!isFac) {
-      drawPolyOnRoad(-3, 3, _z1, z2, 'white'); 
-    }
+    for (let f of facilityZones) { if (z2 > f.minZ && _z1 < f.maxZ) { isFac = true; break; } }
+    if (!isFac) drawPolyOnRoad(-3, 3, _z1, z2, 'white'); 
   }
-  
   for (let z = 3000; z > -250; z -= SEG_LEN) {
     let z2 = z; let z1 = z - SEG_LEN;
     if (z2 <= -FOV + 10) continue;
     let _z1 = Math.max(-FOV + 10, z1);
     let isFac = false;
-    for (let f of facilityZones) {
-       if (z2 > f.minZ && _z1 < f.maxZ) { isFac = true; break; }
-    }
+    for (let f of facilityZones) { if (z2 > f.minZ && _z1 < f.maxZ) { isFac = true; break; } }
     if (!isFac) {
       drawPolyOnRoad(roadLeft + 12, roadLeft + 16, _z1, z2, 'white'); 
       drawPolyOnRoad(roadRight - 16, roadRight - 12, _z1, z2, 'white'); 
@@ -806,7 +787,6 @@ function gameLoop(currentTime) {
   }
 
   let renderables = [];
-
   for (let obj of mapObjects) {
     let wz = obj.y - distance;
     if (wz > 3000 || wz < -250) continue;
@@ -826,7 +806,6 @@ function gameLoop(currentTime) {
         drawPolyOnRoad(roadLeft, roadRight, wz - 60, wz - 55, 'white'); 
         renderables.push({ type: 'stop_sign', x: roadLeft - 30, z: wz - 60 });
       }
-      
       if (obj.event === 'cross_car' && obj.crossCar) {
         renderables.push({ type: 'car_side', x: obj.crossCar.x, z: wz, color: obj.crossCar.color });
       }
@@ -844,19 +823,20 @@ function gameLoop(currentTime) {
       drawPolyOnRoad(roadLeft - 150, roadRight + 150, wz - 15, wz - 10, '#2c3e50'); 
       drawPolyOnRoad(roadLeft - 150, roadRight + 150, wz + 10, wz + 15, '#2c3e50'); 
       drawPolyOnRoad(roadLeft, roadRight, wz - 50, wz - 45, 'white'); 
-      
       renderables.push({ type: 'railroad_pole', x: roadLeft - 20, z: wz, state: obj.state, timer: obj.timer });
       if (obj.state === 'closed' && obj.trainX > -300) {
         renderables.push({ type: 'train', x: obj.trainX, z: wz });
       }
     }
+    else if (obj.type === 'store') {
+      // 💡 お店の描画
+      drawWall(roadLeft - 40, wz - 120, wz + 120, 150, '#e67e22'); 
+      drawPolyOnRoad(roadLeft, roadLeft + 80, wz - 100, wz + 100, 'rgba(241, 196, 15, 0.3)'); // ピックアップエリア
+      renderables.push({ type: 'store_sign', x: roadLeft - 40, z: wz, icon: obj.icon });
+    }
     else if (obj.type === 'house') {
-      // 💡 配達先の青いライン
       drawPolyOnRoad(roadLeft, roadRight, wz - 10, wz + 10, '#3498db'); 
       renderables.push({ type: 'house_sign', x: roadRight + 20, z: wz });
-    }
-    else if (obj.type === 'food') {
-      if (!obj.cleared) renderables.push({ type: 'food', x: obj.x, z: wz, icon: obj.icon });
     }
     else if (obj.type === 'car' || obj.type === 'parked_car') {
       renderables.push({ type: 'car_back', x: obj.x, z: wz, color: obj.color });
@@ -874,40 +854,32 @@ function gameLoop(currentTime) {
   for (let r of renderables) {
     let p = project(r.x, r.z);
     if (!p) continue;
-    let s = p.scale;
-    let px = p.x; let py = p.y;
+    let s = p.scale; let px = p.x; let py = p.y;
 
     if (r.type === 'car_back' || r.type === 'car_front') {
       let w = 70 * s; let h = 60 * s; 
-      ctx.fillStyle = r.color;
-      ctx.beginPath(); ctx.roundRect(px - w/2, py - h, w, h, 3*s); ctx.fill();
+      ctx.fillStyle = r.color; ctx.beginPath(); ctx.roundRect(px - w/2, py - h, w, h, 3*s); ctx.fill();
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(px - w*0.4, py - h*0.8, w*0.8, h*0.3);
       if (r.type === 'car_back') {
-        ctx.fillStyle = '#e74c3c'; 
-        ctx.fillRect(px - w*0.4, py - h*0.3, w*0.2, h*0.15); ctx.fillRect(px + w*0.2, py - h*0.3, w*0.2, h*0.15);
+        ctx.fillStyle = '#e74c3c'; ctx.fillRect(px - w*0.4, py - h*0.3, w*0.2, h*0.15); ctx.fillRect(px + w*0.2, py - h*0.3, w*0.2, h*0.15);
       } else {
-        ctx.fillStyle = '#f1c40f'; 
-        ctx.fillRect(px - w*0.4, py - h*0.3, w*0.2, h*0.15); ctx.fillRect(px + w*0.2, py - h*0.3, w*0.2, h*0.15);
+        ctx.fillStyle = '#f1c40f'; ctx.fillRect(px - w*0.4, py - h*0.3, w*0.2, h*0.15); ctx.fillRect(px + w*0.2, py - h*0.3, w*0.2, h*0.15);
       }
     }
     else if (r.type === 'car_side' || r.type === 'car_angled') {
       let w = 140 * s; let h = 50 * s;
-      ctx.fillStyle = r.color;
-      ctx.beginPath(); ctx.roundRect(px - w/2, py - h, w, h, 3*s); ctx.fill();
+      ctx.fillStyle = r.color; ctx.beginPath(); ctx.roundRect(px - w/2, py - h, w, h, 3*s); ctx.fill();
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(px - w*0.2, py - h*0.8, w*0.4, h*0.3);
     }
     else if (r.type === 'ped' || r.type === 'ped_bad') {
       let headR = 10 * s; let bodyW = 14 * s; let bodyH = 35 * s;
-      ctx.fillStyle = r.type === 'ped_bad' ? '#e74c3c' : '#3498db';
-      ctx.fillRect(px - bodyW/2, py - bodyH, bodyW, bodyH); 
-      ctx.fillStyle = '#f1c40f';
-      ctx.beginPath(); ctx.arc(px, py - bodyH - headR, headR, 0, Math.PI*2); ctx.fill(); 
+      ctx.fillStyle = r.type === 'ped_bad' ? '#e74c3c' : '#3498db'; ctx.fillRect(px - bodyW/2, py - bodyH, bodyW, bodyH); 
+      ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(px, py - bodyH - headR, headR, 0, Math.PI*2); ctx.fill(); 
     }
     else if (r.type === 'traffic_light') {
       let poleH = 150 * s; let boxW = 100 * s; let boxH = 30 * s;
       ctx.fillStyle = '#7f8c8d'; ctx.fillRect(px - 2*s, py - poleH, 4*s, poleH); 
-      let boxY = py - poleH;
-      ctx.fillStyle = '#34495e'; ctx.fillRect(px - boxW/2, boxY, boxW, boxH); 
+      let boxY = py - poleH; ctx.fillStyle = '#34495e'; ctx.fillRect(px - boxW/2, boxY, boxW, boxH); 
       let rRad = 8 * s;
       ctx.beginPath(); ctx.arc(px - boxW*0.3, boxY + boxH/2, rRad, 0, Math.PI*2); ctx.fillStyle = r.state==='green'?'#2ecc71':'#555'; ctx.fill();
       ctx.beginPath(); ctx.arc(px, boxY + boxH/2, rRad, 0, Math.PI*2); ctx.fillStyle = r.state==='yellow'?'#f1c40f':'#555'; ctx.fill();
@@ -916,60 +888,41 @@ function gameLoop(currentTime) {
     else if (r.type === 'stop_sign') {
       let poleH = 100 * s; let signS = 35 * s;
       ctx.fillStyle = '#7f8c8d'; ctx.fillRect(px - 2*s, py - poleH, 4*s, poleH); 
-      ctx.fillStyle = '#e74c3c';
-      ctx.beginPath(); ctx.moveTo(px - signS, py - poleH); ctx.lineTo(px + signS, py - poleH); ctx.lineTo(px, py - poleH + signS); ctx.fill();
+      ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.moveTo(px - signS, py - poleH); ctx.lineTo(px + signS, py - poleH); ctx.lineTo(px, py - poleH + signS); ctx.fill();
       ctx.fillStyle = 'white'; ctx.font = `bold ${10*s}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText("止", px, py - poleH + signS/2);
     }
     else if (r.type === 'house_sign') {
-      ctx.fillStyle = '#3498db';
-      ctx.beginPath(); ctx.roundRect(px - 40*s, py - 60*s, 80*s, 60*s, 5*s); ctx.fill();
+      ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.roundRect(px - 40*s, py - 60*s, 80*s, 60*s, 5*s); ctx.fill();
       ctx.fillStyle = 'white'; ctx.font = `bold ${20*s}px sans-serif`; ctx.textAlign='center'; ctx.fillText("🏠", px, py - 30*s);
     }
-    else if (r.type === 'food') {
-      ctx.font = `${30*s}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='bottom';
-      ctx.fillText(r.icon, px, py);
+    else if (r.type === 'store_sign') {
+      // 💡 お店の看板
+      let w = 100 * s; let h = 60 * s;
+      ctx.fillStyle = '#c0392b'; ctx.fillRect(px - w/2, py - 120*s - h, w, h);
+      ctx.fillStyle = 'white'; ctx.font = `bold ${30*s}px sans-serif`; ctx.textAlign='center'; ctx.fillText(r.icon, px, py - 120*s - h*0.2);
     }
     else if (r.type === 'railroad_pole') {
       let poleH = 120 * s;
       ctx.fillStyle = '#333'; ctx.fillRect(px - 4*s, py - poleH, 8*s, poleH);
-      
-      let blink = Math.floor(r.timer * 4) % 2 === 0;
-      let isWarn = r.state==='warning' || r.state==='closed';
-      ctx.fillStyle = isWarn && blink ? '#e74c3c' : '#555';
-      ctx.beginPath(); ctx.arc(px - 10*s, py - poleH + 15*s, 6*s, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = isWarn && !blink ? '#e74c3c' : '#555';
-      ctx.beginPath(); ctx.arc(px + 10*s, py - poleH + 15*s, 6*s, 0, Math.PI*2); ctx.fill();
-
-      ctx.save();
-      ctx.translate(px, py - poleH + 30*s);
-      let angle = r.state === 'closed' ? 0 : (r.state === 'warning' ? -Math.PI/4 : -Math.PI/2);
-      ctx.rotate(angle);
-      ctx.fillStyle = '#f1c40f'; ctx.fillRect(0, -3*s, (ROAD_WIDTH + 30)*s, 6*s);
-      ctx.fillStyle = '#000'; for(let x=10*s; x<(ROAD_WIDTH + 30)*s; x+=25*s) ctx.fillRect(x, -3*s, 12*s, 6*s);
-      ctx.restore();
+      let blink = Math.floor(r.timer * 4) % 2 === 0; let isWarn = r.state==='warning' || r.state==='closed';
+      ctx.fillStyle = isWarn && blink ? '#e74c3c' : '#555'; ctx.beginPath(); ctx.arc(px - 10*s, py - poleH + 15*s, 6*s, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = isWarn && !blink ? '#e74c3c' : '#555'; ctx.beginPath(); ctx.arc(px + 10*s, py - poleH + 15*s, 6*s, 0, Math.PI*2); ctx.fill();
+      ctx.save(); ctx.translate(px, py - poleH + 30*s); let angle = r.state === 'closed' ? 0 : (r.state === 'warning' ? -Math.PI/4 : -Math.PI/2);
+      ctx.rotate(angle); ctx.fillStyle = '#f1c40f'; ctx.fillRect(0, -3*s, (ROAD_WIDTH + 30)*s, 6*s); ctx.fillStyle = '#000'; for(let x=10*s; x<(ROAD_WIDTH + 30)*s; x+=25*s) ctx.fillRect(x, -3*s, 12*s, 6*s); ctx.restore();
     }
     else if (r.type === 'train') {
       let w = 500 * s; let h = 80 * s;
       ctx.fillStyle = '#e67e22'; ctx.fillRect(px - w/2, py - h, w, h);
-      ctx.fillStyle = '#34495e';
-      for(let wx = px - w/2 + 20*s; wx < px + w/2; wx += 60*s) ctx.fillRect(wx, py - h + 15*s, 40*s, 35*s);
+      ctx.fillStyle = '#34495e'; for(let wx = px - w/2 + 20*s; wx < px + w/2; wx += 60*s) ctx.fillRect(wx, py - h + 15*s, 40*s, 35*s);
     }
   }
 
   ctx.save();
   let tilt = (keys.right ? 20 : 0) - (keys.left ? 20 : 0);
   ctx.translate(cw/2 + tilt, ch + 10); 
-  
   ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 20;
-  ctx.beginPath();
-  ctx.moveTo(-150, 40); ctx.lineTo(-60, -90); 
-  ctx.moveTo(150, 40); ctx.lineTo(60, -90);  
-  ctx.moveTo(-60, -90); ctx.lineTo(60, -90); 
-  ctx.stroke();
-
-  ctx.fillStyle = keys.brake ? '#e67e22' : '#f1c40f';
-  ctx.beginPath(); ctx.arc(-60, -90, 25, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(60, -90, 25, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-150, 40); ctx.lineTo(-60, -90); ctx.moveTo(150, 40); ctx.lineTo(60, -90); ctx.moveTo(-60, -90); ctx.lineTo(60, -90); ctx.stroke();
+  ctx.fillStyle = keys.brake ? '#e67e22' : '#f1c40f'; ctx.beginPath(); ctx.arc(-60, -90, 25, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(60, -90, 25, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 
   animationId = requestAnimationFrame(gameLoop);
@@ -977,39 +930,22 @@ function gameLoop(currentTime) {
 
 function initGame() {
   resize();
-  distance = 0;
-  score = 0;
-  timeLimit = 60.0;
-  player.x = -80; 
-  player.currentSpeed = 0;
-  player.baseSpeed = 80; 
-  player.bag = [];
-  centerViolationTimer = 0;
-  timeUntilNextEvent = 5.0;
-  trafficTimer = 2.0;
+  distance = 0; score = 0; timeLimit = 60.0;
+  player.x = -80; player.currentSpeed = 0; player.baseSpeed = 80; player.bag = [];
+  centerViolationTimer = 0; timeUntilNextEvent = 5.0; trafficTimer = 2.0;
+  targetCurve = 0; currentCurve = 0; curveTimer = 2.0;
   
-  mapObjects = [];
-  nextSpawnDistance = 1000; 
-  updateUI();
-  document.getElementById('ui-warning').style.opacity = 0;
-  
-  lastTime = performance.now();
-  gameState = 'playing';
-  cancelAnimationFrame(animationId);
-  animationId = requestAnimationFrame(gameLoop);
+  mapObjects = []; nextSpawnDistance = 1000; 
+  updateUI(); document.getElementById('ui-warning').style.opacity = 0;
+  lastTime = performance.now(); gameState = 'playing';
+  cancelAnimationFrame(animationId); animationId = requestAnimationFrame(gameLoop);
 }
 
 function showStartScreen() {
   document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
   document.getElementById('start-screen').classList.add('show');
 }
-
-function startGame() {
-  initAudio();
-  document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show'));
-  initGame();
-}
-
+function startGame() { initAudio(); document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show')); initGame(); }
 resize();
 </script>
 </body>
