@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>交通安全チャリ走 - カーブ＆店舗配達編</title>
+<title>交通安全チャリ走 - 手動アクセル＆壁バウンス編</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -21,14 +21,23 @@
 
   #ui-warning { position: absolute; top: calc(var(--sat) + 90px); left: 50%; transform: translateX(-50%); background: #e74c3c; color: white; padding: 10px 20px; border-radius: 10px; font-weight: bold; font-size: 18px; opacity: 0; transition: opacity 0.2s; z-index: 15; box-shadow: 0 4px 6px rgba(0,0,0,0.5); pointer-events: none; white-space: nowrap; }
 
+  /* 💡 スピードメーター（HUD）の追加 */
+  #speed-meter { position: absolute; bottom: calc(100px + var(--sab)); right: 20px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; text-align: right; z-index: 15; }
+  .speed-val { font-size: 32px; font-weight: 900; color: #2ecc71; font-family: monospace; }
+  .speed-unit { font-size: 14px; color: #bdc3c7; }
+
   #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; z-index: 5; }
   canvas { display: block; width: 100%; height: 100%; }
 
-  #controls { position: absolute; bottom: calc(10px + var(--sab)); left: 0; width: 100%; padding: 0 10px; display: flex; justify-content: space-between; gap: 8px; box-sizing: border-box; z-index: 20; }
-  .control-btn { height: 75px; border-radius: 15px; font-size: 24px; font-weight: bold; color: white; border: none; display: flex; justify-content: center; align-items: center; box-shadow: 0 6px 0 rgba(0,0,0,0.3); touch-action: none; user-select: none; -webkit-user-select: none; }
+  /* 💡 4ボタンレイアウトに変更 */
+  #controls { position: absolute; bottom: calc(10px + var(--sab)); left: 0; width: 100%; padding: 0 10px; display: flex; justify-content: space-between; gap: 6px; box-sizing: border-box; z-index: 20; }
+  .control-btn { height: 70px; border-radius: 15px; font-size: 20px; font-weight: bold; color: white; border: none; display: flex; justify-content: center; align-items: center; box-shadow: 0 6px 0 rgba(0,0,0,0.3); touch-action: none; user-select: none; -webkit-user-select: none; }
   .btn-side { flex: 1; background: #3498db; box-shadow: 0 6px 0 #2980b9; }
   .btn-side:active { transform: translateY(6px); box-shadow: none; }
-  .btn-brake { flex: 1.5; background: #e74c3c; box-shadow: 0 6px 0 #c0392b; font-size: 26px; }
+  /* 新設のアクセルボタン */
+  .btn-pedal { flex: 1.2; background: #2ecc71; box-shadow: 0 6px 0 #27ae60; font-size: 22px;}
+  .btn-pedal:active { transform: translateY(6px); box-shadow: none; background: #27ae60; }
+  .btn-brake { flex: 1.2; background: #e74c3c; box-shadow: 0 6px 0 #c0392b; font-size: 22px; }
   .btn-brake:active { transform: translateY(6px); box-shadow: none; background: #c0392b; }
 
   .floating-text { position: absolute; pointer-events: none; font-weight: 900; font-size: 28px; text-shadow: 2px 2px 0 white, -2px -2px 0 white, 2px -2px 0 white, -2px 2px 0 white; animation: popUp 1.5s ease-out forwards; z-index: 150; text-align: center; width: 100%; top: 35%; }
@@ -40,6 +49,10 @@
   .desc { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color:white; padding:15px; border-radius:15px; font-weight:bold; width:85%; text-align:left; line-height:1.5; font-size: 13px; box-sizing: border-box; }
   .btn { padding: 15px 40px; font-size: 22px; font-weight: bold; color: white; background: #2ecc71; border: none; border-radius: 30px; box-shadow: 0 6px 0 #27ae60; cursor: pointer; margin-top: 15px; transition: 0.1s; }
   .btn:active { transform: translateY(6px); box-shadow: none; }
+  
+  /* 壁ぶつかり時のエフェクト */
+  @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
+  .shake-effect { animation: shake 0.5s; animation-iteration-count: 1; }
 </style>
 </head>
 <body>
@@ -57,6 +70,10 @@
   </div>
   
   <div id="ui-warning">⚠️ キープレフト！(左端へ)</div>
+  
+  <div id="speed-meter">
+    <span class="speed-val" id="ui-speed">00</span><span class="speed-unit"> km/h</span>
+  </div>
 
   <div id="canvas-container">
     <canvas id="game-canvas"></canvas>
@@ -64,22 +81,25 @@
 
   <div id="controls">
     <button class="control-btn btn-side" id="btn-left">◀️</button>
-    <button class="control-btn btn-brake" id="btn-brake">🛑 ブレーキ</button>
+    <button class="control-btn btn-pedal" id="btn-pedal">🚲 漕ぐ</button>
+    <button class="control-btn btn-brake" id="btn-brake">🛑 止まる</button>
     <button class="control-btn btn-side" id="btn-right">▶️</button>
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title">🚲 交通安全<br>チャリ走 デリバリー！</div>
+    <div class="title">🚲 交通安全<br>チャリ走 マニュアル操作</div>
     <div class="desc">
-      安全運転でフードを届けよう🍔🍕<br><br>
-      💡 <b>配達のルール</b><br>
-      ① 左側にある<b>「お店（STORE）」</b>で集荷！<br>
-      　⚠️スピードを落として左に寄ってね。<br>
-      ② <b>🏠 配達先（青いライン）</b>まで届ける！<br>
-      ③ 届けると<b>時間回復＆スコアゲット！</b><br><br>
-      ⚠️ <b>カーブの遠心力に注意！</b><br>
-      カーブでは外側に流されます。しっかり<br>
-      ハンドルを操作して車道を外れないように！
+      自分でペダルを漕いでスピードを調整しよう！<br><br>
+      💡 <b>操作方法</b><br>
+      ・<b>🚲 漕ぐ</b>：押し続けると加速します<br>
+      ・<b>🛑 止まる</b>：ブレーキで急減速します<br>
+      ・<b>◀️ 左 / 右 ▶️</b>：ハンドル操作<br><br>
+      ⚠️ <b>壁への衝突について</b><br>
+      カーブで曲がりきれずに壁にぶつかっても<br>
+      ゲームオーバーにはなりませんが、<br>
+      <b>大きく減速してフラフラ</b>してしまいます！<br>
+      交差点やカーブの手前では自分でスピードを<br>
+      落とすのがプロの配達員への第一歩です👮
     </div>
     <button class="btn" onclick="startGame()">配達スタート！</button>
   </div>
@@ -133,6 +153,16 @@ function playSound(type) {
     osc.type = 'square'; osc.frequency.setValueAtTime(523.25, t); osc.frequency.setValueAtTime(659.25, t+0.1); osc.frequency.setValueAtTime(783.99, t+0.2); osc.frequency.setValueAtTime(1046.50, t+0.3);
     gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
     osc.start(t); osc.stop(t + 0.5);
+  } else if (type === 'bounce') {
+    // 💡 壁にぶつかった時の音
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); osc.frequency.exponentialRampToValueAtTime(50, t + 0.2);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    osc.start(t); osc.stop(t + 0.2);
+  } else if (type === 'pedal') {
+    // 漕ぐ音（チェーンの音をイメージ）
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(400, t);
+    gain.gain.setValueAtTime(0.05, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    osc.start(t); osc.stop(t + 0.1);
   }
 }
 
@@ -151,7 +181,6 @@ let timeLimit = 60.0;
 let timeUntilNextEvent = 5.0; 
 let trafficTimer = 2.0;
 
-// 💡 カーブ用変数
 let targetCurve = 0;
 let currentCurve = 0;
 let curveTimer = 2.0;
@@ -163,16 +192,21 @@ let FOV = 250;
 let HORIZON = 0;
 let CAM_H = 65; 
 
+// 💡 手動アクセルに対応したプレイヤー設定
 const player = {
   x: -80, y: 0, width: 20, height: 40,
-  baseSpeed: 80, currentSpeed: 0, moveSpeed: 200,
-  bag: [] 
+  currentSpeed: 0, 
+  maxSpeed: 500, // 漕いだ時の最高速度
+  moveSpeed: 200,
+  bag: [],
+  stunTimer: 0 // 💡 壁にぶつかってフラフラしている時間
 };
 
 let centerViolationTimer = 0; 
 let mapObjects = [];
 let nextSpawnDistance = 0;
-const keys = { left: false, right: false, brake: false };
+// 💡 キー入力に「pedal」を追加
+const keys = { left: false, right: false, brake: false, pedal: false };
 
 function resize() {
   const container = document.getElementById('canvas-container');
@@ -203,17 +237,20 @@ const bindBtn = (id, key) => {
   btn.addEventListener('touchstart', down, {passive:false}); btn.addEventListener('touchend', up, {passive:false});
   btn.addEventListener('mousedown', down); btn.addEventListener('mouseup', up);
 };
-bindBtn('btn-left', 'left'); bindBtn('btn-right', 'right'); bindBtn('btn-brake', 'brake');
+bindBtn('btn-left', 'left'); bindBtn('btn-right', 'right'); 
+bindBtn('btn-brake', 'brake'); bindBtn('btn-pedal', 'pedal'); // 💡 ボタン追加
 
 window.addEventListener('keydown', (e) => {
   if (e.code === 'ArrowLeft' && gameState==='playing') keys.left = true;
   if (e.code === 'ArrowRight' && gameState==='playing') keys.right = true;
   if (e.code === 'ArrowDown' && gameState==='playing' && !keys.brake) { keys.brake = true; playSound('brake'); }
+  if (e.code === 'ArrowUp' && gameState==='playing') keys.pedal = true; // 上キーでアクセル
 });
 window.addEventListener('keyup', (e) => {
   if (e.code === 'ArrowLeft') keys.left = false;
   if (e.code === 'ArrowRight') keys.right = false;
   if (e.code === 'ArrowDown') keys.brake = false;
+  if (e.code === 'ArrowUp') keys.pedal = false;
 });
 
 function randomColor() {
@@ -255,12 +292,10 @@ function spawnDangerEvent() {
 }
 
 function spawnFacility(urbanLevel) {
-  // 💡 カーブがキツい時は交差点を生成しない（安全設計）
   if (Math.abs(currentCurve) > 0.5) return;
 
   let r = Math.random();
   let type = '';
-  // 💡 お店（集荷）と 家（配達）を追加
   if (r < 0.25) type = 'store';
   else if (r < 0.5) type = 'house';
   else if (r < 0.8) type = 'intersection';
@@ -269,9 +304,8 @@ function spawnFacility(urbanLevel) {
   let yPos = nextSpawnDistance + 1000;
   let obj = { type: type, y: yPos, cleared: false };
 
-  // 💡 交差点などが生成される時はカーブをリセットして直線にする
   targetCurve = 0;
-  curveTimer = 5.0; // 5秒間は直線を維持
+  curveTimer = 5.0; 
 
   if (type === 'intersection') {
     obj.height = 140;
@@ -331,6 +365,14 @@ function updateUI() {
   document.getElementById('ui-score').innerText = score;
   document.getElementById('ui-bag').innerText = player.bag.length > 0 ? player.bag.join('') : '空っぽ';
   document.getElementById('ui-time').innerText = Math.ceil(timeLimit);
+  // スピードメーターの更新（ゲーム内の速度を km/h っぽく換算）
+  let kmh = Math.floor(player.currentSpeed / 10);
+  let speedStr = kmh.toString().padStart(2, '0');
+  let meter = document.getElementById('ui-speed');
+  meter.innerText = speedStr;
+  if (kmh > 35) meter.style.color = '#e74c3c'; // 速すぎると赤
+  else if (kmh > 20) meter.style.color = '#f1c40f'; // 普通は黄色
+  else meter.style.color = '#2ecc71'; // 遅いと緑
 }
 
 function gameOver(reasonText, reasonType) {
@@ -362,7 +404,6 @@ function gameLoop(currentTime) {
 
   let urbanLevel = Math.min(1.0, distance / 3000);
 
-  // 💡 カーブの制御ロジック
   curveTimer -= dt;
   if (curveTimer <= 0) {
     let hasFacilityNear = false;
@@ -372,14 +413,13 @@ function gameLoop(currentTime) {
       }
     }
     if(!hasFacilityNear) {
-      targetCurve = (Math.random() - 0.5) * 3.0; // -1.5 〜 1.5のカーブ
+      targetCurve = (Math.random() - 0.5) * 3.0; 
       curveTimer = 4.0 + Math.random() * 4.0;
     } else {
-      targetCurve = 0; // 交差点が近ければ直線に
+      targetCurve = 0; 
       curveTimer = 2.0;
     }
   }
-  // 滑らかにカーブを遷移させる
   currentCurve += (targetCurve - currentCurve) * dt * 0.8;
 
   timeUntilNextEvent -= dt;
@@ -388,26 +428,56 @@ function gameLoop(currentTime) {
   trafficTimer -= dt;
   if (trafficTimer <= 0) { trafficTimer = (1.5 - urbanLevel * 1.0) + Math.random() * 0.5; spawnTraffic(urbanLevel); }
 
-  if (keys.brake) {
-    player.currentSpeed = Math.max(0, player.currentSpeed - 1200 * dt);
+  // 💡 手動アクセル＆ブレーキの処理
+  if (player.stunTimer > 0) {
+    // 壁にぶつかったペナルティ（操作不能で減速）
+    player.stunTimer -= dt;
+    player.currentSpeed = Math.max(0, player.currentSpeed - 800 * dt);
+    // フラフラする
+    player.x += Math.sin(currentTime / 50) * 10;
   } else {
-    player.baseSpeed = Math.min(500, 80 + distance * 0.08); 
-    player.currentSpeed = Math.min(player.baseSpeed, player.currentSpeed + 400 * dt);
-  }
+    if (keys.brake) {
+      player.currentSpeed = Math.max(0, player.currentSpeed - 1500 * dt); // ブレーキは強力
+    } else if (keys.pedal) {
+      // 漕ぐと加速
+      player.currentSpeed = Math.min(player.maxSpeed, player.currentSpeed + 300 * dt);
+      if (Math.floor(currentTime / 200) % 2 === 0) playSound('pedal');
+    } else {
+      // 何も押していないと惰性で少しずつ減速
+      player.currentSpeed = Math.max(0, player.currentSpeed - 100 * dt);
+    }
 
-  if (keys.left) player.x -= player.moveSpeed * dt;
-  if (keys.right) player.x += player.moveSpeed * dt;
+    if (keys.left) player.x -= player.moveSpeed * dt;
+    if (keys.right) player.x += player.moveSpeed * dt;
+  }
   
-  // 💡 遠心力（カーブ中は外側に流される）
   if (Math.abs(currentCurve) > 0.1) {
     player.x -= currentCurve * player.currentSpeed * dt * 0.15;
   }
 
   let limit = ROAD_WIDTH / 2 - player.width / 2;
-  // 道から外れたら壁に衝突扱い
-  if (player.x < -limit - 10 || player.x > limit + 10) {
-    gameOver("壁に激突した！\n（カーブではしっかりハンドル操作して！）", "crash");
-    return;
+  
+  // 💡 壁への衝突判定（ゲームオーバーを廃止し、バウンス処理に変更）
+  if (player.x < -limit) {
+    player.x = -limit + 5; // 内側に押し戻す
+    if (player.stunTimer <= 0) {
+      player.stunTimer = 0.8; // 0.8秒フラフラする
+      player.currentSpeed *= 0.3; // スピードが激減
+      playSound('bounce');
+      document.getElementById('game-wrapper').classList.add('shake-effect');
+      setTimeout(() => document.getElementById('game-wrapper').classList.remove('shake-effect'), 500);
+      showFloatingText("壁にぶつかった！", '#e74c3c');
+    }
+  } else if (player.x > limit) {
+    player.x = limit - 5;
+    if (player.stunTimer <= 0) {
+      player.stunTimer = 0.8;
+      player.currentSpeed *= 0.3; 
+      playSound('bounce');
+      document.getElementById('game-wrapper').classList.add('shake-effect');
+      setTimeout(() => document.getElementById('game-wrapper').classList.remove('shake-effect'), 500);
+      showFloatingText("壁にぶつかった！", '#e74c3c');
+    }
   }
 
   let isCenter = player.x > -20;
@@ -436,10 +506,9 @@ function gameLoop(currentTime) {
     if (objDistZ < -250) { mapObjects.splice(i, 1); continue; }
     let relZ = objDistZ - player.y;
 
-    // 💡 お店（集荷）の処理
     if (obj.type === 'store') {
-      if (!obj.cleared && Math.abs(relZ) < 80 && player.x < roadLeft + 80) { // 左路肩に寄っているか
-        if (player.currentSpeed < 120) { // スピードを落としているか
+      if (!obj.cleared && Math.abs(relZ) < 80 && player.x < roadLeft + 80) { 
+        if (player.currentSpeed < 120) { 
           obj.cleared = true;
           if (player.bag.length < 5) {
             player.bag.push(obj.icon);
@@ -448,7 +517,6 @@ function gameLoop(currentTime) {
             updateUI();
           }
         } else {
-          // 速すぎると警告
           if (Math.abs(relZ) < 20 && obj.warningTime !== Math.floor(currentTime/1000)) {
             obj.warningTime = Math.floor(currentTime/1000);
             showFloatingText("速すぎて取れない！減速！", '#e74c3c');
@@ -457,7 +525,6 @@ function gameLoop(currentTime) {
       }
     }
 
-    // 💡 配達先（家）の処理
     if (obj.type === 'house') {
       if (!obj.cleared && relZ < 0) {
         obj.cleared = true;
@@ -473,7 +540,6 @@ function gameLoop(currentTime) {
       }
     }
 
-    // 💡 車のAI更新
     if (obj.type === 'car' || obj.type === 'oncoming_car') {
       let targetSpeed = obj.baseSpeed;
       let minStopDist = Infinity;
@@ -685,14 +751,13 @@ function gameLoop(currentTime) {
     }
   }
 
-
   // ==========================================
-  // 💡 描画エンジン (カーブ・遠近法の適用)
+  // 描画エンジン 
   // ==========================================
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   let currentHorizon = HORIZON + (keys.brake ? 5 : 0);
 
-  // Z距離に応じた「カーブの横ズレ」を計算する関数
   function getCurveOffset(z) {
     if (z < 0) return 0;
     return currentCurve * (z * z) / 25000;
@@ -829,9 +894,8 @@ function gameLoop(currentTime) {
       }
     }
     else if (obj.type === 'store') {
-      // 💡 お店の描画
       drawWall(roadLeft - 40, wz - 120, wz + 120, 150, '#e67e22'); 
-      drawPolyOnRoad(roadLeft, roadLeft + 80, wz - 100, wz + 100, 'rgba(241, 196, 15, 0.3)'); // ピックアップエリア
+      drawPolyOnRoad(roadLeft, roadLeft + 80, wz - 100, wz + 100, 'rgba(241, 196, 15, 0.3)'); 
       renderables.push({ type: 'store_sign', x: roadLeft - 40, z: wz, icon: obj.icon });
     }
     else if (obj.type === 'house') {
@@ -896,7 +960,6 @@ function gameLoop(currentTime) {
       ctx.fillStyle = 'white'; ctx.font = `bold ${20*s}px sans-serif`; ctx.textAlign='center'; ctx.fillText("🏠", px, py - 30*s);
     }
     else if (r.type === 'store_sign') {
-      // 💡 お店の看板
       let w = 100 * s; let h = 60 * s;
       ctx.fillStyle = '#c0392b'; ctx.fillRect(px - w/2, py - 120*s - h, w, h);
       ctx.fillStyle = 'white'; ctx.font = `bold ${30*s}px sans-serif`; ctx.textAlign='center'; ctx.fillText(r.icon, px, py - 120*s - h*0.2);
@@ -917,12 +980,16 @@ function gameLoop(currentTime) {
     }
   }
 
+  // 💡 プレイヤーのハンドルと手
   ctx.save();
   let tilt = (keys.right ? 20 : 0) - (keys.left ? 20 : 0);
   ctx.translate(cw/2 + tilt, ch + 10); 
   ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 20;
   ctx.beginPath(); ctx.moveTo(-150, 40); ctx.lineTo(-60, -90); ctx.moveTo(150, 40); ctx.lineTo(60, -90); ctx.moveTo(-60, -90); ctx.lineTo(60, -90); ctx.stroke();
-  ctx.fillStyle = keys.brake ? '#e67e22' : '#f1c40f'; ctx.beginPath(); ctx.arc(-60, -90, 25, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(60, -90, 25, 0, Math.PI*2); ctx.fill();
+  
+  // 💡 フラフラ時の手の色変更
+  ctx.fillStyle = player.stunTimer > 0 ? '#95a5a6' : (keys.brake ? '#e67e22' : '#f1c40f');
+  ctx.beginPath(); ctx.arc(-60, -90, 25, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(60, -90, 25, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 
   animationId = requestAnimationFrame(gameLoop);
@@ -931,7 +998,7 @@ function gameLoop(currentTime) {
 function initGame() {
   resize();
   distance = 0; score = 0; timeLimit = 60.0;
-  player.x = -80; player.currentSpeed = 0; player.baseSpeed = 80; player.bag = [];
+  player.x = -80; player.currentSpeed = 0; player.stunTimer = 0; player.bag = [];
   centerViolationTimer = 0; timeUntilNextEvent = 5.0; trafficTimer = 2.0;
   targetCurve = 0; currentCurve = 0; curveTimer = 2.0;
   
