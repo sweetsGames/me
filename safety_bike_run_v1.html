@@ -14,7 +14,6 @@
     background: #000; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.8);
   }
 
-  /* ヘッダーUI（売上と時間） */
   #header { position: absolute; top: var(--sat); left: 0; width: 100%; padding: 15px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; box-sizing: border-box; pointer-events: none; }
   .score-box { background: rgba(255,255,255,0.95); padding: 8px 15px; border-radius: 15px; font-size: 16px; font-weight: 900; color: #2c3e50; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; display: flex; flex-direction: column; align-items: flex-start; }
   .money-val { font-size: 26px; color: #27ae60; font-family: monospace; }
@@ -97,8 +96,7 @@
       ・一度にたくさん届けるとチップ（ボーナス）！<br><br>
       ⚠️ <b>安全運転第一！</b><br>
       ・<b>自転車は「左側端」！</b> 信号や踏切は守る！<br>
-      ・事故や違反をすると、稼ぎが没収されて<br>
-      　即ゲームオーバーになります👮
+      ・事故や違反をすると、そこで営業終了です👮
       
       <div class="setting-row">
         <label>難易度:</label>
@@ -117,7 +115,7 @@
     <div id="result-reason" style="color:white; font-size:16px; margin-bottom:10px; font-weight:bold; text-align:center; white-space:pre-wrap;"></div>
     
     <div style="background:rgba(255,255,255,0.9); padding:20px; border-radius:15px; margin-bottom:20px; text-align:center; width:80%;">
-      <div style="font-size:16px; color:#2c3e50; font-weight:bold; margin-bottom:5px;">本日の売上（スコア）</div>
+      <div style="font-size:16px; color:#2c3e50; font-weight:bold; margin-bottom:5px;">本日の売上</div>
       <div style="font-size:40px; color:#27ae60; font-weight:900; font-family:monospace; margin-bottom:10px;"><span id="result-money">0</span> 円</div>
       <div id="result-status" style="font-size:22px; font-weight:bold;"></div>
     </div>
@@ -283,6 +281,7 @@ function spawnFacility(urbanLevel) {
   let r = Math.random();
   let type = '';
   
+  // 💡 手持ちのフード数によって出現率を賢く調整
   if (player.bag.length === 0) {
     if (r < 0.6) type = 'store'; else if (r < 0.8) type = 'intersection'; else type = 'railroad';
   } else if (player.bag.length >= 5) {
@@ -352,7 +351,6 @@ function updateTargetMoney() {
 }
 
 function updateUI() {
-  // カンマ区切りで円表示
   document.getElementById('ui-money').innerText = money.toLocaleString();
   document.getElementById('ui-target').innerText = targetMoney.toLocaleString();
   document.getElementById('ui-bag').innerText = player.bag.length > 0 ? player.bag.join('') : '空っぽ';
@@ -377,15 +375,14 @@ function gameOver(reasonText, reasonType) {
   if (reasonType === 'timeup') {
     t = "⏳ 営業終了！";
   } else {
-    t = reasonType === 'violation' ? "👮 交通違反で没収！" : "💥 事故で没収！";
-    money = 0; // 違反や事故は売上没収（厳しい！）
+    // 💡 ペナルティ没収を廃止し、そのままの稼ぎを表示
+    t = reasonType === 'violation' ? "👮 交通違反で配達中止！" : "💥 事故で配達中止！";
   }
   
   document.getElementById('result-title').innerText = t;
   document.getElementById('result-reason').innerText = reasonText;
   document.getElementById('result-money').innerText = money.toLocaleString();
   
-  // 目標達成判定
   let statusEl = document.getElementById('result-status');
   if (money >= targetMoney) {
     statusEl.innerHTML = "✨ 目標達成！すばらしい！ ✨";
@@ -410,7 +407,6 @@ function gameLoop(currentTime) {
 
   let urbanLevel = Math.min(1.0, distance / 3000);
 
-  // カーブ
   let curveMult = diffLevel === 1 ? 1.0 : (diffLevel === 2 ? 2.0 : 3.0);
   curveTimer -= dt;
   if (curveTimer <= 0) {
@@ -429,13 +425,11 @@ function gameLoop(currentTime) {
   }
   currentCurve += (targetCurve - currentCurve) * dt * 0.8;
 
-  // 危険予測イベント
   if (diffLevel > 1) {
     timeUntilNextEvent -= dt;
     if (timeUntilNextEvent <= 0) { timeUntilNextEvent = diffLevel === 2 ? 8.0 : 5.0; spawnDangerEvent(); }
   }
 
-  // トラフィック
   trafficTimer -= dt;
   if (trafficTimer <= 0) { 
     let baseTraffic = diffLevel === 1 ? 2.5 : (diffLevel === 2 ? 2.0 : 1.5);
@@ -443,7 +437,6 @@ function gameLoop(currentTime) {
     spawnTraffic(urbanLevel); 
   }
 
-  // アクセル・ブレーキ
   if (keys.brake) {
     player.currentSpeed = Math.max(0, player.currentSpeed - 1500 * dt);
   } else if (keys.pedal) {
@@ -463,7 +456,6 @@ function gameLoop(currentTime) {
   let limit = ROAD_WIDTH / 2 - player.width / 2;
   player.x = Math.max(-limit, Math.min(limit, player.x));
 
-  // キープレフト違反タイマー
   let limitTime = diffLevel === 1 ? 8.0 : (diffLevel === 2 ? 6.0 : 5.0);
   let isCenter = player.x > -20;
   if (isCenter) {
@@ -510,13 +502,12 @@ function gameLoop(currentTime) {
         obj.cleared = true;
         let count = player.bag.length;
         if (count > 0) {
-          // 💡 配達報酬の計算
-          let baseReward = count * 500; // 1個500円
-          let bonusTips = [0, 0, 200, 500, 1000, 1500]; // まとめ配達ボーナスチップ
+          // 💡 売上の計算と回復時間
+          let baseReward = count * 500; 
+          let bonusTips = [0, 0, 200, 500, 1000, 1500]; 
           let tip = bonusTips[count];
           let totalEarned = baseReward + tip;
           
-          // 💡 難易度による回復時間の調整
           let timeRecoveryPerFood = diffLevel === 1 ? 30 : (diffLevel === 2 ? 15 : 10);
           let bonusTime = count * timeRecoveryPerFood;
           
@@ -921,7 +912,6 @@ function gameLoop(currentTime) {
   animationId = requestAnimationFrame(gameLoop);
 }
 
-// 💡 難易度切り替えによる目標金額設定
 function updateTargetMoney() {
   diffLevel = parseInt(document.getElementById('diff-select').value);
   if (diffLevel === 1) targetMoney = 3000;
@@ -949,7 +939,7 @@ function showStartScreen() {
 }
 function startGame() { initAudio(); document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show')); initGame(); }
 resize();
-updateTargetMoney(); // 初期表示用
+updateTargetMoney(); 
 </script>
 </body>
 </html>
