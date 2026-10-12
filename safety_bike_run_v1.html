@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>交通安全チャリ走 - 難易度選択＆デリバリー</title>
+<title>交通安全チャリ走 - フードデリバリー（売上システム）</title>
 <style>
   :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
   html, body { overscroll-behavior: none; touch-action: none; background: #2c3e50; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', sans-serif; color: white; }
@@ -14,8 +14,10 @@
     background: #000; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.8);
   }
 
+  /* ヘッダーUI（売上と時間） */
   #header { position: absolute; top: var(--sat); left: 0; width: 100%; padding: 15px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 10; box-sizing: border-box; pointer-events: none; }
-  .score-box { background: rgba(255,255,255,0.95); padding: 8px 15px; border-radius: 15px; font-size: 20px; font-weight: 900; color: #2980b9; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; display: flex; flex-direction: column; align-items: center; }
+  .score-box { background: rgba(255,255,255,0.95); padding: 8px 15px; border-radius: 15px; font-size: 16px; font-weight: 900; color: #2c3e50; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; display: flex; flex-direction: column; align-items: flex-start; }
+  .money-val { font-size: 26px; color: #27ae60; font-family: monospace; }
   .delivery-box { background: #f1c40f; color: #d35400; padding: 5px 15px; border-radius: 15px; font-size: 18px; font-weight: 900; box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: auto; display: flex; gap: 5px; align-items: center; }
   .time-box { background: #e74c3c; color: white; padding: 5px 15px; border-radius: 15px; font-size: 24px; font-weight: 900; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
 
@@ -37,7 +39,7 @@
   .btn-brake { flex: 1.2; background: #e74c3c; box-shadow: 0 6px 0 #c0392b; font-size: 22px; }
   .btn-brake:active { transform: translateY(6px); box-shadow: none; background: #c0392b; }
 
-  .floating-text { position: absolute; pointer-events: none; font-weight: 900; font-size: 28px; text-shadow: 2px 2px 0 white, -2px -2px 0 white, 2px -2px 0 white, -2px 2px 0 white; animation: popUp 1.5s ease-out forwards; z-index: 150; text-align: center; width: 100%; top: 35%; }
+  .floating-text { position: absolute; pointer-events: none; font-weight: 900; font-size: 24px; text-shadow: 2px 2px 0 white, -2px -2px 0 white, 2px -2px 0 white, -2px 2px 0 white; animation: popUp 1.5s ease-out forwards; z-index: 150; text-align: center; width: 100%; top: 35%; }
   @keyframes popUp { 0% { transform: translateY(20px) scale(0.5); opacity: 0; } 10% { transform: translateY(0px) scale(1.2); opacity: 1; } 80% { transform: translateY(-30px) scale(1); opacity: 1; } 100% { transform: translateY(-40px) scale(1); opacity: 0; } }
 
   .overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
@@ -56,8 +58,9 @@
 <div id="game-wrapper">
   <div id="header">
     <div class="score-box">
-      <span>スコア</span>
-      <span id="ui-score" style="font-size:28px;">0</span>
+      <div>💵 本日の売上</div>
+      <div><span id="ui-money" class="money-val">0</span> 円</div>
+      <div style="font-size:12px; color:#7f8c8d; margin-top:2px;">目標: <span id="ui-target">0</span>円</div>
     </div>
     <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
       <div class="time-box">残り <span id="ui-time">60</span>秒</div>
@@ -83,24 +86,26 @@
   </div>
 
   <div id="start-screen" class="overlay show">
-    <div class="title">🚲 交通安全<br>チャリ走 デリバリー！</div>
+    <div class="title">🚲 安全配達<br>ウーバーチャリ走！</div>
     <div class="desc">
-      💡 <b>操作方法</b><br>
-      ・<b>🚲 漕ぐ</b>：押し続けると加速します<br>
-      ・<b>🛑 止まる</b>：ブレーキで急減速します<br>
-      ・<b>◀️ 左 / 右 ▶️</b>：ハンドル操作<br><br>
+      安全運転でフードを配達し、<br>
+      目標金額（ノルマ）を稼ごう！💴<br><br>
       💡 <b>配達のルール</b><br>
       ・左側にある<b>「お店（STORE）」</b>で集荷！<br>
       ・<b>🏠 配達先（青いライン）</b>まで届ける！<br>
-      ・届けると<b>時間回復＆スコアゲット！</b><br>
-      ・自転車は必ず<b>「車道の左側端」</b>を走ること👮
+      ・届けると<b>売上UP＆時間が回復！</b><br>
+      ・一度にたくさん届けるとチップ（ボーナス）！<br><br>
+      ⚠️ <b>安全運転第一！</b><br>
+      ・<b>自転車は「左側端」！</b> 信号や踏切は守る！<br>
+      ・事故や違反をすると、稼ぎが没収されて<br>
+      　即ゲームオーバーになります👮
       
       <div class="setting-row">
         <label>難易度:</label>
-        <select id="diff-select">
-          <option value="1">🟢 簡単</option>
-          <option value="2">🟡 普通</option>
-          <option value="3" selected>🔴 難しい</option>
+        <select id="diff-select" onchange="updateTargetMoney()">
+          <option value="1">🟢 簡単 (目標:3,000円)</option>
+          <option value="2">🟡 普通 (目標:6,000円)</option>
+          <option value="3" selected>🔴 難しい (目標:10,000円)</option>
         </select>
       </div>
     </div>
@@ -108,12 +113,15 @@
   </div>
 
   <div id="game-over" class="overlay">
-    <h1 id="result-title" style="color:#e74c3c; font-size:32px; margin-bottom:10px;">ゲームオーバー</h1>
+    <h1 id="result-title" style="color:#e74c3c; font-size:32px; margin-bottom:10px;">営業終了</h1>
     <div id="result-reason" style="color:white; font-size:16px; margin-bottom:10px; font-weight:bold; text-align:center; white-space:pre-wrap;"></div>
-    <div class="desc" style="text-align:center; font-size:20px; margin-bottom:20px; background:transparent; border:none;">
-      スコア: <span id="result-score" style="font-size:40px; color:#f1c40f; font-weight:900;">0</span><br>
-      走行距離: <span id="result-dist">0</span> m
+    
+    <div style="background:rgba(255,255,255,0.9); padding:20px; border-radius:15px; margin-bottom:20px; text-align:center; width:80%;">
+      <div style="font-size:16px; color:#2c3e50; font-weight:bold; margin-bottom:5px;">本日の売上（スコア）</div>
+      <div style="font-size:40px; color:#27ae60; font-weight:900; font-family:monospace; margin-bottom:10px;"><span id="result-money">0</span> 円</div>
+      <div id="result-status" style="font-size:22px; font-weight:bold;"></div>
     </div>
+
     <button class="btn" style="background:#3498db; box-shadow:0 6px 0 #2980b9;" onclick="showStartScreen()">もういっかい</button>
   </div>
 </div>
@@ -161,11 +169,13 @@ let gameState = 'menu';
 let lastTime = 0;
 let animationId;
 let distance = 0; 
-let score = 0;
 
-// 💡 難易度設定
+// 💡 売上（スコア）と難易度・目標
+let money = 0;
+let targetMoney = 10000;
 let diffLevel = 3; 
 let timeLimit = 60.0;
+
 let timeUntilNextEvent = 5.0; 
 let trafficTimer = 2.0;
 
@@ -199,7 +209,7 @@ window.addEventListener('resize', resize);
 
 function showFloatingText(text, color) {
   const el = document.createElement('div');
-  el.className = 'floating-text'; el.style.color = color; el.innerText = text;
+  el.className = 'floating-text'; el.style.color = color; el.innerHTML = text; // HTML許可
   document.getElementById('canvas-container').appendChild(el);
   setTimeout(() => el.remove(), 1200);
 }
@@ -244,7 +254,6 @@ function spawnTraffic(urbanLevel) {
   let yPos = distance + 1000; 
   if (!isSafeSpawnY(yPos)) return; 
 
-  // 難易度によるマナーの悪さ
   let badProb = diffLevel === 1 ? 0 : (diffLevel === 2 ? 0.1 : 0.2);
   let isBadManner = Math.random() < badProb;
 
@@ -274,40 +283,27 @@ function spawnFacility(urbanLevel) {
   let r = Math.random();
   let type = '';
   
-  // 💡 手持ちのフード数によって出現率を賢く調整
   if (player.bag.length === 0) {
-    // お店が出やすい
-    if (r < 0.6) type = 'store';
-    else if (r < 0.8) type = 'intersection';
-    else type = 'railroad';
+    if (r < 0.6) type = 'store'; else if (r < 0.8) type = 'intersection'; else type = 'railroad';
   } else if (player.bag.length >= 5) {
-    // 家が出やすい
-    if (r < 0.5) type = 'house';
-    else if (r < 0.8) type = 'intersection';
-    else type = 'railroad';
+    if (r < 0.5) type = 'house'; else if (r < 0.8) type = 'intersection'; else type = 'railroad';
   } else {
-    // 通常（お店と家が多め）
-    if (r < 0.4) type = 'store';
-    else if (r < 0.7) type = 'house';
-    else if (r < 0.9) type = 'intersection';
-    else type = 'railroad';
+    if (r < 0.4) type = 'store'; else if (r < 0.7) type = 'house'; else if (r < 0.9) type = 'intersection'; else type = 'railroad';
   }
 
   let yPos = nextSpawnDistance + 800;
   let obj = { type: type, y: yPos, cleared: false };
 
-  targetCurve = 0;
-  curveTimer = 5.0; 
+  targetCurve = 0; curveTimer = 5.0; 
 
-  let badProbCross = diffLevel === 1 ? 0 : (diffLevel === 2 ? 0.2 : 0.5); // 交差点マナー
+  let badProbCross = diffLevel === 1 ? 0 : (diffLevel === 2 ? 0.2 : 0.5);
 
   if (type === 'intersection') {
     obj.height = 140;
     obj.control = Math.random() < 0.6 ? 'traffic_light' : 'stop_sign';
     
     if (obj.control === 'traffic_light') {
-      obj.stopLineY = yPos - 70;
-      obj.timer = 0; obj.state = 'green';
+      obj.stopLineY = yPos - 70; obj.timer = 0; obj.state = 'green';
       let randEvent = Math.random();
       if (randEvent < 0.4 + urbanLevel * 0.4) {
         obj.event = 'right_turn';
@@ -322,10 +318,7 @@ function spawnFacility(urbanLevel) {
         obj.crossCar = { x: fromLeft ? -cw : cw, baseSpeedX: 0, speedX: 0, triggered: false, color: randomColor(), isLeft: fromLeft };
       }
     } else {
-      obj.stopTime = 0;
-      obj.stopLineY = yPos - 70;
-      obj.stopZoneStart = yPos - 130;
-      obj.stopZoneEnd = yPos - 70;
+      obj.stopTime = 0; obj.stopLineY = yPos - 70; obj.stopZoneStart = yPos - 130; obj.stopZoneEnd = yPos - 70;
       if (Math.random() < 0.5) {
         obj.event = 'cross_car';
         let fromLeft = Math.random() > 0.5;
@@ -336,7 +329,6 @@ function spawnFacility(urbanLevel) {
         obj.ped = { x: fromLeft ? -cw/2 : cw/2, speedX: 0, triggered: false, isLeft: fromLeft, isBadManner: Math.random() < badProbCross };
       }
     }
-    // 💡 施設同士の間隔を少し短くしてテンポアップ
     nextSpawnDistance = yPos + Math.max(200, 500 - urbanLevel * 300); 
   } else if (type === 'railroad') {
     obj.height = 100; obj.timer = 0; obj.state = 'open'; obj.trainX = -cw; obj.stopLineY = yPos - 50;
@@ -347,16 +339,25 @@ function spawnFacility(urbanLevel) {
     obj.height = 200; obj.warningTime = 0;
     nextSpawnDistance = yPos + 400;
   } else if (type === 'house') {
-    obj.height = 20;
-    nextSpawnDistance = yPos + 400;
+    obj.height = 20; nextSpawnDistance = yPos + 400;
   }
   mapObjects.push(obj);
 }
 
+function updateTargetMoney() {
+  diffLevel = parseInt(document.getElementById('diff-select').value);
+  if (diffLevel === 1) targetMoney = 3000;
+  else if (diffLevel === 2) targetMoney = 6000;
+  else targetMoney = 10000;
+}
+
 function updateUI() {
-  document.getElementById('ui-score').innerText = score;
+  // カンマ区切りで円表示
+  document.getElementById('ui-money').innerText = money.toLocaleString();
+  document.getElementById('ui-target').innerText = targetMoney.toLocaleString();
   document.getElementById('ui-bag').innerText = player.bag.length > 0 ? player.bag.join('') : '空っぽ';
   document.getElementById('ui-time').innerText = Math.ceil(timeLimit);
+  
   let kmh = Math.floor(player.currentSpeed / 10);
   let speedStr = kmh.toString().padStart(2, '0');
   let meter = document.getElementById('ui-speed');
@@ -372,11 +373,28 @@ function gameOver(reasonText, reasonType) {
   else if (reasonType === 'timeup') playSound('whistle');
   else playSound('crash');
   
-  let t = reasonType === 'timeup' ? "⏳ タイムアップ！" : (reasonType === 'violation' ? "👮 交通違反！" : "💥 クラッシュ！");
+  let t = "";
+  if (reasonType === 'timeup') {
+    t = "⏳ 営業終了！";
+  } else {
+    t = reasonType === 'violation' ? "👮 交通違反で没収！" : "💥 事故で没収！";
+    money = 0; // 違反や事故は売上没収（厳しい！）
+  }
+  
   document.getElementById('result-title').innerText = t;
   document.getElementById('result-reason').innerText = reasonText;
-  document.getElementById('result-score').innerText = score;
-  document.getElementById('result-dist').innerText = Math.floor(distance / 10);
+  document.getElementById('result-money').innerText = money.toLocaleString();
+  
+  // 目標達成判定
+  let statusEl = document.getElementById('result-status');
+  if (money >= targetMoney) {
+    statusEl.innerHTML = "✨ 目標達成！すばらしい！ ✨";
+    statusEl.style.color = "#e67e22";
+  } else {
+    statusEl.innerHTML = "目標未達成…<br>次はもっと稼ごう！";
+    statusEl.style.color = "#7f8c8d";
+  }
+
   document.getElementById('game-over').classList.add('show');
   document.getElementById('ui-warning').style.opacity = 0;
 }
@@ -388,7 +406,7 @@ function gameLoop(currentTime) {
   lastTime = currentTime;
 
   timeLimit -= dt;
-  if (timeLimit <= 0) { gameOver("配達時間が過ぎてしまった！", "timeup"); return; }
+  if (timeLimit <= 0) { gameOver("本日の営業時間は終了です！", "timeup"); return; }
 
   let urbanLevel = Math.min(1.0, distance / 3000);
 
@@ -411,16 +429,13 @@ function gameLoop(currentTime) {
   }
   currentCurve += (targetCurve - currentCurve) * dt * 0.8;
 
-  // 危険予測イベント（飛び出し）の発生間隔
+  // 危険予測イベント
   if (diffLevel > 1) {
     timeUntilNextEvent -= dt;
-    if (timeUntilNextEvent <= 0) { 
-      timeUntilNextEvent = diffLevel === 2 ? 8.0 : 5.0; 
-      spawnDangerEvent(); 
-    }
+    if (timeUntilNextEvent <= 0) { timeUntilNextEvent = diffLevel === 2 ? 8.0 : 5.0; spawnDangerEvent(); }
   }
 
-  // トラフィック発生
+  // トラフィック
   trafficTimer -= dt;
   if (trafficTimer <= 0) { 
     let baseTraffic = diffLevel === 1 ? 2.5 : (diffLevel === 2 ? 2.0 : 1.5);
@@ -480,7 +495,7 @@ function gameLoop(currentTime) {
           obj.cleared = true;
           if (player.bag.length < 5) {
             player.bag.push(obj.icon); playSound('get');
-            showFloatingText(obj.icon + ' 集荷完了!', '#f1c40f'); updateUI();
+            showFloatingText(obj.icon + ' 集荷!', '#f1c40f'); updateUI();
           }
         } else {
           if (Math.abs(relZ) < 20 && obj.warningTime !== Math.floor(currentTime/1000)) {
@@ -493,10 +508,26 @@ function gameLoop(currentTime) {
     if (obj.type === 'house') {
       if (!obj.cleared && relZ < 0) {
         obj.cleared = true;
-        if (player.bag.length > 0) {
-          let pts = player.bag.length * 100; let bonusTime = player.bag.length * 5;
-          score += pts; timeLimit += bonusTime; player.bag = [];
-          playSound('deliver'); showFloatingText(`配達完了! +${pts}点 ⏰+${bonusTime}秒`, '#2ecc71'); updateUI();
+        let count = player.bag.length;
+        if (count > 0) {
+          // 💡 配達報酬の計算
+          let baseReward = count * 500; // 1個500円
+          let bonusTips = [0, 0, 200, 500, 1000, 1500]; // まとめ配達ボーナスチップ
+          let tip = bonusTips[count];
+          let totalEarned = baseReward + tip;
+          
+          // 💡 難易度による回復時間の調整
+          let timeRecoveryPerFood = diffLevel === 1 ? 30 : (diffLevel === 2 ? 15 : 10);
+          let bonusTime = count * timeRecoveryPerFood;
+          
+          money += totalEarned;
+          timeLimit += bonusTime;
+          player.bag = [];
+          
+          playSound('deliver'); 
+          let msg = `配達完了! +${totalEarned}円<br>(チップ +${tip}円)<br>⏰+${bonusTime}秒`;
+          showFloatingText(msg, '#2ecc71'); 
+          updateUI();
         } else {
           showFloatingText(`届けるものがないよ！`, '#95a5a6');
         }
@@ -890,9 +921,17 @@ function gameLoop(currentTime) {
   animationId = requestAnimationFrame(gameLoop);
 }
 
-function initGame() {
+// 💡 難易度切り替えによる目標金額設定
+function updateTargetMoney() {
   diffLevel = parseInt(document.getElementById('diff-select').value);
-  resize(); distance = 0; score = 0; 
+  if (diffLevel === 1) targetMoney = 3000;
+  else if (diffLevel === 2) targetMoney = 6000;
+  else targetMoney = 10000;
+}
+
+function initGame() {
+  updateTargetMoney();
+  resize(); distance = 0; money = 0; 
   timeLimit = diffLevel === 1 ? 90.0 : (diffLevel === 2 ? 75.0 : 60.0);
   player.x = -80; player.currentSpeed = 0; player.bag = [];
   centerViolationTimer = 0; timeUntilNextEvent = diffLevel === 1 ? 12.0 : (diffLevel === 2 ? 8.0 : 5.0); trafficTimer = 2.0;
@@ -910,6 +949,7 @@ function showStartScreen() {
 }
 function startGame() { initAudio(); document.querySelectorAll('.overlay').forEach(el => el.classList.remove('show')); initGame(); }
 resize();
+updateTargetMoney(); // 初期表示用
 </script>
 </body>
 </html>
