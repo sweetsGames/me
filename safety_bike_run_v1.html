@@ -250,7 +250,7 @@ function spawnTraffic(urbanLevel) {
   if (!isSafeSpawnY(yPos)) return; 
 
   if (Math.random() < 0.05 + urbanLevel * 0.05) {
-    // 💡 駐車車両は左寄りに
+    // 💡 駐車車両はさらに左寄りに
     mapObjects.push({ type: 'parked_car', y: yPos, x: -120, width: 30, height: 60, color: randomColor() });
     return; 
   }
@@ -502,15 +502,14 @@ function gameLoop(currentTime) {
         }
       }
 
-      // 車間距離判定 ＆ 駐車車両の回避（車線変更）
+      // 車間距離判定 ＆ 駐車車両の回避
       for (let other of mapObjects) {
         if (other === obj) continue;
         if (obj.type === 'car' && (other.type === 'car' || other.type === 'parked_car')) {
-          // X座標が近い（同じ車線にいる）場合
           if (Math.abs(obj.x - other.x) < 40) {
             let d = other.y - obj.y; 
             if (d > 0 && d < minStopDist) {
-              minStopDist = d - 120; // 💡 少し長めに車間距離を取る
+              minStopDist = d - 120; 
               targetSpeed = Math.min(targetSpeed, (other.speed || 0));
               blockingObstacle = other;
             }
@@ -528,22 +527,18 @@ function gameLoop(currentTime) {
 
       // 💡 駐車車両や遅い車を避ける（追い越し車線変更）
       if (blockingObstacle && obj.type === 'car' && blockingObstacle.speed < obj.baseSpeed) {
-         // 右車線（中央寄り）に十分なスペースがあるか？
          let canChangeLane = true;
          for (let other of mapObjects) {
              if (other === obj || other === blockingObstacle) continue;
              if (other.type === 'car') {
-                 // 自分が移動したい先のX座標周辺に別の車がいないか
                  if (Math.abs(other.x - 20) < 40 && Math.abs(other.y - obj.y) < 200) {
                      canChangeLane = false; break;
                  }
              }
          }
-         // 右に避ける
          if (canChangeLane) obj.targetX = 20; 
       }
       
-      // X座標の滑らかな移動（車線変更）
       if (obj.targetX !== undefined) {
          obj.x += (obj.targetX - obj.x) * dt * 2.0;
       }
@@ -961,7 +956,7 @@ function gameLoop(currentTime) {
   ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 20;
   ctx.beginPath(); ctx.moveTo(-150, 40); ctx.lineTo(-60, -90); ctx.moveTo(150, 40); ctx.lineTo(60, -90); ctx.moveTo(-60, -90); ctx.lineTo(60, -90); ctx.stroke();
   
-  ctx.fillStyle = player.stunTimer > 0 ? '#95a5a6' : (keys.brake ? '#e67e22' : '#f1c40f');
+  ctx.fillStyle = keys.brake ? '#e67e22' : '#f1c40f';
   ctx.beginPath(); ctx.arc(-60, -90, 25, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(60, -90, 25, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 
@@ -971,7 +966,8 @@ function gameLoop(currentTime) {
 function initGame() {
   resize();
   distance = 0; score = 0; timeLimit = 60.0;
-  player.x = -80; player.currentSpeed = 0; player.stunTimer = 0; player.bag = [];
+  player.x = -80; player.currentSpeed = 0; 
+  player.bag = [];
   centerViolationTimer = 0; timeUntilNextEvent = 5.0; trafficTimer = 2.0;
   targetCurve = 0; currentCurve = 0; curveTimer = 2.0;
   
