@@ -254,8 +254,14 @@ class Predator {
     this.respawnTimer = 0;
   }
 
-  calcRadius() {
-    this.targetRadius = 25 + Math.sqrt(this.number) * 4;
+//  calcRadius() {
+//    this.targetRadius = 25 + Math.sqrt(this.number) * 4;
+//  }
+
+    calcRadius() {
+    // どんなに数字が大きくても、半径が「300」以上にならないように制限
+    let r = 25 + Math.sqrt(this.number) * 4;
+    this.targetRadius = Math.min(300, r);
   }
 
   addNumber(n) {
