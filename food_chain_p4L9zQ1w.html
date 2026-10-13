@@ -407,7 +407,10 @@ class Predator {
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 4;
-    ctx.font = `900 ${Math.max(20, this.radius * 0.8)}px 'Rounded M+ 1c', sans-serif`;
+//    ctx.font = `900 ${Math.max(20, this.radius * 0.8)}px 'Rounded M+ 1c', sans-serif`;
+    // 文字の大きさが最大「150px」以上にならないように制限
+    let fontSize = Math.max(20, Math.min(150, this.radius * 0.8));
+    ctx.font = `900 ${fontSize}px 'Rounded M+ 1c', sans-serif`;
     ctx.strokeText(this.number, this.x, this.y - this.radius * 0.5);
     ctx.fillText(this.number, this.x, this.y - this.radius * 0.5);
     
