@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ねらえ！分度器キャノン - 角度＆物理パズル</title>
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { overscroll-behavior: none; touch-action: none; background: #1e272e; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', 'Hiragino Maru Gothic ProN', sans-serif; color: white; user-select: none; -webkit-user-select: none; }
+  body { position: fixed; inset: 0; width: 100%; height: 100dvh; display: flex; justify-content: center; align-items: center; }
+
+  #game-wrapper {
+    position: relative; width: 100%; max-width: 500px; height: 100%; max-height: 880px;
+    background: #87CEEB; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 25px rgba(0,0,0,0.8);
+  }
+
+  /* 上部ヘッダー */
+  #header {
+    position: absolute; top: var(--sat); left: 0; width: 100%; padding: 10px 12px;
+    display: flex; justify-content: space-between; align-items: center; z-index: 10; box-sizing: border-box; pointer-events: none;
+  }
+  .info-pill {
+    background: rgba(255,255,255,0.92); color: #2c3e50; padding: 6px 14px; border-radius: 20px;
+    font-weight: 900; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.25); pointer-events: auto;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .wind-pill {
+    background: rgba(44, 62, 80, 0.85); color: #f1c40f; padding: 6px 12px; border-radius: 15px;
+    font-weight: bold; font-size: 14px; border: 2px solid #f1c40f;
+  }
+
+  #hint-banner {
+    position: absolute; top: calc(var(--sat) + 52px); left: 50%; transform: translateX(-50%);
+    background: rgba(241, 196, 15, 0.95); color: #d35400; padding: 5px 16px; border-radius: 15px;
+    font-weight: 900; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.2); z-index: 10;
+    white-space: nowrap; pointer-events: none;
+  }
+
+  #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; z-index: 5; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* 下部コントロールパネル */
+  #controls {
+    background: linear-gradient(to bottom, rgba(44,62,80,0.95), rgba(26,37,47,0.98));
+    padding: 8px 12px calc(10px + var(--sab)); border-top: 3px solid #f1c40f;
+    display: flex; flex-direction: column; gap: 6px; z-index: 20; box-sizing: border-box;
+  }
+  .control-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .meter-label { font-size: 13px; font-weight: bold; color: #ecf0f1; width: 115px; display: flex; align-items: center; justify-content: space-between; }
+  .meter-val { font-size: 18px; font-weight: 900; color: #f1c40f; font-family: monospace; }
+  
+  input[type="range"] {
+    flex: 1; height: 8px; border-radius: 5px; background: #34495e; outline: none; -webkit-appearance: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
+    background: #f1c40f; border: 3px solid white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  }
+
+  .step-btn {
+    background: #3498db; color: white; border: none; border-radius: 8px; padding: 5px 9px;
+    font-size: 13px; font-weight: bold; box-shadow: 0 3px 0 #2980b9; cursor: pointer;
+  }
+  .step-btn:active { transform: translateY(3px); box-shadow: none; }
+
+  .action-row { display: flex; gap: 8px; margin-top: 2px; }
+  .fire-btn {
+    flex: 1; height: 50px; background: linear-gradient(to bottom, #e74c3c, #c0392b);
+    color: white; border: 2px solid #ff7979; border-radius: 25px; font-size: 22px; font-weight: 900;
+    box-shadow: 0 5px 0 #962d22; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;
+  }
+  .fire-btn:active { transform: translateY(5px); box-shadow: none; }
+  .fire-btn:disabled { background: #7f8c8d; border-color: #95a5a6; box-shadow: none; opacity: 0.6; }
+
+  /* オーバーレイ画面 */
+  .overlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.85);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; padding: 20px; box-sizing: border-box;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .title { font-size: 30px; color: #f1c40f; font-weight: 900; text-align: center; text-shadow: 2px 2px 0 #d35400; margin-bottom: 12px; line-height: 1.3; }
+  .desc {
+    background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 15px; padding: 15px; width: 100%; font-size: 14px; line-height: 1.6; box-sizing: border-box;
+  }
+  .setting-row {
+    margin-top: 12px; display: flex; justify-content: space-between; align-items: center;
+    background: rgba(0,0,0,0.5); padding: 10px 14px; border-radius: 10px;
+  }
+  .setting-row select { font-size: 16px; padding: 5px; border-radius: 6px; font-weight: bold; }
+  .btn-main {
+    margin-top: 18px; padding: 14px 40px; font-size: 22px; font-weight: 900; color: white;
+    background: #2ecc71; border: none; border-radius: 30px; box-shadow: 0 6px 0 #27ae60; cursor: pointer;
+  }
+  .btn-main:active { transform: translateY(6px); box-shadow: none; }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="header">
+    <div class="info-pill">🏰 ステージ <span id="ui-stage">1</span></div>
+    <div id="ui-wind" class="wind-pill" style="display:none;">🍃 風: なし</div>
+    <div class="info-pill">💣 残り <span id="ui-shots" style="color:#e74c3c; font-size:20px;">5</span> 発</div>
+  </div>
+
+  <div id="hint-banner">💡 赤い★缶の角度を分度器でねらおう！</div>
+
+  <div id="canvas-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <div id="controls">
+    <!-- よこの角度（分度器） -->
+    <div class="control-row">
+      <div class="meter-label"><span>📐 よこ角度:</span><span class="meter-val"><span id="val-az">90</span>°</span></div>
+      <button class="step-btn" onclick="adjustAngle('az', -5)">-5°</button>
+      <button class="step-btn" onclick="adjustAngle('az', -1)">-1°</button>
+      <input type="range" id="slider-az" min="30" max="150" value="90" oninput="syncSliders()">
+      <button class="step-btn" onclick="adjustAngle('az', 1)">+1°</button>
+      <button class="step-btn" onclick="adjustAngle('az', 5)">+5°</button>
+    </div>
+    <!-- たかさ角度（仰角） -->
+    <div class="control-row">
+      <div class="meter-label"><span>🚀 たかさ角:</span><span class="meter-val"><span id="val-el">35</span>°</span></div>
+      <button class="step-btn" onclick="adjustAngle('el', -5)">-5°</button>
+      <button class="step-btn" onclick="adjustAngle('el', -1)">-1°</button>
+      <input type="range" id="slider-el" min="10" max="75" value="35" oninput="syncSliders()">
+      <button class="step-btn" onclick="adjustAngle('el', 1)">+1°</button>
+      <button class="step-btn" onclick="adjustAngle('el', 5)">+5°</button>
+    </div>
+    <div class="action-row">
+      <button id="btn-fire" class="fire-btn" onclick="fireCannon()">🔥 はっしゃ！</button>
+    </div>
+  </div>
+
+  <!-- スタート画面 -->
+  <div id="start-screen" class="overlay show">
+    <div class="title">🎯 ねらえ！<br>分度器キャノン</div>
+    <div class="desc">
+      大砲の<b>「よこの角度（分度器）」</b>と<b>「たかさの角度」</b>を合わせて、台の上のブロックをすべて落とそう！<br><br>
+      💡 <b>遊び方と知育ポイント</b><br>
+      ・真上が<b>「90°」</b>、右が<b>「0°」</b>、左が<b>「180°」</b>！<br>
+      ・赤い<b>「★爆弾缶」</b>に当てると大爆発💥<br>
+      ・手前にカベがある時は、<b>「たかさ角」を大きくして山なりの放物線</b>で飛び越えよう！<br>
+      ・画面を直接なぞっても角度を変えられるよ👆
+
+      <div class="setting-row">
+        <label>難易度:</label>
+        <select id="diff-select">
+          <option value="1">🟢 かんたん (軌道ガイド＆角度ヒント)</option>
+          <option value="2" selected>🟡 ふつう (分度器を読んでねらう)</option>
+          <option value="3">🔴 むずかしい (🍃横風あり！)</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-main" onclick="startGame()">ゲームスタート！</button>
+  </div>
+
+  <!-- クリア／リザルト画面 -->
+  <div id="result-screen" class="overlay">
+    <div id="result-title" class="title">🎉 ステージクリア！</div>
+    <div id="result-desc" class="desc" style="text-align:center; font-size:18px;"></div>
+    <button id="btn-next" class="btn-main" onclick="nextStage()">つぎのステージへ ➡</button>
+  </div>
+</div>
+
+<script>
+// --- 効果音（Web Audio API） ---
+let actx;
+function initAudio() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+}
+function playSound(type) {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const osc = actx.createOscillator();
+  const gain = actx.createGain();
+  osc.connect(gain); gain.connect(actx.destination);
+
+  if (type === 'tick') {
+    osc.type = 'sine'; osc.frequency.setValueAtTime(800, t);
+    gain.gain.setValueAtTime(0.05, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.04);
+    osc.start(t); osc.stop(t + 0.04);
+  } else if (type === 'fire') {
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(180, t); osc.frequency.exponentialRampToValueAtTime(40, t + 0.35);
+    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.35);
+    osc.start(t); osc.stop(t + 0.35);
+  } else if (type === 'hit') {
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(140, t); osc.frequency.exponentialRampToValueAtTime(50, t + 0.15);
+    gain.gain.setValueAtTime(0.2, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
+    osc.start(t); osc.stop(t + 0.15);
+  } else if (type === 'explode') {
+    osc.type = 'square'; osc.frequency.setValueAtTime(90, t); osc.frequency.exponentialRampToValueAtTime(25, t + 0.5);
+    gain.gain.setValueAtTime(0.4, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.5);
+    osc.start(t); osc.stop(t + 0.5);
+  } else if (type === 'fall') {
+    osc.type = 'sine'; osc.frequency.setValueAtTime(500, t); osc.frequency.exponentialRampToValueAtTime(900, t + 0.15);
+    gain.gain.setValueAtTime(0.15, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+    osc.start(t); osc.stop(t + 0.15);
+  } else if (type === 'clear') {
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(523, t); osc.frequency.setValueAtTime(659, t+0.1);
+    osc.frequency.setValueAtTime(784, t+0.2); osc.frequency.setValueAtTime(1046, t+0.3);
+    gain.gain.setValueAtTime(0.25, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+    osc.start(t); osc.stop(t + 0.6);
+  }
+}
+
+// --- ゲーム定数と変数 ---
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+let cw, ch;
+
+let diffLevel = 2; // 1:かんたん, 2:ふつう, 3:むずかしい
+let stageNum = 1;
+let shotsLeft = 5;
+let windSpeed = 0; // 横風 (-5 〜 +5)
+
+// 大砲の角度パラメータ
+let azimuth = 90;   // よこの角度 (30°〜150°、90°が正面)
+let elevation = 35; // たかさの角度 (10°〜75°)
+
+// 座標系：大砲の位置と、奥の台座（ターゲット面）の位置
+let cannonX, cannonY;
+let platformY;      // 台座の表面Y座標
+let platformWidth;  // 台座の横幅
+const TARGET_DIST = 340; // 大砲からタワーまでの仮想奥行き距離
+
+let blocks = [];
+let obstacles = []; // 手前のバリア障害物
+let projectiles = [];
+let particles = [];
+let floatingTexts = [];
+let settleWaitTimer = 0;
+let gameState = 'menu';
+
+function resize() {
+  const container = document.getElementById('canvas-container');
+  cw = container.clientWidth;
+  ch = container.clientHeight;
+  canvas.width = cw;
+  canvas.height = ch;
+
+  cannonX = cw / 2;
+  cannonY = ch - 35;
+  platformY = ch * 0.56;
+  platformWidth = Math.min(cw * 0.78, 320);
+}
+window.addEventListener('resize', resize);
+
+// --- 角度と軌道の計算式（知育のコア） ---
+// 指定した azimuth(°), elevation(°), 進行度 p (0.0〜1.0) における画面上の座標と高さを返す
+function getTrajectoryPoint(azDeg, elDeg, p) {
+  // 90°が正面(0)、右がプラス、左がマイナス
+  const radAz = (90 - azDeg) * Math.PI / 180;
+  const radEl = elDeg * Math.PI / 180;
+
+  // 風による横ズレ（進行度の2乗で効いてくる）
+  const windOffset = windSpeed * 12 * (p * p);
+
+  // 台座の面（p=1.0）に向かいながら、角度に応じて左右に広がる
+  const groundX = cannonX + Math.sin(radAz) * (TARGET_DIST * p) + windOffset;
+  const groundY = cannonY - (cannonY - platformY) * p;
+
+  // 放物線の高さ（p=0で0、中間で高く、p=1.0で着弾高さになる）
+  // 仰角(elDeg)が高いほど、奥のタワーの高い位置に届き、途中の山なりアーチも高くなる！
+  const impactHeight = Math.sin(radEl) * 280; // p=1.0での到達高さ
+  const arcHeight = Math.sin(radEl) * 180 * 4 * p * (1 - p); // 途中の放物線の膨らみ
+
+  const currentHeight = impactHeight * p + arcHeight;
+  const screenY = groundY - currentHeight;
+
+  return { x: groundX, y: screenY, groundY: groundY, height: currentHeight, scale: 1 - p * 0.45 };
+}
+
+// ターゲット座標(x, y)に当てるための理想の「よこ角度」を逆算（ヒント表示用）
+function calcAngleForX(targetX) {
+  const dx = targetX - cannonX;
+  const sinVal = Math.max(-0.95, Math.min(0.95, dx / TARGET_DIST));
+  const deg = 90 - (Math.asin(sinVal) * 180 / Math.PI);
+  return Math.round(deg);
+}
+
+// --- ステージ生成 ---
+function loadStage(num) {
+  blocks = [];
+  obstacles = [];
+  projectiles = [];
+  particles = [];
+  shotsLeft = 5;
+  settleWaitTimer = 0;
+
+  // 風の設定（難易度3のみ風あり）
+  if (diffLevel === 3) {
+    const winds = [-4, -3, -2, 2, 3, 4];
+    windSpeed = winds[Math.floor(Math.random() * winds.length)];
+    const windEl = document.getElementById('ui-wind');
+    windEl.style.display = 'block';
+    windEl.innerText = `🍃 風: ${windSpeed > 0 ? '右へ ➡' : '⬅ 左へ'} 強さ${Math.abs(windSpeed)}`;
+  } else {
+    windSpeed = 0;
+    document.getElementById('ui-wind').style.display = 'none';
+  }
+
+  const cx = cw / 2;
+  const py = platformY;
+
+  // ブロック追加ヘルパー (x:中心X, y:底面Yからのオフセットではなく中心Y, w, h, type)
+  const addB = (x, bottomY, w, h, type) => {
+    blocks.push({
+      x: x, y: bottomY - h / 2, vx: 0, vy: 0,
+      w: w, h: h, type: type, angle: 0, va: 0, fallen: false
+    });
+  };
+
+  if (num % 4 === 1) {
+    // ステージ1：添付画像風「砂時計＆2本の爆弾缶タワー」
+    // 1段目（紫の星ブロック）
+    for (let i = -3; i <= 3; i++) addB(cx + i * 32, py, 30, 26, 'star');
+    // 2〜3段目（水色アイスブロック）
+    addB(cx - 45, py - 26, 88, 24, 'ice');
+    addB(cx + 45, py - 26, 88, 24, 'ice');
+    addB(cx, py - 50, 140, 24, 'ice');
+    // 4〜5段目（赤い★爆弾缶の柱！）
+    addB(cx - 38, py - 74, 28, 32, 'tnt');
+    addB(cx + 38, py - 74, 28, 32, 'tnt');
+    addB(cx - 38, py - 106, 28, 32, 'tnt');
+    addB(cx + 38, py - 106, 28, 32, 'tnt');
+    // 上部の屋根
+    addB(cx, py - 138, 150, 24, 'ice');
+    addB(cx, py - 162, 170, 26, 'ice');
+    for (let i = -2; i <= 2; i++) addB(cx + i * 32, py - 188, 30, 26, 'star');
+
+    updateHintText(`💡 柱の赤い★缶（約 ${calcAngleForX(cx-38)}° と ${calcAngleForX(cx+38)}°）をねらおう！`);
+
+  } else if (num % 4 === 2) {
+    // ステージ2：左右のツイン・キャッスル
+    [-75, 75].forEach(offset => {
+      const bx = cx + offset;
+      addB(bx - 22, py, 40, 28, 'ice');
+      addB(bx + 22, py, 40, 28, 'ice');
+      addB(bx, py - 28, 32, 34, 'tnt'); // 中央に爆弾缶
+      addB(bx, py - 62, 84, 24, 'ice');
+      addB(bx - 20, py - 86, 30, 28, 'star');
+      addB(bx + 20, py - 86, 30, 28, 'star');
+    });
+    updateHintText(`💡 左右のタワーの中心（約 ${calcAngleForX(cx-75)}° と ${calcAngleForX(cx+75)}°）を撃ち抜こう！`);
+
+  } else if (num % 4 === 3) {
+    // ステージ3：手前に障害物（カベ）！高い角度の放物線で飛び越えろ！
+    obstacles.push({ p: 0.55, x: cx, w: 180, h: 95 }); // 進行度55%の位置に高さ95のカベ
+
+    for (let i = -2; i <= 2; i++) addB(cx + i * 36, py, 34, 28, 'ice');
+    addB(cx - 40, py - 28, 30, 32, 'tnt');
+    addB(cx, py - 28, 30, 32, 'tnt');
+    addB(cx + 40, py - 28, 30, 32, 'tnt');
+    addB(cx, py - 60, 150, 24, 'ice');
+    for (let i = -1; i <= 1; i++) addB(cx + i * 40, py - 84, 32, 30, 'star');
+
+    updateHintText(`💡 手前にカベがあるぞ！「🚀たかさ角」を 50° 以上にして飛び越えよう！`);
+
+  } else {
+    // ステージ4：巨大ピラミッド要塞
+    for (let row = 0; row < 5; row++) {
+      const count = 6 - row;
+      const startX = cx - ((count - 1) * 34) / 2;
+      for (let i = 0; i < count; i++) {
+        let type = 'ice';
+        if (row === 1 && (i === 1 || i === count - 2)) type = 'tnt';
+        else if (row >= 3) type = 'star';
+        addB(startX + i * 34, py - row * 28, 32, 26, type);
+      }
+    }
+    updateHintText(`💡 ピラミッドの土台にある赤い★缶を正確にねらい撃とう！`);
+  }
+
+  document.getElementById('ui-stage').innerText = stageNum;
+  document.getElementById('ui-shots').innerText = shotsLeft;
+  document.getElementById('btn-fire').disabled = false;
+}
+
+function updateHintText(txt) {
+  const banner = document.getElementById('hint-banner');
+  if (diffLevel === 1) {
+    banner.innerText = txt;
+  } else if (diffLevel === 2) {
+    banner.innerText = "📐 分度器の目盛りを読んで、赤い★缶をねらおう！";
+  } else {
+    banner.innerText = "🍃 風の向きに注意！風上に向かって角度を調整しよう！";
+  }
+}
+
+// --- スライダー・ボタン操作 ---
+function syncSliders() {
+  azimuth = parseInt(document.getElementById('slider-az').value);
+  elevation = parseInt(document.getElementById('slider-el').value);
+  document.getElementById('val-az').innerText = azimuth;
+  document.getElementById('val-el').innerText = elevation;
+  playSound('tick');
+}
+
+function adjustAngle(type, delta) {
+  if (type === 'az') {
+    azimuth = Math.max(30, Math.min(150, azimuth + delta));
+    document.getElementById('slider-az').value = azimuth;
+  } else {
+    elevation = Math.max(10, Math.min(75, elevation + delta));
+    document.getElementById('slider-el').value = elevation;
+  }
+  syncSliders();
+}
+
+// キャンバス上の直接ドラッグ操作でも角度変更可能に
+let isDragging = false;
+const handlePointer = (clientX, clientY) => {
+  const rect = canvas.getBoundingClientRect();
+  const px = clientX - rect.left;
+  const py = clientY - rect.top;
+
+  // タワー付近をタップ・ドラッグしたら、そこに向く角度を計算
+  const dx = px - cannonX;
+  const dy = cannonY - py;
+  if (dy > 30) {
+    // よこ角度
+    const sinVal = Math.max(-0.86, Math.min(0.86, dx / TARGET_DIST));
+    azimuth = Math.round(Math.max(30, Math.min(150, 90 - (Math.asin(sinVal) * 180 / Math.PI))));
+    // たかさ角度
+    const targetH = Math.max(10, platformY - py + 20);
+    const sinEl = Math.max(0.18, Math.min(0.96, targetH / 280));
+    elevation = Math.round(Math.max(10, Math.min(75, Math.asin(sinEl) * 180 / Math.PI)));
+
+    document.getElementById('slider-az').value = azimuth;
+    document.getElementById('slider-el').value = elevation;
+    document.getElementById('val-az').innerText = azimuth;
+    document.getElementById('val-el').innerText = elevation;
+  }
+};
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (gameState !== 'playing') return;
+  initAudio();
+  isDragging = true;
+  handlePointer(e.clientX, e.clientY);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!isDragging || gameState !== 'playing') return;
+  handlePointer(e.clientX, e.clientY);
+});
+window.addEventListener('pointerup', () => { isDragging = false; });
+
+// --- 大砲の発射！ ---
+function fireCannon() {
+  if (gameState !== 'playing' || shotsLeft <= 0 || projectiles.length > 0) return;
+  initAudio();
+  playSound('fire');
+
+  shotsLeft--;
+  document.getElementById('ui-shots').innerText = shotsLeft;
+  document.getElementById('btn-fire').disabled = true;
+
+  projectiles.push({
+    az: azimuth,
+    el: elevation,
+    p: 0, // 0.0(大砲) ➔ 1.0(タワー着弾)
+    speed: 1.4
+  });
+
+  // 発射煙エフェクト
+  for (let i = 0; i < 12; i++) {
+    particles.push({
+      x: cannonX, y: cannonY - 30,
+      vx: (Math.random() - 0.5) * 120, vy: -Math.random() * 150 - 50,
+      r: 8 + Math.random() * 10, color: '#ecf0f1', life: 0.4, maxLife: 0.4
+    });
+  }
+}
+
+// --- 爆発＆衝撃処理 ---
+function triggerExplosion(ex, ey, radius, power) {
+  playSound('explode');
+  // 爆発パーティクル
+  const colors = ['#e74c3c', '#f39c12', '#f1c40f', '#ffffff'];
+  for (let i = 0; i < 35; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 60 + Math.random() * 260;
+    particles.push({
+      x: ex, y: ey,
+      vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 60,
+      r: 6 + Math.random() * 14,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 0.5 + Math.random() * 0.3, maxLife: 0.8
+    });
+  }
+
+  // 周囲のブロックを吹き飛ばす
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const b = blocks[i];
+    const dx = b.x - ex;
+    const dy = b.y - ey;
+    const dist = Math.hypot(dx, dy);
+    if (dist < radius) {
+      if (b.type === 'tnt' && dist < radius * 0.75) {
+        // 誘爆！
+        blocks.splice(i, 1);
+        setTimeout(() => triggerExplosion(b.x, b.y, 130, 500), 80);
+      } else if (dist < 45) {
+        // 至近距離のブロックは粉砕して消滅！
+        spawnBlockShards(b);
+        blocks.splice(i, 1);
+      } else {
+        const force = (1 - dist / radius) * power;
+        const nx = dx / (dist || 1);
+        const ny = dy / (dist || 1);
+        // 横方向へ強く弾き飛ばして台座から落とす
+        b.vx += (nx * 1.4 + (Math.random() - 0.5) * 0.5) * force;
+        b.vy += (ny - 0.6) * force;
+        b.va += (Math.random() - 0.5) * 15;
+      }
+    }
+  }
+}
+
+function spawnBlockShards(b) {
+  playSound('fall');
+  const col = b.type === 'tnt' ? '#e74c3c' : (b.type === 'star' ? '#8e44ad' : '#00d2d3');
+  for (let i = 0; i < 8; i++) {
+    particles.push({
+      x: b.x + (Math.random()-0.5)*b.w, y: b.y + (Math.random()-0.5)*b.h,
+      vx: (Math.random()-0.5)*200, vy: -Math.random()*150,
+      r: 5 + Math.random()*5, color: col, life: 0.5, maxLife: 0.5
+    });
+  }
+}
+
+// --- 物理エンジンの更新 ---
+function updatePhysics(dt) {
+  // 1. 弾の移動と着弾判定
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const proj = projectiles[i];
+    proj.p += proj.speed * dt;
+    const pt = getTrajectoryPoint(proj.az, proj.el, Math.min(1.0, proj.p));
+
+    // 手前の障害物（バリア）との衝突チェック
+    let hitObstacle = false;
+    for (let obs of obstacles) {
+      if (Math.abs(proj.p - obs.p) < 0.05) {
+        // バリアの横幅と高さの中に弾が入っているか
+        if (Math.abs(pt.x - obs.x) < obs.w / 2 && pt.height < obs.h) {
+          hitObstacle = true;
+          playSound('hit');
+          floatingTexts.push({ x: pt.x, y: pt.y, text: "カベに当たった！もっと高く撃とう！", color: "#e74c3c", life: 1.2 });
+          break;
+        }
+      }
+    }
+
+    if (hitObstacle) {
+      projectiles.splice(i, 1);
+      settleWaitTimer = 1.0;
+      continue;
+    }
+
+    // タワー面（p >= 1.0）に到達したら着弾！
+    if (proj.p >= 1.0) {
+      projectiles.splice(i, 1);
+      settleWaitTimer = 2.0; // 物理が落ち着くのを待つタイマー
+
+      // 着弾位置(pt.x, pt.y)にあるブロックを探す
+      let hitBlockIndex = -1;
+      for (let j = 0; j < blocks.length; j++) {
+        const b = blocks[j];
+        if (Math.abs(pt.x - b.x) <= b.w / 2 + 18 && Math.abs(pt.y - b.y) <= b.h / 2 + 18) {
+          hitBlockIndex = j;
+          break;
+        }
+      }
+
+      if (hitBlockIndex !== -1) {
+        const hitB = blocks[hitBlockIndex];
+        if (hitB.type === 'tnt') {
+          // 赤い★爆弾缶に命中！大爆発！
+          blocks.splice(hitBlockIndex, 1);
+          floatingTexts.push({ x: hitB.x, y: hitB.y - 20, text: "💥 ナイススナイプ！！", color: "#f1c40f", life: 1.5 });
+          triggerExplosion(hitB.x, hitB.y, 145, 520);
+        } else {
+          // 通常ブロックに命中！そのブロックを吹き飛ばし、周囲にも衝撃を与える
+          playSound('hit');
+          spawnBlockShards(hitB);
+          blocks.splice(hitBlockIndex, 1);
+          triggerExplosion(pt.x, pt.y, 85, 320);
+        }
+      } else {
+        // 空振り（でも近くにあれば少し風圧を与える）
+        playSound('hit');
+        triggerExplosion(pt.x, pt.y, 50, 120);
+      }
+    }
+  }
+
+  // 2. ブロックの重力・移動・衝突解決
+  const gravity = 550;
+  const platLeft = cw / 2 - platformWidth / 2;
+  const platRight = cw / 2 + platformWidth / 2;
+
+  for (let b of blocks) {
+    b.vy += gravity * dt;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.angle += b.va * dt;
+
+    // 空気抵抗・減衰
+    b.vx *= 0.985;
+    b.va *= 0.95;
+
+    // 台座の上に乗っているか判定
+    if (b.x > platLeft - 5 && b.x < platRight + 5) {
+      if (b.y + b.h / 2 > platformY && b.y - b.h / 2 < platformY + 20 && b.vy >= 0) {
+        b.y = platformY - b.h / 2;
+        b.vy = 0;
+        b.vx *= 0.82; // 台座との摩擦
+        b.angle *= 0.8;
+        b.va = 0;
+      }
+    } else {
+      // 台座の端から外れたら傾きながら落ちていく
+      b.va += (b.x < cw / 2 ? -5 : 5) * dt;
+    }
+  }
+
+  // ブロック同士の積み重ね・押し出し判定（下から順に複数回反復して安定させる）
+  blocks.sort((a, b) => b.y - a.y);
+  for (let iter = 0; iter < 5; iter++) {
+    for (let i = 0; i < blocks.length; i++) {
+      const a = blocks[i];
+      // 台座の再拘束
+      if (a.x > platLeft - 5 && a.x < platRight + 5 && a.y + a.h / 2 > platformY && a.y < platformY + 10) {
+        a.y = platformY - a.h / 2;
+        if (a.vy > 0) a.vy = 0;
+      }
+
+      for (let j = i + 1; j < blocks.length; j++) {
+        const b = blocks[j]; // bの方が上にある可能性が高い
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const overlapX = (a.w + b.w) / 2 - Math.abs(dx);
+        const overlapY = (a.h + b.h) / 2 - Math.abs(dy);
+
+        if (overlapX > 0 && overlapY > 0) {
+          if (overlapY < overlapX) {
+            // 上下の重なり解決（上のブロックbを持ち上げる）
+            if (dy < 0) {
+              b.y -= overlapY;
+              if (b.vy > a.vy) b.vy = a.vy * 0.3;
+              b.vx *= 0.92; // ブロック間の摩擦
+              // 重心がズレていたら横へ滑り落ちる力を加える（タワーが崩れるリアルな挙動！）
+              if (Math.abs(dx) > a.w * 0.35) {
+                b.vx += Math.sign(dx) * 45 * dt;
+                b.va += Math.sign(dx) * 2 * dt;
+              }
+            } else {
+              a.y -= overlapY;
+            }
+          } else {
+            // 左右の押し合い解決
+            const push = overlapX * 0.5;
+            const sign = dx > 0 ? 1 : -1;
+            a.x -= sign * push;
+            b.x += sign * push;
+            const avgVx = (a.vx + b.vx) * 0.5;
+            a.vx = avgVx - sign * 10;
+            b.vx = avgVx + sign * 10;
+          }
+        }
+      }
+    }
+  }
+
+  // 台座より下へ落ちたブロックの消去（撃破！）
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    if (blocks[i].y > platformY + 75) {
+      spawnBlockShards(blocks[i]);
+      floatingTexts.push({ x: blocks[i].x, y: platformY + 40, text: "✨ DROP!", color: "#2ecc71", life: 0.8 });
+      blocks.splice(i, 1);
+      settleWaitTimer = Math.max(settleWaitTimer, 1.0);
+    }
+  }
+
+  // パーティクルと文字の更新
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    const ft = floatingTexts[i];
+    ft.y -= 35 * dt; ft.life -= dt;
+    if (ft.life <= 0) floatingTexts.splice(i, 1);
+  }
+
+  // 発射後の待機＆クリア／ゲームオーバー判定
+  if (settleWaitTimer > 0 && projectiles.length === 0) {
+    settleWaitTimer -= dt;
+    if (blocks.length === 0) {
+      settleWaitTimer = 0;
+      stageClear();
+    } else if (settleWaitTimer <= 0) {
+      if (shotsLeft <= 0) {
+        stageFail();
+      } else {
+        document.getElementById('btn-fire').disabled = false;
+      }
+    }
+  }
+}
+
+function stageClear() {
+  gameState = 'result';
+  playSound('clear');
+  const stars = shotsLeft >= 3 ? "★★★ (パーフェクト！)" : (shotsLeft >= 1 ? "★★☆ (グッド！)" : "★☆☆ (ギリギリクリア！)");
+  document.getElementById('result-title').innerText = `🎉 ステージ ${stageNum} クリア！`;
+  document.getElementById('result-title').style.color = '#f1c40f';
+  document.getElementById('result-desc').innerHTML = `
+    すべてのブロックを落としたよ！<br><br>
+    <span style="font-size:26px; color:#f1c40f;">${stars}</span><br>
+    （残った弾：${shotsLeft} 発）
+  `;
+  document.getElementById('btn-next').innerText = "つぎのステージへ ➡";
+  document.getElementById('result-screen').classList.add('show');
+}
+
+function stageFail() {
+  gameState = 'result';
+  playSound('hit');
+  document.getElementById('result-title').innerText = `💦 弾切れ…！`;
+  document.getElementById('result-title').style.color = '#e74c3c';
+  document.getElementById('result-desc').innerHTML = `
+    あと <b>${blocks.length}個</b> ブロックが残ってしまった！<br>
+    赤い★缶の角度をもう一度分度器で確かめてみよう📐
+  `;
+  document.getElementById('btn-next').innerText = "もういちど挑戦する 🔄";
+  document.getElementById('result-screen').classList.add('show');
+}
+
+function nextStage() {
+  document.getElementById('result-screen').classList.remove('show');
+  if (blocks.length === 0) stageNum++;
+  loadStage(stageNum);
+  gameState = 'playing';
+}
+
+// --- 描画処理 ---
+function draw() {
+  ctx.clearRect(0, 0, cw, ch);
+
+  // 1. 背景（青空と芝生の丘）
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, platformY + 60);
+  skyGrad.addColorStop(0, '#4facfe');
+  skyGrad.addColorStop(1, '#00f2fe');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, cw, ch);
+
+  // 芝生のフィールド
+  const grassGrad = ctx.createLinearGradient(0, platformY - 20, 0, ch);
+  grassGrad.addColorStop(0, '#7bed9f');
+  grassGrad.addColorStop(0.3, '#2ed573');
+  grassGrad.addColorStop(1, '#1e90ff');
+  ctx.fillStyle = '#2ed573';
+  ctx.beginPath();
+  ctx.ellipse(cw / 2, ch * 0.78, cw * 0.9, ch * 0.35, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. 台座（添付画像風の黄色と白のテーブル）
+  const pLeft = cw / 2 - platformWidth / 2;
+  // 台座の脚
+  ctx.fillStyle = '#dcdde1';
+  ctx.fillRect(cw / 2 - 14, platformY, 28, 55);
+  ctx.fillStyle = '#f39c12';
+  ctx.beginPath();
+  ctx.ellipse(cw / 2, platformY + 55, 45, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // 台座の天板
+  ctx.fillStyle = '#f1c40f';
+  ctx.beginPath();
+  ctx.roundRect(pLeft - 6, platformY, platformWidth + 12, 16, 8);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.roundRect(pLeft, platformY + 2, platformWidth, 8, 4);
+  ctx.fill();
+
+  // 3. 積まれているブロックの描画
+  for (let b of blocks) {
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.angle);
+
+    if (b.type === 'ice') {
+      // 水色のアイスブロック
+      ctx.fillStyle = '#00a8ff';
+      ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 5); ctx.fill();
+      ctx.fillStyle = '#4cd137';
+      ctx.fillStyle = '#70d6ff';
+      ctx.beginPath(); ctx.roundRect(-b.w/2 + 3, -b.h/2 + 3, b.w - 6, b.h - 8, 3); ctx.fill();
+      // ハイライト
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillRect(-b.w/2 + 6, -b.h/2 + 5, b.w - 12, 4);
+    } else if (b.type === 'star') {
+      // 紫のスターブロック
+      ctx.fillStyle = '#5f27cd';
+      ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 6); ctx.fill();
+      ctx.fillStyle = '#9b59b6';
+      ctx.beginPath(); ctx.roundRect(-b.w/2 + 3, -b.h/2 + 3, b.w - 6, b.h - 6, 4); ctx.fill();
+      ctx.fillStyle = '#f1c40f';
+      ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('★', 0, 1);
+    } else if (b.type === 'tnt') {
+      // 赤い★爆弾缶
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 4); ctx.fill();
+      // 上下の銀色のフチ
+      ctx.fillStyle = '#bdc3c7';
+      ctx.fillRect(-b.w/2, -b.h/2, b.w, 5);
+      ctx.fillRect(-b.w/2, b.h/2 - 5, b.w, 5);
+      // ★マーク
+      ctx.fillStyle = '#f1c40f';
+      ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('★', 0, 1);
+
+      // かんたんモードの時は、缶の上に狙うべき角度を表示！
+      if (diffLevel === 1) {
+        const idealAng = calcAngleForX(b.x);
+        ctx.fillStyle = 'rgba(0,0,0,0.75)';
+        ctx.beginPath(); ctx.roundRect(-22, -b.h/2 - 20, 44, 16, 4); ctx.fill();
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(`${idealAng}°`, 0, -b.h/2 - 12);
+      }
+    }
+    ctx.restore();
+  }
+
+  // 4. 手前の障害物（カベ）の描画
+  for (let obs of obstacles) {
+    const pt = getTrajectoryPoint(90, 0, obs.p);
+    const w = obs.w * pt.scale;
+    const h = obs.h * pt.scale;
+    ctx.fillStyle = 'rgba(52, 73, 94, 0.88)';
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(obs.x - w / 2, pt.groundY - h, w, h, 6);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#ecf0f1';
+    ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('🚧 カベ (高い角度でこえよう)', obs.x, pt.groundY - h / 2);
+  }
+
+  // 5. 軌道予測ガイドラインの描画（発射前）
+  if (projectiles.length === 0 && gameState === 'playing') {
+    const maxPreviewP = diffLevel === 1 ? 1.0 : (diffLevel === 2 ? 0.65 : 0.4);
+    ctx.save();
+    for (let p = 0.08; p <= maxPreviewP; p += 0.06) {
+      const pt = getTrajectoryPoint(azimuth, elevation, p);
+      // 地面の影（直線方向）
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath(); ctx.arc(pt.x, pt.groundY, 3 * pt.scale, 0, Math.PI * 2); ctx.fill();
+      // 空中を飛ぶ放物線の点
+      ctx.fillStyle = p > 0.9 ? '#e74c3c' : '#f1c40f';
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, 5 * pt.scale, 0, Math.PI * 2); ctx.fill();
+    }
+    // かんたんモードでは着弾点に照準マークを表示
+    if (diffLevel === 1) {
+      const endPt = getTrajectoryPoint(azimuth, elevation, 1.0);
+      ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(endPt.x, endPt.y, 14, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(endPt.x - 20, endPt.y); ctx.lineTo(endPt.x + 20, endPt.y);
+      ctx.moveTo(endPt.x, endPt.y - 20); ctx.lineTo(endPt.x, endPt.y + 20);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // 6. 飛んでいる大砲の弾の描画
+  for (let proj of projectiles) {
+    const pt = getTrajectoryPoint(proj.az, proj.el, proj.p);
+    // 地面の影
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(pt.x, pt.groundY, 14 * pt.scale, 6 * pt.scale, 0, 0, Math.PI * 2); ctx.fill();
+    // 弾本体
+    const r = 18 * pt.scale;
+    const ballGrad = ctx.createRadialGradient(pt.x - r*0.3, pt.y - r*0.3, r*0.1, pt.x, pt.y, r);
+    ballGrad.addColorStop(0, '#7f8c8d');
+    ballGrad.addColorStop(1, '#2c3e50');
+    ctx.fillStyle = ballGrad;
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // 7. 📐 本物の「分度器」と大砲の描画（手前下部）
+  drawProtractorAndCannon();
+
+  // 8. 横から見た「たかさ角（放物線）」ミニインジケーター（左下）
+  drawElevationMiniGauge();
+
+  // 9. エフェクト・文字の描画
+  for (let p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1.0;
+
+  for (let ft of floatingTexts) {
+    ctx.save();
+    ctx.font = '900 18px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 4;
+    ctx.strokeText(ft.text, ft.x, ft.y);
+    ctx.fillStyle = ft.color;
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.restore();
+  }
+}
+
+// 分度器と大砲の描画
+function drawProtractorAndCannon() {
+  const rad = 115;
+  ctx.save();
+  ctx.translate(cannonX, cannonY);
+
+  // 分度器の半透明ドーム
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+  ctx.strokeStyle = '#2980b9';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(0, 0, rad, Math.PI, 0, false);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // 内側のくり抜き線
+  ctx.beginPath();
+  ctx.arc(0, 0, rad * 0.65, Math.PI, 0, false);
+  ctx.strokeStyle = 'rgba(41, 128, 185, 0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // 分度器の目盛りと数字（30°〜150°を中心に、0°〜180°を描画）
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let deg = 0; deg <= 180; deg += 5) {
+    // 画面上の角度（右が0°、上が90°、左が180°）
+    const a = -deg * Math.PI / 180;
+    const isMajor = (deg % 15 === 0);
+    const innerR = isMajor ? rad - 14 : rad - 7;
+
+    ctx.strokeStyle = deg === 90 ? '#e74c3c' : '#2c3e50';
+    ctx.lineWidth = isMajor ? 2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * innerR, Math.sin(a) * innerR);
+    ctx.lineTo(Math.cos(a) * rad, Math.sin(a) * rad);
+    ctx.stroke();
+
+    if (deg % 30 === 0 || deg === 75 || deg === 105) {
+      const textR = rad - 26;
+      ctx.fillStyle = deg === 90 ? '#e74c3c' : '#2c3e50';
+      ctx.font = deg % 30 === 0 ? 'bold 12px monospace' : '10px monospace';
+      ctx.fillText(`${deg}°`, Math.cos(a) * textR, Math.sin(a) * textR);
+    }
+  }
+
+  // 現在狙っている「よこ角度」の赤いレーザー指針
+  const currentRad = -azimuth * Math.PI / 180;
+  ctx.strokeStyle = '#e74c3c';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(Math.cos(currentRad) * (rad + 8), Math.sin(currentRad) * (rad + 8));
+  ctx.stroke();
+
+  // 大砲の台座
+  ctx.fillStyle = '#8e44ad';
+  ctx.beginPath(); ctx.arc(0, 0, 32, Math.PI, 0); ctx.fill();
+
+  // 大砲の砲身（角度に合わせて回転し、仰角が高いと少し短く見える立体表現）
+  ctx.save();
+  ctx.rotate(currentRad + Math.PI / 2);
+  const barrelLen = 58 * Math.cos(elevation * Math.PI / 180 * 0.5);
+  const barrelGrad = ctx.createLinearGradient(-16, 0, 16, 0);
+  barrelGrad.addColorStop(0, '#c0392b');
+  barrelGrad.addColorStop(0.5, '#e74c3c');
+  barrelGrad.addColorStop(1, '#962d22');
+  ctx.fillStyle = barrelGrad;
+  ctx.beginPath(); ctx.roundRect(-16, -barrelLen, 32, barrelLen + 10, 8); ctx.fill();
+  // 砲身の黄色いリングと★
+  ctx.fillStyle = '#f1c40f';
+  ctx.fillRect(-17, -barrelLen + 6, 34, 6);
+  ctx.fillRect(-15, -15, 30, 5);
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('★', 0, -barrelLen / 2);
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// 左下に「横から見たたかさ角（仰角）」の分度器ミニゲージを描画
+function drawElevationMiniGauge() {
+  const gx = 18;
+  const gy = ch - 18;
+  const r = 58;
+
+  ctx.save();
+  ctx.translate(gx, gy);
+
+  // 扇形の背景
+  ctx.fillStyle = 'rgba(44, 62, 80, 0.85)';
+  ctx.strokeStyle = '#f1c40f';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.arc(0, 0, r, -Math.PI / 2, 0, false);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // 仰角の赤い扇形塗りつぶし
+  const elRad = -elevation * Math.PI / 180;
+  ctx.fillStyle = 'rgba(231, 76, 60, 0.55)';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.arc(0, 0, r * 0.85, elRad, 0, false);
+  ctx.closePath();
+  ctx.fill();
+
+  // 仰角の針
+  ctx.strokeStyle = '#f1c40f';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(Math.cos(elRad) * r, Math.sin(elRad) * r);
+  ctx.stroke();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText(`たかさ ${elevation}°`, 8, -r - 6);
+  ctx.restore();
+}
+
+// --- メインループ ---
+function gameLoop(time) {
+  const dt = Math.min(0.05, (time - lastTime) / 1000);
+  lastTime = time;
+
+  if (gameState === 'playing') {
+    updatePhysics(dt);
+  }
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  initAudio();
+  diffLevel = parseInt(document.getElementById('diff-select').value);
+  document.getElementById('start-screen').classList.remove('show');
+  resize();
+  stageNum = 1;
+  loadStage(stageNum);
+  gameState = 'playing';
+}
+
+resize();
+let lastTime = performance.now();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
