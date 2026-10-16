@@ -39,7 +39,7 @@
   #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; z-index: 5; }
   canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
-  /* 下部コントロールパネル（文字潰れ防止レイアウト） */
+  /* 下部コントロールパネル */
   #controls {
     background: linear-gradient(to bottom, #2c3e50, #1a252f);
     padding: 8px 12px calc(10px + var(--sab)); border-top: 3px solid #f1c40f;
@@ -110,7 +110,7 @@
     <div class="info-pill">💣 残り <span id="ui-shots" style="color:#e74c3c; font-size:18px;">5</span> 発</div>
   </div>
 
-  <div id="hint-banner">💡 ねらいたい場所を直接タッチするか、角度を合わせよう！</div>
+  <div id="hint-banner">💡 ねらいたい場所をタッチするか、角度を合わせよう！</div>
 
   <div id="canvas-container">
     <canvas id="game-canvas"></canvas>
@@ -126,7 +126,6 @@
       <div class="control-row">
         <button class="step-btn" onclick="adjustAngle('az', 5)">◀ +5°</button>
         <button class="step-btn" onclick="adjustAngle('az', 1)">+1°</button>
-        <!-- 左が150°、右が30°になるよう直感的に配置 -->
         <input type="range" id="slider-az" min="30" max="150" value="90" style="direction: rtl;" oninput="syncSliders()">
         <button class="step-btn" onclick="adjustAngle('az', -1)">-1°</button>
         <button class="step-btn" onclick="adjustAngle('az', -5)">-5° ▶</button>
@@ -158,16 +157,16 @@
       大砲の<b>「よこの角度（分度器）」</b>と<b>「たかさ角」</b>を合わせて、台の上のブロックをすべて落とそう！<br><br>
       💡 <b>遊び方と知育ポイント</b><br>
       ・真上が<b>「90°」</b>、右が<b>「0°」</b>、左が<b>「180°」</b>！<br>
-      ・分度器の赤い線の延長線上に弾が飛ぶよ！<br>
       ・赤い<b>「★爆弾缶」</b>に当てると大爆発💥<br>
-      ・画面のブロックを<b>直接タッチ・スライド</b>しても照準を合わせられるよ👆
+      ・ステージごとにブロックの並びがランダムに変化！<br>
+      ・画面を<b>直接タッチ・スライド</b>しても照準を合わせられるよ👆
 
       <div class="setting-row">
         <label>難易度:</label>
         <select id="diff-select">
-          <option value="1">🟢 かんたん (着弾マーク＆角度ヒント)</option>
+          <option value="1">🟢 かんたん (角度の答えヒント付き)</option>
           <option value="2" selected>🟡 ふつう (分度器を読んでねらう)</option>
-          <option value="3">🔴 むずかしい (🍃横風あり！)</option>
+          <option value="3">🔴 むずかしい (🍃横風で弾が流される！)</option>
         </select>
       </div>
     </div>
@@ -249,7 +248,9 @@ let projectiles = [];
 let particles = [];
 let floatingTexts = [];
 let settleWaitTimer = 0;
-let physicsActive = false; // 💡 弾が当たるまで物理崩壊を止めるフラグ
+let clearDelayTimer = 0; // 全ブロック撃破後の2秒待機タイマー
+let isStageClearing = false;
+let physicsActive = false;
 let gameState = 'menu';
 
 function resize() {
@@ -261,34 +262,28 @@ function resize() {
 
   cannonX = cw / 2;
   cannonY = ch - 25;
-  // タワーが上部バーと重ならないよう、台座を画面中腹の最適な位置に配置
   platformY = ch * 0.60;
   platformWidth = Math.min(cw * 0.82, 310);
 
-  // たかさ角(10°〜75°)に対応する、大砲中心からの到達距離レンジ
   minReachDist = (cannonY - platformY) * 0.92;
   maxReachDist = cannonY - 85;
 }
 window.addEventListener('resize', resize);
 
-// --- 💡 照準と分度器が100%一致する軌道計算式 ---
-// たかさ角(10°〜75°)から、大砲からの直線距離 R を算出
+// --- 照準と軌道計算 ---
 function getRadiusForElevation(elDeg) {
   const t = (elDeg - 10) / (75 - 10);
   return minReachDist + t * (maxReachDist - minReachDist);
 }
 
-// 画面上の座標(tx, ty)から、そこに当てるための「よこ角度(az)」と「たかさ角(el)」を正確に逆算！
 function calcAnglesForTarget(tx, ty) {
   const dx = tx - cannonX;
-  const dy = cannonY - ty; // 上方向がプラス
+  const dy = cannonY - ty;
   const r = Math.hypot(dx, dy);
 
-  // 分度器の角度（右が0°、真上が90°、左が180°）
   let az = Math.atan2(dy, dx) * 180 / Math.PI;
   az = Math.max(30, Math.min(150, Math.round(az)));
 
-  // たかさ角
   const t = (r - minReachDist) / (maxReachDist - minReachDist);
   let el = Math.round(10 + t * (75 - 10));
   el = Math.max(10, Math.min(75, el));
@@ -296,21 +291,16 @@ function calcAnglesForTarget(tx, ty) {
   return { az, el };
 }
 
-// 進行度 p (0.0〜1.0) における弾の座標を返す
-// 💡 p=1.0（着弾時）に、分度器の角度の延長線上にピタッと着弾する！
-function getTrajectoryPoint(azDeg, elDeg, p) {
+// includeWind: 照準表示時は false（全レベルで同じ照準にする）、実弾発射時は true（風で流される）
+function getTrajectoryPoint(azDeg, elDeg, p, includeWind = true) {
   const radAz = azDeg * Math.PI / 180;
   const targetR = getRadiusForElevation(elDeg);
 
-  // 風による横ズレ（風がない時は0）
-  const windOffset = windSpeed * 14 * (p * p);
+  const windOffset = includeWind ? (windSpeed * 14 * (p * p)) : 0;
 
-  // 大砲から分度器の角度方向へまっすぐ伸びる基準線（地面の影ライン）
   const baseX = cannonX + Math.cos(radAz) * (targetR * p) + windOffset;
   const baseY = cannonY - Math.sin(radAz) * (targetR * p);
 
-  // 放物線の立体的な高さアーチ（p=0とp=1で0になり、中間p=0.5で一番高くなる）
-  // これにより、飛んでいる最中は山なりに飛びつつ、着弾点(p=1.0)は分度器の線上にピタッと一致する！
   const arcHeight = (30 + elDeg * 1.3) * 4 * p * (1 - p);
 
   return {
@@ -323,15 +313,18 @@ function getTrajectoryPoint(azDeg, elDeg, p) {
   };
 }
 
-// --- ステージ生成 ---
+// --- ランダムステージ生成 ---
 function loadStage(num) {
   blocks = [];
   obstacles = [];
   projectiles = [];
   particles = [];
+  floatingTexts = [];
   shotsLeft = 5;
   settleWaitTimer = 0;
-  physicsActive = false; // 💡 最初は完全静止！勝手に崩れない
+  clearDelayTimer = 0;
+  isStageClearing = false;
+  physicsActive = false;
 
   if (diffLevel === 3) {
     const winds = [-4, -3, -2, 2, 3, 4];
@@ -354,82 +347,148 @@ function loadStage(num) {
     });
   };
 
-  if (num % 4 === 1) {
-    // ステージ1：砂時計＆2本の爆弾缶タワー（上部UIに被らないよう高さを最適化）
-    for (let i = -3; i <= 3; i++) addB(cx + i * 30, py, 28, 22, 'star');
-    addB(cx - 42, py - 22, 82, 20, 'ice');
-    addB(cx + 42, py - 22, 82, 20, 'ice');
-    addB(cx, py - 42, 130, 20, 'ice');
-    // 赤い★爆弾缶の柱
-    addB(cx - 36, py - 62, 26, 28, 'tnt');
-    addB(cx + 36, py - 62, 26, 28, 'tnt');
-    addB(cx - 36, py - 90, 26, 28, 'tnt');
-    addB(cx + 36, py - 90, 26, 28, 'tnt');
-    // 上部の屋根
-    addB(cx, py - 118, 140, 20, 'ice');
-    addB(cx, py - 138, 160, 22, 'ice');
-    for (let i = -2; i <= 2; i++) addB(cx + i * 30, py - 160, 28, 22, 'star');
+  // 5種類の構造スタイルから毎回ランダムに選択し、内部の段数や配置もランダム化
+  const style = Math.floor(Math.random() * 5);
 
-    const leftAng = calcAnglesForTarget(cx - 36, py - 76);
-    const rightAng = calcAnglesForTarget(cx + 36, py - 76);
-    updateHintText(`💡 赤い★缶（左:${leftAng.az}° / 右:${rightAng.az}°、たかさ:${leftAng.el}°）をねらおう！`);
+  if (style === 0) {
+    // ランダム階層タワー型
+    const floors = 4 + Math.floor(Math.random() * 3); // 4〜6段
+    let curY = py;
+    const towerW = 130 + Math.floor(Math.random() * 60);
 
-  } else if (num % 4 === 2) {
-    // ステージ2：左右のツイン・キャッスル
-    [-70, 70].forEach(offset => {
+    for (let f = 0; f < floors; f++) {
+      if (f % 2 === 0) {
+        // 横板または小ブロック並び
+        if (Math.random() < 0.5 && f > 0) {
+          addB(cx, curY, towerW, 20, 'ice');
+          curY -= 20;
+        } else {
+          const cols = Math.floor(towerW / 32);
+          const startX = cx - ((cols - 1) * 32) / 2;
+          for (let c = 0; c < cols; c++) {
+            const isTnt = (f === 0 && (c === 1 || c === cols - 2) && Math.random() < 0.5);
+            addB(startX + c * 32, curY, 28, 24, isTnt ? 'tnt' : (f === floors - 1 ? 'star' : 'ice'));
+          }
+          curY -= 24;
+        }
+      } else {
+        // 柱の段（TNT爆弾缶を含む）
+        const pillars = 2 + Math.floor(Math.random() * 2); // 2本か3本
+        const span = towerW - 44;
+        for (let p = 0; p < pillars; p++) {
+          const px = cx - span / 2 + (pillars > 1 ? (span / (pillars - 1)) * p : 0);
+          const isTnt = (f === 1 || Math.random() < 0.65);
+          addB(px, curY, 28, 28, isTnt ? 'tnt' : 'ice');
+        }
+        curY -= 28;
+      }
+    }
+  } else if (style === 1) {
+    // ランダム・ツインキャッスル（左右非対称または対称の2つの塔）
+    const dist = 58 + Math.floor(Math.random() * 22);
+    [-dist, dist].forEach(offset => {
       const bx = cx + offset;
-      addB(bx - 20, py, 38, 24, 'ice');
-      addB(bx + 20, py, 38, 24, 'ice');
-      addB(bx, py - 24, 30, 30, 'tnt');
-      addB(bx, py - 54, 80, 22, 'ice');
-      addB(bx - 18, py - 76, 28, 24, 'star');
-      addB(bx + 18, py - 76, 28, 24, 'star');
+      const hFloors = 3 + Math.floor(Math.random() * 2);
+      let curY = py;
+      addB(bx - 18, curY, 34, 24, 'ice');
+      addB(bx + 18, curY, 34, 24, 'ice');
+      curY -= 24;
+      for (let f = 0; f < hFloors; f++) {
+        if (f === 0) {
+          addB(bx, curY, 28, 30, 'tnt');
+          curY -= 30;
+        } else {
+          addB(bx, curY, 74, 20, 'ice');
+          curY -= 20;
+          addB(bx - 18, curY, 28, 24, 'star');
+          addB(bx + 18, curY, 28, 24, 'star');
+          curY -= 24;
+        }
+      }
     });
-    const leftAng = calcAnglesForTarget(cx - 70, py - 39);
-    const rightAng = calcAnglesForTarget(cx + 70, py - 39);
-    updateHintText(`💡 左右の赤い★缶（左:${leftAng.az}° / 右:${rightAng.az}°）を撃ち抜こう！`);
-
-  } else if (num % 4 === 3) {
-    // ステージ3：手前にカベ！
-    obstacles.push({ p: 0.55, x: cx, w: 170, h: 75 });
-
-    for (let i = -2; i <= 2; i++) addB(cx + i * 34, py, 32, 24, 'ice');
-    addB(cx - 38, py - 24, 28, 30, 'tnt');
-    addB(cx, py - 24, 28, 30, 'tnt');
-    addB(cx + 38, py - 24, 28, 30, 'tnt');
-    addB(cx, py - 54, 140, 22, 'ice');
-    for (let i = -1; i <= 1; i++) addB(cx + i * 36, py - 76, 30, 26, 'star');
-
-    updateHintText(`💡 カベの上にある★缶を狙うか、高い角度で飛び越えよう！`);
-
-  } else {
-    // ステージ4：ピラミッド要塞
-    for (let row = 0; row < 5; row++) {
-      const count = 6 - row;
+  } else if (style === 2) {
+    // ランダム・ピラミッド要塞
+    const baseCount = 5 + Math.floor(Math.random() * 3); // 底辺5〜7個
+    const tntRow = 1 + Math.floor(Math.random() * 2);
+    for (let row = 0; row < baseCount - 1; row++) {
+      const count = baseCount - row;
       const startX = cx - ((count - 1) * 32) / 2;
       for (let i = 0; i < count; i++) {
         let type = 'ice';
-        if (row === 1 && (i === 1 || i === count - 2)) type = 'tnt';
-        else if (row >= 3) type = 'star';
-        addB(startX + i * 32, py - row * 25, 30, 24, type);
+        if (row === tntRow && (i === 1 || i === count - 2 || i === Math.floor(count / 2))) {
+          type = 'tnt';
+        } else if (row >= baseCount - 3) {
+          type = 'star';
+        }
+        addB(startX + i * 32, py - row * 24, 29, 23, type);
       }
     }
-    updateHintText(`💡 ピラミッドの2段目にある赤い★缶に照準を合わせよう！`);
+  } else if (style === 3) {
+    // ブリッジ＆センタータワー型
+    const span = 55 + Math.floor(Math.random() * 20);
+    [-span, 0, span].forEach((offset, idx) => {
+      const bx = cx + offset;
+      addB(bx, py, 34, 26, idx === 1 ? 'tnt' : 'ice');
+      addB(bx, py - 26, 30, 28, idx !== 1 ? 'tnt' : 'ice');
+    });
+    addB(cx, py - 54, span * 2 + 45, 22, 'ice');
+    const topCols = 3 + Math.floor(Math.random() * 3);
+    const startX = cx - ((topCols - 1) * 34) / 2;
+    for (let i = 0; i < topCols; i++) {
+      addB(startX + i * 34, py - 76, 30, 26, i % 2 === 0 ? 'star' : 'tnt');
+    }
+    addB(cx, py - 102, 110, 20, 'ice');
+    addB(cx - 20, py - 122, 28, 24, 'star');
+    addB(cx + 20, py - 122, 28, 24, 'star');
+  } else {
+    // 3列ランダムスタック要塞
+    const cols = 4 + Math.floor(Math.random() * 2);
+    const spacing = 36;
+    const startX = cx - ((cols - 1) * spacing) / 2;
+    for (let c = 0; c < cols; c++) {
+      const stackH = 3 + Math.floor(Math.random() * 3);
+      let curY = py;
+      for (let r = 0; r < stackH; r++) {
+        let type = 'ice';
+        if (r === 1 && (c === 1 || c === cols - 2)) type = 'tnt';
+        else if (r === stackH - 1) type = 'star';
+        addB(startX + c * spacing, curY, 32, 25, type);
+        curY -= 25;
+      }
+    }
   }
+
+  // ステージ2以降はランダム（約35%の確率）で手前にカベが出現
+  if (num >= 2 && Math.random() < 0.35) {
+    const obsW = 110 + Math.floor(Math.random() * 60);
+    const obsX = cx + (Math.random() - 0.5) * 60;
+    obstacles.push({ p: 0.55, x: obsX, w: obsW, h: 68 });
+  }
+
+  // TNTが最低2個は含まれるように保証
+  const tntBlocks = blocks.filter(b => b.type === 'tnt');
+  if (tntBlocks.length < 2 && blocks.length >= 2) {
+    blocks[0].type = 'tnt';
+    blocks[Math.min(2, blocks.length - 1)].type = 'tnt';
+  }
+
+  updateHintText();
 
   document.getElementById('ui-stage').innerText = stageNum;
   document.getElementById('ui-shots').innerText = shotsLeft;
   document.getElementById('btn-fire').disabled = false;
 }
 
-function updateHintText(txt) {
+function updateHintText() {
   const banner = document.getElementById('hint-banner');
-  if (diffLevel === 1) {
-    banner.innerText = txt;
+  const tnts = blocks.filter(b => b.type === 'tnt');
+  if (diffLevel === 1 && tnts.length > 0) {
+    const sample = calcAnglesForTarget(tnts[0].x, tnts[0].y);
+    banner.innerText = `💡 赤い★缶（よこ:${sample.az}° / たかさ:${sample.el}° など）をねらおう！`;
   } else if (diffLevel === 2) {
-    banner.innerText = "📐 分度器の赤い線をターゲットに合わせて撃とう！";
+    banner.innerText = "📐 分度器の赤い線を赤い★缶に合わせて撃ち抜こう！";
   } else {
-    banner.innerText = "🍃 風の向きに注意！風上に向かって角度を調整しよう！";
+    banner.innerText = "🍃 風で弾が流されるぞ！風上に向かって少し角度をズラそう！";
   }
 }
 
@@ -453,7 +512,6 @@ function adjustAngle(type, delta) {
   syncSliders();
 }
 
-// 💡 画面の狙いたい場所をタッチ・ドラッグすると、そこにピタッと照準が合う！
 let isDragging = false;
 const handlePointer = (clientX, clientY) => {
   const rect = canvas.getBoundingClientRect();
@@ -473,20 +531,20 @@ const handlePointer = (clientX, clientY) => {
 };
 
 canvas.addEventListener('pointerdown', (e) => {
-  if (gameState !== 'playing') return;
+  if (gameState !== 'playing' || isStageClearing) return;
   initAudio();
   isDragging = true;
   handlePointer(e.clientX, e.clientY);
 });
 canvas.addEventListener('pointermove', (e) => {
-  if (!isDragging || gameState !== 'playing') return;
+  if (!isDragging || gameState !== 'playing' || isStageClearing) return;
   handlePointer(e.clientX, e.clientY);
 });
 window.addEventListener('pointerup', () => { isDragging = false; });
 
 // --- 大砲の発射！ ---
 function fireCannon() {
-  if (gameState !== 'playing' || shotsLeft <= 0 || projectiles.length > 0) return;
+  if (gameState !== 'playing' || isStageClearing || shotsLeft <= 0 || projectiles.length > 0) return;
   initAudio();
   playSound('fire');
 
@@ -512,7 +570,7 @@ function fireCannon() {
 
 // --- 爆発＆衝撃処理 ---
 function triggerExplosion(ex, ey, radius, power) {
-  physicsActive = true; // 💡 ここで初めて物理演算（崩壊）をONにする！
+  physicsActive = true;
   playSound('explode');
 
   const colors = ['#e74c3c', '#f39c12', '#f1c40f', '#ffffff'];
@@ -544,8 +602,9 @@ function triggerExplosion(ex, ey, radius, power) {
         const force = (1 - dist / radius) * power;
         const nx = dx / (dist || 1);
         const ny = dy / (dist || 1);
-        b.vx += (nx * 1.5 + (Math.random() - 0.5) * 0.4) * force;
-        b.vy += (ny - 0.5) * force;
+        // 横方向へ気持ちよく吹き飛び、真上には飛びすぎないように調整
+        b.vx += (nx * 1.6 + (Math.random() - 0.5) * 0.4) * force;
+        b.vy += Math.max(-260, (ny - 0.35) * force * 0.65);
         b.va += (Math.random() - 0.5) * 12;
       }
     }
@@ -564,23 +623,38 @@ function spawnBlockShards(b) {
   }
 }
 
+// クリア時の祝福紙吹雪エフェクト
+function spawnVictoryConfetti() {
+  const colors = ['#f1c40f', '#e74c3c', '#2ecc71', '#3498db', '#9b59b6'];
+  for (let i = 0; i < 45; i++) {
+    particles.push({
+      x: cw / 2 + (Math.random() - 0.5) * cw * 0.8,
+      y: platformY - 40 - Math.random() * 100,
+      vx: (Math.random() - 0.5) * 180,
+      vy: -80 - Math.random() * 160,
+      r: 5 + Math.random() * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 1.8, maxLife: 1.8
+    });
+  }
+}
+
 // --- 物理エンジンの更新 ---
 function updatePhysics(dt) {
-  // 1. 弾の移動と着弾判定
+  // 1. 弾の移動と着弾判定（実弾は includeWind = true で風の影響を受ける）
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
     proj.p += proj.speed * dt;
-    const pt = getTrajectoryPoint(proj.az, proj.el, Math.min(1.0, proj.p));
+    const pt = getTrajectoryPoint(proj.az, proj.el, Math.min(1.0, proj.p), true);
 
     // 手前のカベとの衝突チェック
     let hitObstacle = false;
     for (let obs of obstacles) {
       if (Math.abs(proj.p - obs.p) < 0.05) {
-        const obsPt = getTrajectoryPoint(90, 35, obs.p);
         if (Math.abs(pt.x - obs.x) < obs.w / 2 && pt.height < obs.h) {
           hitObstacle = true;
           playSound('hit');
-          floatingTexts.push({ x: pt.x, y: pt.y, text: "カベに当たった！もっと高く撃とう！", color: "#e74c3c", life: 1.2 });
+          floatingTexts.push({ x: pt.x, y: pt.y, text: "カベに当たった！よけるか高く撃とう！", color: "#e74c3c", life: 1.2 });
           break;
         }
       }
@@ -595,10 +669,9 @@ function updatePhysics(dt) {
     // 着弾（p >= 1.0）
     if (proj.p >= 1.0) {
       projectiles.splice(i, 1);
-      physicsActive = true; // 💡 着弾したら物理演算を有効化
+      physicsActive = true;
       settleWaitTimer = 2.0;
 
-      // 着弾点(pt.x, pt.y)に一番近いブロックを探す
       let hitBlockIndex = -1;
       let minDist = 999;
       for (let j = 0; j < blocks.length; j++) {
@@ -631,7 +704,7 @@ function updatePhysics(dt) {
     }
   }
 
-  // 💡 2. ブロックの物理移動（physicsActiveがtrueの時だけ動かすので、最初は絶対に崩れない！）
+  // 2. ブロックの物理移動
   if (physicsActive) {
     const gravity = 580;
     const platLeft = cw / 2 - platformWidth / 2;
@@ -646,7 +719,6 @@ function updatePhysics(dt) {
       b.vx *= 0.96;
       b.va *= 0.92;
 
-      // 台座との接地判定
       if (b.x > platLeft - 4 && b.x < platRight + 4) {
         if (b.y + b.h / 2 >= platformY && b.y - b.h / 2 < platformY + 18 && b.vy >= 0) {
           b.y = platformY - b.h / 2;
@@ -660,7 +732,6 @@ function updatePhysics(dt) {
       }
     }
 
-    // ブロック同士の衝突・支持解決（下にあるブロックから順に計算）
     blocks.sort((a, b) => b.y - a.y);
     for (let iter = 0; iter < 6; iter++) {
       for (let i = 0; i < blocks.length; i++) {
@@ -670,12 +741,11 @@ function updatePhysics(dt) {
           if (b.vy > 0) b.vy = 0;
         }
 
-        // ブロックbの下で支えているブロックの左端〜右端（支持基底面）を記録
         let supportMinX = Infinity;
         let supportMaxX = -Infinity;
 
         for (let j = 0; j < i; j++) {
-          const under = blocks[j]; // bより下にあるブロック
+          const under = blocks[j];
           const dx = b.x - under.x;
           const dy = b.y - under.y;
           const overlapX = (b.w + under.w) / 2 - Math.abs(dx);
@@ -683,14 +753,12 @@ function updatePhysics(dt) {
 
           if (overlapX > 0 && overlapY > 0) {
             if (overlapY <= overlapX + 4 && dy < 0) {
-              // 上に乗っている
               b.y -= overlapY;
               if (b.vy > under.vy) b.vy = under.vy * 0.2;
               b.vx *= 0.85;
               supportMinX = Math.min(supportMinX, under.x - under.w / 2);
               supportMaxX = Math.max(supportMaxX, under.x + under.w / 2);
             } else {
-              // 横方向の押し出し
               const push = overlapX * 0.5;
               const sign = dx > 0 ? 1 : -1;
               under.x -= sign * push;
@@ -699,7 +767,6 @@ function updatePhysics(dt) {
           }
         }
 
-        // 💡 支持基底面チェック：下の支えの範囲から重心(b.x)が外れた時だけ、傾いて滑り落ちる！
         if (supportMinX !== Infinity) {
           if (b.x < supportMinX - 4) {
             b.vx -= 60 * dt;
@@ -708,7 +775,6 @@ function updatePhysics(dt) {
             b.vx += 60 * dt;
             b.va += 4 * dt;
           } else {
-            // 支えの範囲内に重心があるならピタッと水平に安定させる
             b.angle *= 0.8;
             b.va *= 0.5;
           }
@@ -716,11 +782,11 @@ function updatePhysics(dt) {
       }
     }
 
-    // 台座より下へ落ちたブロックの消去
+    // 台座より下または画面外へ落ちたブロックの消去
     for (let i = blocks.length - 1; i >= 0; i--) {
-      if (blocks[i].y > platformY + 70) {
+      if (blocks[i].y > platformY + 70 || blocks[i].x < -40 || blocks[i].x > cw + 40) {
         spawnBlockShards(blocks[i]);
-        floatingTexts.push({ x: blocks[i].x, y: platformY + 35, text: "✨ DROP!", color: "#2ecc71", life: 0.8 });
+        floatingTexts.push({ x: Math.max(40, Math.min(cw - 40, blocks[i].x)), y: platformY + 35, text: "✨ DROP!", color: "#2ecc71", life: 0.8 });
         blocks.splice(i, 1);
         settleWaitTimer = Math.max(settleWaitTimer, 1.0);
       }
@@ -739,14 +805,30 @@ function updatePhysics(dt) {
     if (ft.life <= 0) floatingTexts.splice(i, 1);
   }
 
-  // クリア／弾切れ判定
+  // 全ブロック撃破時：すぐにクリア画面を出さず、2秒間の余韻タイマーを回す
+  if (blocks.length === 0 && !isStageClearing && projectiles.length === 0) {
+    isStageClearing = true;
+    clearDelayTimer = 2.0; // 2秒遅らせる
+    document.getElementById('btn-fire').disabled = true;
+    playSound('clear');
+    spawnVictoryConfetti();
+    floatingTexts.push({ x: cw / 2, y: platformY - 80, text: "🎉 オールクリア！！", color: "#f1c40f", life: 2.0 });
+  }
+
+  if (isStageClearing) {
+    clearDelayTimer -= dt;
+    if (clearDelayTimer <= 0) {
+      isStageClearing = false;
+      stageClear();
+    }
+    return;
+  }
+
+  // 弾切れ判定
   if (settleWaitTimer > 0 && projectiles.length === 0) {
     settleWaitTimer -= dt;
-    if (blocks.length === 0) {
-      settleWaitTimer = 0;
-      stageClear();
-    } else if (settleWaitTimer <= 0) {
-      if (shotsLeft <= 0) {
+    if (settleWaitTimer <= 0) {
+      if (shotsLeft <= 0 && blocks.length > 0) {
         stageFail();
       } else {
         document.getElementById('btn-fire').disabled = false;
@@ -757,7 +839,6 @@ function updatePhysics(dt) {
 
 function stageClear() {
   gameState = 'result';
-  playSound('clear');
   const stars = shotsLeft >= 3 ? "★★★ (パーフェクト！)" : (shotsLeft >= 1 ? "★★☆ (グッド！)" : "★☆☆ (クリア！)");
   document.getElementById('result-title').innerText = `🎉 ステージ ${stageNum} クリア！`;
   document.getElementById('result-title').style.color = '#f1c40f';
@@ -794,7 +875,7 @@ function nextStage() {
 function draw() {
   ctx.clearRect(0, 0, cw, ch);
 
-  // 1. 背景（青空と芝生の丘）
+  // 1. 背景
   const skyGrad = ctx.createLinearGradient(0, 0, 0, platformY + 60);
   skyGrad.addColorStop(0, '#4facfe');
   skyGrad.addColorStop(1, '#00f2fe');
@@ -868,7 +949,7 @@ function draw() {
 
   // 4. 手前のカベの描画
   for (let obs of obstacles) {
-    const pt = getTrajectoryPoint(90, 35, obs.p);
+    const pt = getTrajectoryPoint(90, 35, obs.p, false);
     const w = obs.w * pt.scale;
     const h = obs.h * pt.scale;
     ctx.fillStyle = 'rgba(52, 73, 94, 0.88)';
@@ -883,39 +964,35 @@ function draw() {
     ctx.fillText('🚧 カベ (高い角度でこえよう)', obs.x, pt.groundY - h / 2);
   }
 
-  // 5. 📐 分度器と基準レーザー線の描画
+  // 5. 分度器と大砲の描画
   drawProtractorAndCannon();
 
-  // 6. 軌道予測ガイドと照準マーク（発射前）
-  if (projectiles.length === 0 && gameState === 'playing') {
-    const maxPreviewP = diffLevel === 1 ? 1.0 : (diffLevel === 2 ? 0.75 : 0.45);
+  // 6. 軌道予測ガイドと照準マーク（全難易度で同じ照準スタイルに統一！）
+  if (projectiles.length === 0 && gameState === 'playing' && !isStageClearing) {
     ctx.save();
-    for (let p = 0.1; p <= maxPreviewP; p += 0.07) {
-      const pt = getTrajectoryPoint(azimuth, elevation, p);
-      // 分度器の延長線（地面の影ドット）
+    for (let p = 0.1; p <= 1.0; p += 0.08) {
+      // 照準ガイドは常に分度器の延長線上（includeWind = false）を指す
+      const pt = getTrajectoryPoint(azimuth, elevation, p, false);
       ctx.fillStyle = 'rgba(231, 76, 60, 0.35)';
       ctx.beginPath(); ctx.arc(pt.groundX, pt.groundY, 3 * pt.scale, 0, Math.PI * 2); ctx.fill();
-      // 放物線の空中アーチドット
       ctx.fillStyle = '#f1c40f';
       ctx.beginPath(); ctx.arc(pt.x, pt.y, 4.5 * pt.scale, 0, Math.PI * 2); ctx.fill();
     }
 
-    // 💡 かんたん・ふつうモードでは、風がない時の「分度器と高さが交わる着弾点」にターゲットリングを表示！
-    if (diffLevel <= 2) {
-      const endPt = getTrajectoryPoint(azimuth, elevation, 1.0);
-      ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.arc(endPt.x, endPt.y, 13, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(endPt.x - 18, endPt.y); ctx.lineTo(endPt.x + 18, endPt.y);
-      ctx.moveTo(endPt.x, endPt.y - 18); ctx.lineTo(endPt.x, endPt.y + 18);
-      ctx.stroke();
-    }
+    // 全レベル共通のターゲットリング（赤い照準マーク）
+    const endPt = getTrajectoryPoint(azimuth, elevation, 1.0, false);
+    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(endPt.x, endPt.y, 13, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(endPt.x - 18, endPt.y); ctx.lineTo(endPt.x + 18, endPt.y);
+    ctx.moveTo(endPt.x, endPt.y - 18); ctx.lineTo(endPt.x, endPt.y + 18);
+    ctx.stroke();
     ctx.restore();
   }
 
   // 7. 飛んでいる大砲の弾の描画
   for (let proj of projectiles) {
-    const pt = getTrajectoryPoint(proj.az, proj.el, proj.p);
+    const pt = getTrajectoryPoint(proj.az, proj.el, proj.p, true);
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath(); ctx.ellipse(pt.groundX, pt.groundY, 13 * pt.scale, 5 * pt.scale, 0, 0, Math.PI * 2); ctx.fill();
     const r = 17 * pt.scale;
@@ -939,7 +1016,7 @@ function draw() {
 
   for (let ft of floatingTexts) {
     ctx.save();
-    ctx.font = '900 17px sans-serif';
+    ctx.font = '900 18px sans-serif';
     ctx.textAlign = 'center';
     ctx.strokeStyle = 'white'; ctx.lineWidth = 4;
     ctx.strokeText(ft.text, ft.x, ft.y);
@@ -954,7 +1031,6 @@ function drawProtractorAndCannon() {
   ctx.save();
   ctx.translate(cannonX, cannonY);
 
-  // 分度器の半透明ドーム
   ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
   ctx.strokeStyle = '#2980b9';
   ctx.lineWidth = 3;
@@ -969,7 +1045,6 @@ function drawProtractorAndCannon() {
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // 目盛りと数字（右0°〜真上90°〜左180°）
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (let deg = 0; deg <= 180; deg += 5) {
     const a = -deg * Math.PI / 180;
@@ -991,7 +1066,6 @@ function drawProtractorAndCannon() {
     }
   }
 
-  // 💡 分度器の中心からターゲット方向へ真っ直ぐ伸びる赤い角度レーザー線
   const currentRad = -azimuth * Math.PI / 180;
   const reachR = getRadiusForElevation(elevation);
   ctx.save();
@@ -1004,7 +1078,6 @@ function drawProtractorAndCannon() {
   ctx.stroke();
   ctx.restore();
 
-  // 分度器内の濃い赤針
   ctx.strokeStyle = '#e74c3c';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -1012,7 +1085,6 @@ function drawProtractorAndCannon() {
   ctx.lineTo(Math.cos(currentRad) * (rad + 6), Math.sin(currentRad) * (rad + 6));
   ctx.stroke();
 
-  // 大砲の台座と砲身
   ctx.fillStyle = '#8e44ad';
   ctx.beginPath(); ctx.arc(0, 0, 30, Math.PI, 0); ctx.fill();
 
