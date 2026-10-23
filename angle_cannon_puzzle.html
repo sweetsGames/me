@@ -110,7 +110,7 @@
     <div class="info-pill">💣 残り <span id="ui-shots" style="color:#e74c3c; font-size:18px;">10</span> 発</div>
   </div>
 
-  <div id="hint-banner">💡 土台の爆弾缶や軽いブロックを狙って崩そう！</div>
+  <div id="hint-banner">💡 まんなかに当てると粉砕＆大衝撃！境目なら左右同時に飛ぶよ！</div>
 
   <div id="canvas-container">
     <canvas id="game-canvas"></canvas>
@@ -155,11 +155,10 @@
     <div class="title">🎯 ねらえ！<br>分度器キャノン</div>
     <div class="desc">
       大砲の<b>「よこの角度（分度器）」</b>と<b>「たかさ角」</b>を合わせて、台の上のブロックをすべて落とそう！<br><br>
-      🧱 <b>ブロックの重さと硬さのルール</b><br>
-      ・🧊<b>氷 / ★星</b>：軽くて吹き飛びやすい！<br>
-      ・🪵<b>木ブロック</b>：少し重く、2回当てると壊れる！<br>
-      ・🪨<b>石 / 🔩鋼鉄</b>：超重量級！爆発でも少しズレるだけ。<b>下の土台を壊して台から転がり落とそう！</b><br>
-      ・💥<b>爆弾缶（🔴赤 / 🟡金 / 🟢緑）</b>：ステージが進むと数が減るので、狙う順番がカギ！
+      🎯 <b>当たり方で威力と吹き飛び方が変わる！</b><br>
+      ・<b>ど真ん中（芯）に命中</b>：硬いブロックも一撃粉砕＆周りのブロックもまとめて吹き飛ばす大衝撃！<br>
+      ・<b>ブロックの境目（端）に命中</b>：左右のブロックに威力が分散して<b>2個〜3個を同時に弾き飛ばせる</b>よ！<br>
+      ・💥<b>爆弾缶（🔴赤 / 🟡金 / 🟢緑）</b>に当てれば爽快な大連鎖！
 
       <div class="setting-row">
         <label>難易度:</label>
@@ -203,26 +202,25 @@ function playSound(type) {
     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(180, t); osc.frequency.exponentialRampToValueAtTime(40, t + 0.35);
     gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.35);
     osc.start(t); osc.stop(t + 0.35);
+  } else if (type === 'critical') {
+    osc.type = 'square'; osc.frequency.setValueAtTime(280, t); osc.frequency.exponentialRampToValueAtTime(65, t + 0.28);
+    gain.gain.setValueAtTime(0.38, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.28);
+    osc.start(t); osc.stop(t + 0.28);
   } else if (type === 'hit') {
-    osc.type = 'triangle'; osc.frequency.setValueAtTime(160, t); osc.frequency.exponentialRampToValueAtTime(55, t + 0.15);
-    gain.gain.setValueAtTime(0.25, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
-    osc.start(t); osc.stop(t + 0.15);
-  } else if (type === 'clang') {
-    // 硬い石や鋼鉄に当たった時の金属・鈍い音
-    osc.type = 'square'; osc.frequency.setValueAtTime(320, t); osc.frequency.exponentialRampToValueAtTime(110, t + 0.18);
-    gain.gain.setValueAtTime(0.22, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.18);
-    osc.start(t); osc.stop(t + 0.18);
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(170, t); osc.frequency.exponentialRampToValueAtTime(60, t + 0.2);
+    gain.gain.setValueAtTime(0.3, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
+    osc.start(t); osc.stop(t + 0.2);
   } else if (type === 'miss') {
     osc.type = 'sine'; osc.frequency.setValueAtTime(300, t); osc.frequency.exponentialRampToValueAtTime(120, t + 0.2);
     gain.gain.setValueAtTime(0.12, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
     osc.start(t); osc.stop(t + 0.2);
   } else if (type === 'explode') {
     osc.type = 'square'; osc.frequency.setValueAtTime(90, t); osc.frequency.exponentialRampToValueAtTime(25, t + 0.45);
-    gain.gain.setValueAtTime(0.38, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.45);
+    gain.gain.setValueAtTime(0.4, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.45);
     osc.start(t); osc.stop(t + 0.45);
   } else if (type === 'mega_explode') {
     osc.type = 'sawtooth'; osc.frequency.setValueAtTime(65, t); osc.frequency.exponentialRampToValueAtTime(18, t + 0.65);
-    gain.gain.setValueAtTime(0.48, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.65);
+    gain.gain.setValueAtTime(0.5, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.65);
     osc.start(t); osc.stop(t + 0.65);
   } else if (type === 'fall') {
     osc.type = 'sine'; osc.frequency.setValueAtTime(500, t); osc.frequency.exponentialRampToValueAtTime(900, t + 0.15);
@@ -256,7 +254,6 @@ let platformWidth;
 let minReachDist, maxReachDist;
 
 let blocks = [];
-let obstacles = [];
 let projectiles = [];
 let particles = [];
 let floatingTexts = [];
@@ -266,16 +263,15 @@ let isStageClearing = false;
 let physicsActive = false;
 let gameState = 'menu';
 
-// 材質ごとの物理スペック定義（密度・HP・摩擦係数・爆発ダメージ耐性）
+// 材質ごとの重さ（density）と滑りやすさ（friction：1に近いほどよく滑って台から落ちやすい）
 const MATERIAL_SPECS = {
-  ice:      { density: 0.75, hp: 1, friction: 0.76, blastResist: 0.0 }, // 軽くて滑りやすく、すぐ吹き飛ぶ
-  star:     { density: 1.0,  hp: 1, friction: 0.82, blastResist: 0.0 }, // 標準ブロック
-  wood:     { density: 1.55, hp: 2, friction: 0.84, blastResist: 0.25 }, // やや重く、1回の爆発では壊れにくい
-  stone:    { density: 3.2,  hp: 3, friction: 0.88, blastResist: 0.60 }, // 重い！爆風では位置がズレる程度
-  iron:     { density: 5.0,  hp: 99, friction: 0.90, blastResist: 0.80 }, // 超重量＆破壊不能！土台を崩して落とすパズル用
-  tnt:      { density: 1.0,  hp: 1, friction: 0.80, blastResist: 0.0 },
-  wide_tnt: { density: 1.1,  hp: 1, friction: 0.80, blastResist: 0.0 },
-  mega_tnt: { density: 1.2,  hp: 1, friction: 0.80, blastResist: 0.0 }
+  ice:      { density: 0.55, friction: 0.92 }, // 超軽量＆ツルツル滑ってすぐ落ちる
+  star:     { density: 0.70, friction: 0.90 }, // 軽い標準ブロック
+  wood:     { density: 1.10, friction: 0.87 }, // 中くらい
+  stone:    { density: 1.65, friction: 0.84 }, // やや重いが、芯に当てたり隣で爆発すればしっかり飛ぶ！
+  tnt:      { density: 0.85, friction: 0.88 },
+  wide_tnt: { density: 0.85, friction: 0.88 },
+  mega_tnt: { density: 0.95, friction: 0.88 }
 };
 
 function isBombType(type) {
@@ -286,8 +282,8 @@ function hasAnyBombLeft() {
   return blocks.some(b => isBombType(b.type));
 }
 
-function isHeavyBallActive() {
-  return !hasAnyBombLeft() || shotsLeft <= 2;
+function isPowerBallActive() {
+  return !hasAnyBombLeft() || shotsLeft <= 3;
 }
 
 function resize() {
@@ -349,49 +345,40 @@ function getTrajectoryPoint(azDeg, elDeg, p, includeWind = true) {
   };
 }
 
-// ステージ番号に応じた爆弾タイプの抽選（序盤はメガ爆弾が出やすく、後半は標準・ワイド中心）
 function pickBombForStage(num) {
   const r = Math.random();
-  const megaProb = num <= 2 ? 0.35 : (num <= 5 ? 0.15 : 0.08);
+  const megaProb = num <= 2 ? 0.38 : (num <= 5 ? 0.25 : 0.18);
   if (r < megaProb) return 'mega_tnt';
-  if (r < megaProb + 0.35) return 'wide_tnt';
+  if (r < megaProb + 0.38) return 'wide_tnt';
   return 'tnt';
 }
 
-// ステージ番号に応じた通常ブロック材質の抽選（ステージが進むと木・石・鋼鉄が増える）
 function pickMaterialForStage(num, isBeam, isTopRow) {
   if (num === 1) {
     return isTopRow ? 'star' : 'ice';
   }
   if (num === 2) {
-    if (isBeam) return Math.random() < 0.65 ? 'wood' : 'ice';
-    return Math.random() < 0.35 ? 'wood' : (isTopRow ? 'star' : 'ice');
+    if (isBeam) return Math.random() < 0.5 ? 'wood' : 'ice';
+    return Math.random() < 0.3 ? 'wood' : (isTopRow ? 'star' : 'ice');
   }
   if (num <= 4) {
-    if (isBeam) return Math.random() < 0.5 ? 'stone' : 'wood';
+    if (isBeam) return Math.random() < 0.4 ? 'stone' : 'wood';
     const r = Math.random();
-    if (r < 0.35) return 'stone';
-    if (r < 0.70) return 'wood';
+    if (r < 0.22) return 'stone';
+    if (r < 0.58) return 'wood';
     return isTopRow ? 'star' : 'ice';
   }
-  // ステージ5以降：鋼鉄(iron)や石(stone)が本格登場
-  if (isBeam) {
-    const r = Math.random();
-    if (r < 0.30) return 'iron';
-    if (r < 0.75) return 'stone';
-    return 'wood';
-  }
+  // ステージ5以降
+  if (isBeam) return Math.random() < 0.55 ? 'stone' : 'wood';
   const r = Math.random();
-  if (r < 0.20) return 'iron';
-  if (r < 0.55) return 'stone';
-  if (r < 0.82) return 'wood';
-  return 'ice';
+  if (r < 0.35) return 'stone';
+  if (r < 0.72) return 'wood';
+  return isTopRow ? 'star' : 'ice';
 }
 
-// --- ステージ生成（サイズと材質に基づく物理パラメータ付与） ---
+// --- ステージ生成（手前のカベは完全に廃止！） ---
 function loadStage(num) {
   blocks = [];
-  obstacles = [];
   projectiles = [];
   particles = [];
   floatingTexts = [];
@@ -418,21 +405,16 @@ function loadStage(num) {
   const cx = cw / 2;
   const py = platformY;
 
-  // ブロック追加関数：面積(w*h)と材質密度から「質量(mass)」と「耐久値(hp)」を自動算出！
   const addB = (x, bottomY, w, h, type) => {
     const spec = MATERIAL_SPECS[type] || MATERIAL_SPECS.ice;
-    // 基準ブロック(28x24=672)を面積1.0とし、大きいブロックほど重くなるようにする
-    const areaFactor = Math.pow((w * h) / 672, 0.85);
+    // 大きいブロックでも極端に重くなりすぎないよう 0.6乗でマイルドに計算
+    const areaFactor = Math.pow((w * h) / 720, 0.60);
     const mass = areaFactor * spec.density;
-    // 長い板（梁）で石や木の場合はHPも少しボーナス
-    const sizeHpBonus = (w >= 90 && (type === 'wood' || type === 'stone')) ? 1 : 0;
-    const maxHp = spec.hp + sizeHpBonus;
 
     blocks.push({
       x: x, y: bottomY - h / 2, vx: 0, vy: 0,
       w: w, h: h, type: type, angle: 0, va: 0,
-      mass: mass, hp: maxHp, maxHp: maxHp,
-      friction: spec.friction, blastResist: spec.blastResist
+      mass: mass, friction: spec.friction
     });
   };
 
@@ -440,15 +422,14 @@ function loadStage(num) {
   const style = Math.floor(Math.random() * 5);
 
   if (style === 0) {
-    // 階層タワー型（下段の柱の上に重い梁と上層ブロックが乗る）
+    // 階層タワー型
     const floors = isEarlyStage ? 3 : (4 + Math.floor(Math.random() * 2));
     let curY = py;
-    const towerW = isEarlyStage ? 125 : (140 + Math.floor(Math.random() * 45));
+    const towerW = isEarlyStage ? 125 : (138 + Math.floor(Math.random() * 42));
 
     for (let f = 0; f < floors; f++) {
       if (f % 2 === 0) {
-        if (f > 0 && Math.random() < 0.65) {
-          // 長い横板（梁）
+        if (f > 0 && Math.random() < 0.6) {
           const mat = pickMaterialForStage(num, true, f === floors - 1);
           addB(cx, curY, towerW, 22, mat);
           curY -= 22;
@@ -463,40 +444,35 @@ function loadStage(num) {
           curY -= 24;
         }
       } else {
-        // 柱の段（外側に重い柱、内側に爆弾缶など）
         const pillars = (towerW > 145 && num >= 3) ? 3 : 2;
         const span = towerW - 42;
         for (let p = 0; p < pillars; p++) {
           const px = cx - span / 2 + (pillars > 1 ? (span / (pillars - 1)) * p : 0);
-          let bType;
-          if (f === 1 && (p === 0 || p === pillars - 1)) {
-            bType = pickBombForStage(num);
-          } else {
-            bType = pickMaterialForStage(num, false, false);
-          }
+          let bType = (f === 1 && (p === 0 || p === pillars - 1))
+            ? pickBombForStage(num)
+            : pickMaterialForStage(num, false, false);
           addB(px, curY, 28, 30, bType);
         }
         curY -= 30;
       }
     }
   } else if (style === 1) {
-    // ツインキャッスル（左右2つの塔）
-    const dist = 58 + Math.floor(Math.random() * 18);
+    // ツインキャッスル
+    const dist = 56 + Math.floor(Math.random() * 18);
     [-dist, dist].forEach((offset, idx) => {
       const bx = cx + offset;
       const hFloors = isEarlyStage ? 2 : 3;
       let curY = py;
-      // 1段目：片方が爆弾缶、もう片方が材質ブロック（片側を抜くと傾いて倒れる！）
       const leftIsBomb = (idx === 0);
       addB(bx - 19, curY, 32, 26, leftIsBomb ? pickBombForStage(num) : pickMaterialForStage(num, false, false));
       addB(bx + 19, curY, 32, 26, !leftIsBomb ? pickBombForStage(num) : pickMaterialForStage(num, false, false));
       curY -= 26;
 
       for (let f = 0; f < hFloors; f++) {
-        addB(bx, curY, 76, 20, pickMaterialForStage(num, true, false));
+        addB(bx, curY, 74, 20, pickMaterialForStage(num, true, false));
         curY -= 20;
-        if (f === 0 && num <= 3) {
-          addB(bx, curY, 30, 28, 'tnt');
+        if (f === 0) {
+          addB(bx, curY, 30, 28, pickBombForStage(num));
           curY -= 28;
         } else {
           addB(bx - 18, curY, 30, 25, pickMaterialForStage(num, false, f === hFloors - 1));
@@ -506,7 +482,7 @@ function loadStage(num) {
       }
     });
   } else if (style === 2) {
-    // ピラミッド要塞（外周や上部に重い石、内部の要所に爆弾缶）
+    // ピラミッド要塞
     const baseCount = isEarlyStage ? 4 : (5 + Math.floor(Math.random() * 2));
     for (let row = 0; row < baseCount; row++) {
       const count = baseCount - row;
@@ -515,7 +491,7 @@ function loadStage(num) {
         let type;
         if (row === 0 && (i === 1 || i === count - 2)) {
           type = pickBombForStage(num);
-        } else if (row === 1 && i === Math.floor(count / 2)) {
+        } else if (row === 1 && (i === 0 || i === count - 1 || i === Math.floor(count / 2))) {
           type = pickBombForStage(num);
         } else {
           type = pickMaterialForStage(num, false, row >= baseCount - 2);
@@ -524,31 +500,28 @@ function loadStage(num) {
       }
     }
   } else if (style === 3) {
-    // 重い天板のブリッジ要塞（下の柱を抜いて重い屋根を落とす構造）
-    const span = 56 + Math.floor(Math.random() * 18);
+    // ブリッジ要塞
+    const span = 55 + Math.floor(Math.random() * 18);
     [-span, 0, span].forEach((offset, idx) => {
       const bx = cx + offset;
-      // 1段目と2段目で爆弾缶と石・木の柱を交互に配置
       const b1 = (idx !== 1) ? pickBombForStage(num) : pickMaterialForStage(num, false, false);
       const b2 = (idx === 1) ? pickBombForStage(num) : pickMaterialForStage(num, false, false);
       addB(bx, py, 32, 26, b1);
       addB(bx, py - 26, 30, 28, b2);
     });
-    // 橋の天板（重い石や木材）
-    const bridgeMat = num >= 3 ? 'stone' : 'wood';
-    addB(cx - span / 2, py - 54, span + 32, 22, bridgeMat);
-    addB(cx + span / 2, py - 54, span + 32, 22, bridgeMat);
+    const bridgeMat = num >= 4 ? 'stone' : 'wood';
+    addB(cx - span / 2, py - 54, span + 30, 22, bridgeMat);
+    addB(cx + span / 2, py - 54, span + 30, 22, bridgeMat);
 
-    // 橋の上の重りブロック
     const topCols = isEarlyStage ? 3 : 4;
     const startX = cx - ((topCols - 1) * 36) / 2;
     for (let i = 0; i < topCols; i++) {
-      addB(startX + i * 36, py - 76, 32, 28, pickMaterialForStage(num, false, true));
+      addB(startX + i * 36, py - 76, 32, 26, i === 1 ? 'tnt' : pickMaterialForStage(num, false, true));
     }
   } else {
-    // ランダムスタック要塞（下段を撃ち抜いて上の重い石・鋼鉄を落とす）
+    // スタック要塞
     const cols = isEarlyStage ? 3 : (4 + Math.floor(Math.random() * 2));
-    const spacing = 38;
+    const spacing = 36;
     const startX = cx - ((cols - 1) * spacing) / 2;
     for (let c = 0; c < cols; c++) {
       const stackH = isEarlyStage ? 3 : 4;
@@ -557,58 +530,29 @@ function loadStage(num) {
         let type;
         if (r === 0 && c % 2 === 0) {
           type = pickBombForStage(num);
-        } else if (r === 1 && c % 2 === 1) {
+        } else if (r === 1 && c === Math.floor(cols / 2)) {
           type = pickBombForStage(num);
         } else {
-          // 上の段ほど重い石や鉄になりやすい（頭でっかちにして土台崩壊で落としやすくする）
-          type = pickMaterialForStage(num, r >= 2, r === stackH - 1);
+          type = pickMaterialForStage(num, false, r === stackH - 1);
         }
-        addB(startX + c * spacing, curY, 33, 25, type);
+        addB(startX + c * spacing, curY, 32, 25, type);
         curY -= 25;
       }
     }
   }
 
-  // ステージに応じた爆弾缶の適正割合コントロール（ステージが進むほど爆弾比率が下がり、一発全滅を防ぐ）
-  const targetRatio = num === 1 ? 0.36 : (num === 2 ? 0.28 : (num <= 4 ? 0.20 : 0.15));
-  const targetBombs = Math.max(2, Math.min(5, Math.round(blocks.length * targetRatio)));
-
+  // ステージに応じた爆弾缶の個数保証
+  const targetRatio = num === 1 ? 0.38 : (num === 2 ? 0.32 : (num <= 4 ? 0.28 : 0.24));
+  const targetBombs = Math.max(3, Math.min(6, Math.round(blocks.length * targetRatio)));
   let currentBombs = blocks.filter(b => isBombType(b.type)).length;
 
-  // 爆弾が多すぎる場合は通常材質に戻す
-  if (currentBombs > targetBombs + 1) {
-    for (let i = blocks.length - 1; i >= 0 && currentBombs > targetBombs; i--) {
-      if (isBombType(blocks[i].type)) {
-        const newMat = pickMaterialForStage(num, false, false);
-        const spec = MATERIAL_SPECS[newMat];
-        blocks[i].type = newMat;
-        blocks[i].mass = Math.pow((blocks[i].w * blocks[i].h) / 672, 0.85) * spec.density;
-        blocks[i].hp = spec.hp;
-        blocks[i].maxHp = spec.hp;
-        blocks[i].friction = spec.friction;
-        blocks[i].blastResist = spec.blastResist;
-        currentBombs--;
-      }
-    }
-  }
-  // 爆弾が少なすぎる場合は下段の小ブロックを爆弾缶にする
-  if (currentBombs < 2) {
-    const candidates = blocks.filter(b => !isBombType(b.type) && b.w < 50).sort((a, b) => b.y - a.y);
-    for (let i = 0; i < candidates.length && currentBombs < 2; i++) {
-      candidates[i].type = 'tnt';
-      candidates[i].mass = 1.0;
-      candidates[i].hp = 1;
-      candidates[i].maxHp = 1;
-      candidates[i].blastResist = 0;
+  if (currentBombs < targetBombs) {
+    const candidates = blocks.filter(b => !isBombType(b.type) && b.w < 55).sort((a, b) => b.y - a.y);
+    for (let i = 0; i < candidates.length && currentBombs < targetBombs; i++) {
+      candidates[i].type = pickBombForStage(num);
+      candidates[i].mass = 0.85;
       currentBombs++;
     }
-  }
-
-  // ステージ3以降はランダム（約30%の確率）で手前にカベが出現
-  if (num >= 3 && Math.random() < 0.30) {
-    const obsW = 110 + Math.floor(Math.random() * 45);
-    const obsX = cx + (Math.random() - 0.5) * 60;
-    obstacles.push({ p: 0.55, x: obsX, w: obsW, h: 65 });
   }
 
   updateHintText();
@@ -621,9 +565,9 @@ function loadStage(num) {
 
 function updateFireButtonAppearance() {
   const btn = document.getElementById('btn-fire');
-  if (isHeavyBallActive() && blocks.length > 0) {
-    btn.innerHTML = '⚫ ヘビー鉄球 はっしゃ！';
-    btn.style.background = 'linear-gradient(to bottom, #34495e, #1e272e)';
+  if (isPowerBallActive() && blocks.length > 0) {
+    btn.innerHTML = '⚫ パワー鉄球 はっしゃ！';
+    btn.style.background = 'linear-gradient(to bottom, #f39c12, #d35400)';
     btn.style.borderColor = '#f1c40f';
   } else {
     btn.innerHTML = '🔥 はっしゃ！';
@@ -635,20 +579,17 @@ function updateFireButtonAppearance() {
 function updateHintText() {
   const banner = document.getElementById('hint-banner');
   const bombs = blocks.filter(b => isBombType(b.type));
-  const heavyBlocks = blocks.filter(b => b.type === 'stone' || b.type === 'iron');
 
   if (bombs.length === 0 && blocks.length > 0) {
-    banner.innerText = "⚫ ヘビー鉄球モード！重いブロックも体当たりで押し出そう！";
+    banner.innerText = "⚫ パワー鉄球モード！まんなか撃ちで粉砕、境目撃ちでまとめて吹っ飛ばそう！";
     return;
   }
   if (diffLevel === 1 && bombs.length > 0) {
     const targetBomb = bombs[0];
     const sample = calcAnglesForTarget(targetBomb.x, targetBomb.y);
     banner.innerText = `💡 爆弾缶（よこ:${sample.az}° / たかさ:${sample.el}° など）をねらおう！`;
-  } else if (heavyBlocks.length > 0) {
-    banner.innerText = "🪨 重い石や鉄は爆風だけでは飛ばないぞ！下の支えを崩して落とそう！";
   } else if (diffLevel === 2) {
-    banner.innerText = "📐 分度器の目盛りを読んで、土台の爆弾缶を正確に撃ち抜こう！";
+    banner.innerText = "🎯 ブロックの「まんなか」で一撃粉砕！「境目」なら左右同時に吹っ飛ぶぞ！";
   } else {
     banner.innerText = "🍃 風で弾が流されるぞ！風上に向かって少し角度をズラそう！";
   }
@@ -710,7 +651,7 @@ function fireCannon() {
   initAudio();
   playSound('fire');
 
-  const heavyMode = isHeavyBallActive();
+  const powerMode = isPowerBallActive();
   shotsLeft--;
   document.getElementById('ui-shots').innerText = shotsLeft;
   document.getElementById('btn-fire').disabled = true;
@@ -720,60 +661,56 @@ function fireCannon() {
     el: elevation,
     p: 0,
     speed: 1.5,
-    isHeavy: heavyMode
+    isPower: powerMode
   });
 
   for (let i = 0; i < 12; i++) {
     particles.push({
       x: cannonX, y: cannonY - 30,
       vx: (Math.random() - 0.5) * 120, vy: -Math.random() * 150 - 50,
-      r: 8 + Math.random() * 10, color: heavyMode ? '#f1c40f' : '#ecf0f1', life: 0.4, maxLife: 0.4
+      r: 8 + Math.random() * 10, color: powerMode ? '#f1c40f' : '#ecf0f1', life: 0.4, maxLife: 0.4
     });
   }
 }
 
-// --- 💥 物理ベース爆発＆質量計算ロジック ---
+// --- 💥 爆弾缶の爆発処理（弾き飛ばす強さを強化！） ---
 function triggerBombByType(b) {
   if (b.type === 'mega_tnt') {
-    floatingTexts.push({ x: b.x, y: b.y - 25, text: "🌟 メガ爆発！！", color: "#f1c40f", life: 1.4 });
-    triggerExplosion(b.x, b.y, 130, 480, 2.2, 'mega');
+    floatingTexts.push({ x: b.x, y: b.y - 25, text: "🌟 メガ大爆発！！", color: "#f1c40f", life: 1.4 });
+    triggerExplosion(b.x, b.y, 165, 740, 'mega');
   } else if (b.type === 'wide_tnt') {
     floatingTexts.push({ x: b.x, y: b.y - 20, text: "⚡ ワイド衝撃波！！", color: "#2ecc71", life: 1.4 });
-    triggerExplosion(b.x, b.y, 110, 430, 1.5, 'wide');
+    triggerExplosion(b.x, b.y, 145, 660, 'wide');
   } else {
     floatingTexts.push({ x: b.x, y: b.y - 20, text: "💥 爆発！！", color: "#ff7979", life: 1.3 });
-    triggerExplosion(b.x, b.y, 95, 380, 1.5, 'normal');
+    triggerExplosion(b.x, b.y, 128, 580, 'normal');
   }
 }
 
-// maxDmg: 中心での最大HPダメージ / power: 基準衝撃力（実際の速度変化は ブロックの質量 mass で割る！）
-function triggerExplosion(ex, ey, radius, power, maxDmg, mode) {
+function triggerExplosion(ex, ey, radius, power, mode) {
   physicsActive = true;
   if (mode === 'mega') {
     playSound('mega_explode');
-  } else if (mode !== 'kinetic') {
+  } else {
     playSound('explode');
   }
 
-  // パーティクル演出
-  if (mode !== 'kinetic') {
-    const count = mode === 'mega' ? 40 : 26;
-    const colors = mode === 'wide'
-      ? ['#2ecc71', '#00d2d3', '#f1c40f', '#ffffff']
-      : ['#e74c3c', '#f39c12', '#f1c40f', '#ffffff'];
+  const count = mode === 'mega' ? 42 : 30;
+  const colors = mode === 'wide'
+    ? ['#2ecc71', '#00d2d3', '#f1c40f', '#ffffff']
+    : ['#e74c3c', '#f39c12', '#f1c40f', '#ffffff'];
 
-    for (let i = 0; i < count; i++) {
-      const ang = Math.random() * Math.PI * 2;
-      const spd = 50 + Math.random() * (mode === 'mega' ? 260 : 190);
-      particles.push({
-        x: ex, y: ey,
-        vx: Math.cos(ang) * spd * (mode === 'wide' ? 1.7 : 1.0),
-        vy: Math.sin(ang) * spd * (mode === 'wide' ? 0.5 : 1.0) - 30,
-        r: 5 + Math.random() * (mode === 'mega' ? 13 : 10),
-        color: colors[Math.floor(Math.random() * colors.length)],
-        life: 0.4 + Math.random() * 0.3, maxLife: 0.7
-      });
-    }
+  for (let i = 0; i < count; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 60 + Math.random() * (mode === 'mega' ? 280 : 210);
+    particles.push({
+      x: ex, y: ey,
+      vx: Math.cos(ang) * spd * (mode === 'wide' ? 1.7 : 1.0),
+      vy: Math.sin(ang) * spd * (mode === 'wide' ? 0.5 : 1.0) - 30,
+      r: 5 + Math.random() * (mode === 'mega' ? 14 : 10),
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 0.4 + Math.random() * 0.3, maxLife: 0.7
+    });
   }
 
   for (let i = blocks.length - 1; i >= 0; i--) {
@@ -784,53 +721,240 @@ function triggerExplosion(ex, ey, radius, power, maxDmg, mode) {
 
     let effectiveDist = rawDist;
     if (mode === 'wide') {
-      effectiveDist = Math.hypot(dx * 0.6, dy * 1.65);
+      effectiveDist = Math.hypot(dx * 0.52, dy * 1.5);
     }
 
     if (effectiveDist < radius) {
       const falloff = 1 - (effectiveDist / radius);
 
-      // 1. 他の爆弾缶への誘爆判定（以前より距離を絞り、すぐ隣の爆弾缶だけ連鎖するように調整）
-      const chainDist = mode === 'mega' ? 88 : 65;
-      if (mode !== 'kinetic' && isBombType(b.type) && effectiveDist < chainDist) {
+      // 近くの爆弾缶への連鎖誘爆
+      const chainDist = mode === 'mega' ? 105 : 80;
+      if (isBombType(b.type) && effectiveDist < chainDist) {
         const nextBomb = blocks.splice(i, 1)[0];
-        setTimeout(() => triggerBombByType(nextBomb), 75);
+        setTimeout(() => triggerBombByType(nextBomb), 65);
         continue;
       }
 
-      // 2. 爆発によるHPダメージ計算（石や鋼鉄は blastResist でダメージを軽減し、すぐには消滅しない！）
-      if (maxDmg > 0 && b.type !== 'iron') {
-        const rawDamage = maxDmg * Math.pow(falloff, 1.2) * (1 - b.blastResist);
-        // 至近距離の氷・星(HP1)は砕けるが、木(HP2)や石(HP3)はヒビが入るだけで残る
-        if (rawDamage >= 0.85) {
-          b.hp -= Math.round(rawDamage);
-        } else if (effectiveDist < 38 && b.hp === 1 && b.mass <= 1.2) {
-          b.hp = 0;
-        }
-
-        if (b.hp <= 0) {
-          spawnBlockShards(b);
-          blocks.splice(i, 1);
-          continue;
-        }
+      // 爆発の中心の近くにある氷・星・木ブロックは粉砕
+      const crushRadius = mode === 'mega' ? 68 : 50;
+      if (effectiveDist < crushRadius && b.mass <= 1.35) {
+        spawnBlockShards(b);
+        blocks.splice(i, 1);
+        continue;
       }
 
-      // 3. 質量（mass）に応じた吹き飛び速度の計算！
-      // 軽いブロック(mass=0.7)は大きく吹き飛び、重い石(mass=3.5)や大きな梁(mass=6.0)は少しズレるだけになる
-      const impulse = (power * Math.pow(falloff, 1.15)) / b.mass;
+      // 質量に応じた吹き飛び速度の計算（より強く台座の外へ飛ぶように強化！）
+      const impulse = (power * Math.pow(falloff, 0.95)) / b.mass;
       const dirX = dx === 0 ? (Math.random() > 0.5 ? 1 : -1) : Math.sign(dx);
       const nx = dx / (rawDist || 1);
       const ny = dy / (rawDist || 1);
 
       if (mode === 'wide') {
-        b.vx += dirX * impulse * 1.65;
-        b.vy -= Math.min(120, impulse * 0.35);
+        b.vx += dirX * impulse * 1.85;
+        b.vy -= Math.min(140, impulse * 0.35);
       } else {
-        b.vx += (nx * 1.35 + dirX * 0.25) * impulse;
-        b.vy += Math.max(-210, (ny - 0.3) * impulse * 0.55);
+        b.vx += (nx * 1.55 + dirX * 0.45) * impulse;
+        b.vy += Math.max(-230, (ny - 0.35) * impulse * 0.55);
       }
-      // 回転も重いブロックほど回りにくい
-      b.va += ((Math.random() - 0.5) * 10) / b.mass;
+      b.va += ((Math.random() - 0.5) * 14) / b.mass;
+    }
+  }
+}
+
+// --- 🎯 キャノン玉の「当たり方（真ん中 vs 端・境目）」に応じた大幅強化版インパクト処理 ---
+function handleCannonBallImpact(ix, iy, proj) {
+  // 接触半径を広げて、境目狙いで2〜3個のブロックを確実に巻き込めるようにする
+  const hitRadius = proj.isPower ? 36 : 26;
+
+  let touched = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    const dx = Math.max(0, Math.abs(ix - b.x) - b.w / 2);
+    const dy = Math.max(0, Math.abs(iy - b.y) - b.h / 2);
+    const rectDist = Math.hypot(dx, dy);
+
+    if (rectDist <= hitRadius) {
+      const centerDist = Math.hypot(ix - b.x, iy - b.y);
+      const overlapWeight = Math.max(0.2, 1 - (rectDist / (hitRadius + 6)));
+      const xOffsetRatio = Math.abs(ix - b.x) / (b.w / 2);
+
+      touched.push({
+        block: b,
+        rectDist: rectDist,
+        centerDist: centerDist,
+        weight: overlapWeight,
+        xOffsetRatio: xOffsetRatio
+      });
+    }
+  }
+
+  // 空振り時
+  if (touched.length === 0) {
+    playSound('miss');
+    settleWaitTimer = 0.5;
+    floatingTexts.push({ x: ix, y: iy, text: "💨 からぶり！", color: "#ecf0f1", life: 0.9 });
+    return;
+  }
+
+  physicsActive = true;
+  settleWaitTimer = 1.9;
+
+  // 爆弾缶に触れていればすべて起爆！
+  const hitBombs = touched.filter(t => isBombType(t.block.type));
+  if (hitBombs.length > 0) {
+    for (let hb of hitBombs) {
+      const idx = blocks.indexOf(hb.block);
+      if (idx !== -1) {
+        blocks.splice(idx, 1);
+        triggerBombByType(hb.block);
+      }
+    }
+    return;
+  }
+
+  touched.sort((a, b) => a.centerDist - b.centerDist);
+  const primary = touched[0];
+
+  const shotDirX = Math.cos(proj.az * Math.PI / 180);
+  // 弾の基準エネルギーを大幅に強化！（通常の弾でもしっかり吹き飛び、パワー鉄球ならさらに強力）
+  const baseTotalEnergy = proj.isPower ? 980 : 720;
+
+  // 🎯 パターン1：ブロックの「ど真ん中付近（横ズレ48%以内）」に直撃した場合
+  const isBullseye = (primary.xOffsetRatio <= 0.48);
+
+  if (isBullseye) {
+    playSound('critical');
+    const b = primary.block;
+    floatingTexts.push({
+      x: b.x, y: b.y - 22,
+      text: "🎯 まんなか直撃クラッシュ！！",
+      color: "#f1c40f", life: 1.4
+    });
+
+    for (let i = 0; i < 24; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 70 + Math.random() * 210;
+      particles.push({
+        x: ix, y: iy, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd,
+        r: 5 + Math.random()*8, color: '#f1c40f', life: 0.45, maxLife: 0.45
+      });
+    }
+
+    // ど真ん中に当たったブロックは、氷・星・木はもちろん、通常の石ブロックも一撃で粉砕！！
+    // （超特大の石の梁だけは粉砕せず超高速で吹き飛ぶ）
+    if (b.w < 100 || b.type !== 'stone' || proj.isPower) {
+      const idx = blocks.indexOf(b);
+      if (idx !== -1) {
+        spawnBlockShards(b);
+        blocks.splice(idx, 1);
+      }
+    } else {
+      const pushDir = Math.abs(shotDirX) > 0.12 ? Math.sign(shotDirX) : (b.x >= cw / 2 ? 1 : -1);
+      const launchSpeed = (baseTotalEnergy * 1.6) / b.mass;
+      b.vx += pushDir * launchSpeed;
+      b.vy -= 140;
+      b.va += pushDir * 6;
+    }
+
+    // 💡 ど真ん中ヒット時の大衝撃波：周囲（半径105px）のブロックもまとめて強く弾き飛ばす！
+    const shockRadius = proj.isPower ? 120 : 100;
+    for (let i = blocks.length - 1; i >= 0; i--) {
+      const other = blocks[i];
+      const dx = other.x - ix;
+      const dy = other.y - iy;
+      const d = Math.hypot(dx, dy);
+      if (d < shockRadius) {
+        // すぐ隣にあった軽い氷ブロックも巻き込んで砕く
+        if (d < 42 && other.mass <= 0.75) {
+          spawnBlockShards(other);
+          blocks.splice(i, 1);
+          continue;
+        }
+        const factor = 1 - (d / shockRadius);
+        const pushX = Math.abs(dx) > 4 ? Math.sign(dx) : (shotDirX >= 0 ? 1 : -1);
+        const shockImpulse = (baseTotalEnergy * 0.85 * factor) / other.mass;
+        other.vx += pushX * shockImpulse;
+        other.vy -= Math.min(160, shockImpulse * 0.4);
+        other.va += pushX * (6 / other.mass);
+      }
+    }
+    return;
+  }
+
+  // ⚡ パターン2：左右の端、または複数ブロックの「境目（間）」に当たった場合（威力分散＆同時吹き飛ばし！）
+  playSound('hit');
+
+  const totalWeight = touched.reduce((sum, t) => sum + t.weight, 0);
+  // 複数ブロックの境目に当てた時は総エネルギー1.6倍ボーナス！
+  const multiBonus = touched.length >= 2 ? 1.65 : 1.25;
+
+  if (touched.length >= 2) {
+    floatingTexts.push({
+      x: ix, y: iy - 20,
+      text: `⚡ ${touched.length}個同時スプリット！！`,
+      color: "#00d2d3", life: 1.3
+    });
+  } else {
+    floatingTexts.push({
+      x: ix, y: iy - 18,
+      text: `💫 端スマッシュ！！`,
+      color: "#ecf0f1", life: 1.1
+    });
+  }
+
+  for (let i = 0; i < 16; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 50 + Math.random() * 160;
+    particles.push({
+      x: ix, y: iy, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd,
+      r: 4 + Math.random()*6, color: '#00d2d3', life: 0.4, maxLife: 0.4
+    });
+  }
+
+  for (let t of touched) {
+    const b = t.block;
+    const idx = blocks.indexOf(b);
+    if (idx === -1) continue;
+
+    // 境目ヒットでも、軽いブロック（氷・星）やパワー鉄球ヒット時はその場で気持ちよく砕ける場合がある
+    if (b.mass <= 0.72 && t.weight > 0.55) {
+      spawnBlockShards(b);
+      blocks.splice(idx, 1);
+      continue;
+    }
+
+    const shareRatio = Math.max(0.45, t.weight / totalWeight);
+    const allocatedForce = baseTotalEnergy * multiBonus * shareRatio;
+
+    // 着弾点(ix, iy)から各ブロック中心へのベクトルで、左のブロックは左へ、右のブロックは右へ大きく吹き飛ぶ！
+    let dx = b.x - ix;
+    let dy = b.y - iy;
+    if (Math.abs(dx) < 4) {
+      dx = (shotDirX >= 0 ? 1 : -1) * 10;
+    }
+    const dist = Math.hypot(dx, dy) || 1;
+    const nx = dx / dist;
+    const ny = dy / dist;
+
+    const speedChange = allocatedForce / b.mass;
+    b.vx += (nx * 1.55 + shotDirX * 0.45) * speedChange;
+    b.vy += Math.max(-200, (ny - 0.4) * speedChange * 0.55);
+
+    const torque = ((ix - b.x) / (b.w / 2)) * 15;
+    b.va -= torque / b.mass;
+  }
+
+  // 境目ヒット時も、すぐ隣や上に乗っているブロック（半径75px）に二次衝撃を与えて一緒に崩れやすくする
+  for (let other of blocks) {
+    if (touched.some(t => t.block === other)) continue;
+    const dx = other.x - ix;
+    const dy = other.y - iy;
+    const d = Math.hypot(dx, dy);
+    if (d < 75) {
+      const dirX = dx !== 0 ? Math.sign(dx) : 1;
+      const push = (260 * (1 - d / 75)) / other.mass;
+      other.vx += dirX * push;
+      other.vy -= 60 / other.mass;
     }
   }
 }
@@ -839,8 +963,7 @@ function spawnBlockShards(b) {
   playSound('fall');
   const colMap = {
     ice: '#00d2d3', star: '#8e44ad', wood: '#d35400',
-    stone: '#7f8c8d', iron: '#2f3640',
-    tnt: '#e74c3c', wide_tnt: '#2ecc71', mega_tnt: '#f1c40f'
+    stone: '#7f8c8d', tnt: '#e74c3c', wide_tnt: '#2ecc71', mega_tnt: '#f1c40f'
   };
   const col = colMap[b.type] || '#00d2d3';
   for (let i = 0; i < 8; i++) {
@@ -875,90 +998,14 @@ function updatePhysics(dt) {
     proj.p += proj.speed * dt;
     const pt = getTrajectoryPoint(proj.az, proj.el, Math.min(1.0, proj.p), true);
 
-    // 手前のカベとの衝突チェック
-    let hitObstacle = false;
-    for (let obs of obstacles) {
-      if (Math.abs(proj.p - obs.p) < 0.05) {
-        if (Math.abs(pt.x - obs.x) < obs.w / 2 && pt.height < obs.h) {
-          hitObstacle = true;
-          playSound('clang');
-          floatingTexts.push({ x: pt.x, y: pt.y, text: "カベに当たった！よけるか高く撃とう！", color: "#e74c3c", life: 1.2 });
-          break;
-        }
-      }
-    }
-
-    if (hitObstacle) {
-      projectiles.splice(i, 1);
-      settleWaitTimer = 0.8;
-      continue;
-    }
-
     // 着弾（p >= 1.0）
     if (proj.p >= 1.0) {
       projectiles.splice(i, 1);
-
-      let hitBlockIndex = -1;
-      let minDist = 999;
-      for (let j = 0; j < blocks.length; j++) {
-        const b = blocks[j];
-        const dx = Math.max(0, Math.abs(pt.x - b.x) - b.w / 2);
-        const dy = Math.max(0, Math.abs(pt.y - b.y) - b.h / 2);
-        const d = Math.hypot(dx, dy);
-        if (d <= 7 && d < minDist) {
-          minDist = d;
-          hitBlockIndex = j;
-        }
-      }
-
-      if (hitBlockIndex !== -1) {
-        physicsActive = true;
-        settleWaitTimer = 1.9;
-        const hitB = blocks[hitBlockIndex];
-
-        if (isBombType(hitB.type)) {
-          // 爆弾缶に直撃！
-          blocks.splice(hitBlockIndex, 1);
-          triggerBombByType(hitB);
-        } else {
-          // 通常・重量ブロックに直撃！
-          const directDmg = proj.isHeavy ? 2 : 1;
-          if (hitB.type !== 'iron') {
-            hitB.hp -= directDmg;
-          }
-
-          // 大砲の弾が当たった方向へ押し出す力（中心から端を撃つと横にズレる）
-          const pushDir = (hitB.x - pt.x) !== 0 ? Math.sign(hitB.x - pt.x) : (proj.az < 90 ? 1 : -1);
-          const directForce = proj.isHeavy ? 380 : 210;
-
-          if (hitB.hp <= 0) {
-            // ブロック破壊！
-            playSound('hit');
-            spawnBlockShards(hitB);
-            blocks.splice(hitBlockIndex, 1);
-            triggerExplosion(hitB.x, hitB.y, proj.isHeavy ? 78 : 52, directForce, 0, 'kinetic');
-          } else {
-            // 硬いブロック（木・石・鋼鉄）が耐えた場合：ヒビが入り、質量に応じて位置がズレる！
-            playSound('clang');
-            hitB.vx += (pushDir * directForce) / hitB.mass;
-            hitB.vy -= (80 / hitB.mass);
-            hitB.va += (pushDir * 5) / hitB.mass;
-
-            const msg = hitB.type === 'iron' ? "🔩 ガキン！(鉄は壊れない！土台を崩そう)" : `🔨 ヒビが入った！(残りHP:${hitB.hp})`;
-            floatingTexts.push({ x: hitB.x, y: hitB.y - 18, text: msg, color: "#ecf0f1", life: 1.2 });
-            // 周囲の接しているブロックにも運動エネルギーを伝える
-            triggerExplosion(pt.x, pt.y, proj.isHeavy ? 65 : 42, directForce * 0.7, 0, 'kinetic');
-          }
-        }
-      } else {
-        playSound('miss');
-        settleWaitTimer = 0.5;
-        floatingTexts.push({ x: pt.x, y: pt.y, text: "💨 からぶり！", color: "#ecf0f1", life: 0.9 });
-      }
+      handleCannonBallImpact(pt.x, pt.y, proj);
     }
   }
 
-  // 2. ブロックの物理移動と質量衝突解決
+  // 2. ブロックの物理移動と玉突き衝突解決
   if (physicsActive) {
     const gravity = 600;
     const platLeft = cw / 2 - platformWidth / 2;
@@ -970,30 +1017,34 @@ function updatePhysics(dt) {
       b.y += b.vy * dt;
       b.angle += b.va * dt;
 
-      b.vx *= 0.95;
-      b.va *= 0.90;
+      // 空気抵抗を少なくし、弾かれたブロックが勢いよく台座の外まで飛ぶようにする
+      b.vx *= 0.98;
+      b.va *= 0.94;
 
       // 台座との接地・摩擦計算
-      if (b.x > platLeft - 4 && b.x < platRight + 4) {
+      if (b.x > platLeft - 2 && b.x < platRight + 2) {
         if (b.y + b.h / 2 >= platformY && b.y - b.h / 2 < platformY + 18 && b.vy >= 0) {
           b.y = platformY - b.h / 2;
           b.vy = 0;
-          b.vx *= b.friction; // 材質ごとの摩擦で止まる（重い石はすぐ止まり、氷は滑る）
-          b.angle *= 0.7;
-          b.va = 0;
+          b.vx *= b.friction;
+          b.angle *= 0.75;
+          b.va *= 0.5;
+
+          // 台座の端付近まで滑ってきたブロックは、そのまま外へ転がり落ちやすくするアシスト
+          if (b.x < platLeft + 18) b.vx -= 120 * dt;
+          else if (b.x > platRight - 18) b.vx += 120 * dt;
         }
       } else {
-        // 台座の外へ重心が出たブロックは回転しながら落下
-        b.va += (b.x < cw / 2 ? -7 : 7) * dt;
+        b.va += (b.x < cw / 2 ? -8 : 8) * dt;
       }
     }
 
-    // 下にあるブロックから順に積み重ね・押し合いを計算
+    // 下にあるブロックから順に積み重ね＆玉突き衝突を計算
     blocks.sort((a, b) => b.y - a.y);
     for (let iter = 0; iter < 6; iter++) {
       for (let i = 0; i < blocks.length; i++) {
         const b = blocks[i];
-        if (b.x > platLeft - 4 && b.x < platRight + 4 && b.y + b.h / 2 > platformY && b.y < platformY + 10) {
+        if (b.x > platLeft - 2 && b.x < platRight + 2 && b.y + b.h / 2 > platformY && b.y < platformY + 10) {
           b.y = platformY - b.h / 2;
           if (b.vy > 0) b.vy = 0;
         }
@@ -1010,31 +1061,39 @@ function updatePhysics(dt) {
 
           if (overlapX > 0 && overlapY > 0) {
             if (overlapY <= overlapX + 4 && dy < 0) {
-              // 上下関係の拘束
               b.y -= overlapY;
               if (b.vy > under.vy) b.vy = under.vy * 0.2;
-              b.vx *= b.friction;
+              b.vx = b.vx * b.friction + under.vx * (1 - b.friction) * 0.6;
               supportMinX = Math.min(supportMinX, under.x - under.w / 2);
               supportMaxX = Math.max(supportMaxX, under.x + under.w / 2);
             } else {
-              // 左右の衝突：質量比に応じて押し返す（重い石は動かず、軽い氷が弾かれる！）
+              // 左右の玉突き衝突
               const totalMass = b.mass + under.mass;
               const sign = dx > 0 ? 1 : -1;
               under.x -= sign * overlapX * (b.mass / totalMass);
               b.x += sign * overlapX * (under.mass / totalMass);
+
+              if (iter === 0) {
+                const relVx = b.vx - under.vx;
+                if (relVx * sign < 0) {
+                  const restitution = 0.88;
+                  const imp = -(1 + restitution) * relVx / (1 / b.mass + 1 / under.mass);
+                  b.vx += imp / b.mass;
+                  under.vx -= imp / under.mass;
+                }
+              }
             }
           }
         }
 
-        // 支持基底面（下の支え）から重心が外れたブロックは、傾きながら滑り落ちる！
-        // これにより「片側の柱を抜くと、上の重い石の梁が傾いて台座から滑り落ちる」パズルが成立する
+        // 支持基底面から重心が外れたブロックは傾きながら滑り落ちる
         if (supportMinX !== Infinity) {
-          if (b.x < supportMinX - 2) {
-            b.vx -= 85 * dt;
-            b.va -= 5 * dt;
-          } else if (b.x > supportMaxX + 2) {
-            b.vx += 85 * dt;
-            b.va += 5 * dt;
+          if (b.x < supportMinX) {
+            b.vx -= 125 * dt;
+            b.va -= 6 * dt;
+          } else if (b.x > supportMaxX) {
+            b.vx += 125 * dt;
+            b.va += 6 * dt;
           } else {
             b.angle *= 0.8;
             b.va *= 0.5;
@@ -1043,9 +1102,9 @@ function updatePhysics(dt) {
       }
     }
 
-    // 台座より下または画面外へ落ちたブロックの消去（どんなに硬い石や鋼鉄でも台から落とせば撃破！）
+    // 台座より下または画面外へ落ちたブロックの消去
     for (let i = blocks.length - 1; i >= 0; i--) {
-      if (blocks[i].y > platformY + 70 || blocks[i].x < -40 || blocks[i].x > cw + 40) {
+      if (blocks[i].y > platformY + 65 || blocks[i].x < -30 || blocks[i].x > cw + 30) {
         spawnBlockShards(blocks[i]);
         floatingTexts.push({ x: Math.max(40, Math.min(cw - 40, blocks[i].x)), y: platformY + 35, text: "✨ DROP!", color: "#2ecc71", life: 0.8 });
         blocks.splice(i, 1);
@@ -1121,7 +1180,7 @@ function stageFail() {
   document.getElementById('result-title').style.color = '#e74c3c';
   document.getElementById('result-desc').innerHTML = `
     あと <b>${blocks.length}個</b> ブロックが残ってしまった！<br>
-    重い石や鉄は直接狙わず、<b>下の土台や爆弾缶</b>を撃ち抜いてバランスを崩そう📐
+    ブロックの<b>「ど真ん中」</b>を狙うか、<b>「2つのブロックの境目」</b>を狙ってまとめて弾き飛ばそう📐
   `;
   document.getElementById('btn-next').innerText = "もういちど挑戦する 🔄";
   document.getElementById('result-screen').classList.add('show');
@@ -1132,25 +1191,6 @@ function nextStage() {
   if (blocks.length === 0) stageNum++;
   loadStage(stageNum);
   gameState = 'playing';
-}
-
-// ダメージを受けたブロックの「ヒビ割れ（クラック）」描画ヘルパー
-function drawCracks(b) {
-  if (b.hp >= b.maxHp || b.type === 'iron') return;
-  const dmgLevel = b.maxHp - b.hp;
-  ctx.strokeStyle = 'rgba(20, 20, 20, 0.75)';
-  ctx.lineWidth = 1.8;
-  ctx.beginPath();
-  ctx.moveTo(-b.w * 0.2, -b.h * 0.45);
-  ctx.lineTo(0, 0);
-  ctx.lineTo(b.w * 0.18, b.h * 0.4);
-  if (dmgLevel >= 2) {
-    ctx.moveTo(0, 0);
-    ctx.lineTo(-b.w * 0.35, b.h * 0.25);
-    ctx.moveTo(b.w * 0.25, -b.h * 0.4);
-    ctx.lineTo(b.w * 0.05, -b.h * 0.05);
-  }
-  ctx.stroke();
 }
 
 // --- 描画処理 ---
@@ -1186,14 +1226,13 @@ function draw() {
   ctx.roundRect(pLeft, platformY + 2, platformWidth, 6, 3);
   ctx.fill();
 
-  // 3. 積まれているブロックの描画（材質ごとの質感表現）
+  // 3. 積まれているブロックの描画
   for (let b of blocks) {
     ctx.save();
     ctx.translate(b.x, b.y);
     ctx.rotate(b.angle);
 
     if (b.type === 'ice') {
-      // 🧊 軽いアイスブロック
       ctx.fillStyle = '#00a8ff';
       ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 4); ctx.fill();
       ctx.fillStyle = '#70d6ff';
@@ -1201,7 +1240,6 @@ function draw() {
       ctx.fillStyle = 'rgba(255,255,255,0.65)';
       ctx.fillRect(-b.w/2 + 5, -b.h/2 + 4, b.w - 10, 3);
     } else if (b.type === 'star') {
-      // ★ 標準スターブロック
       ctx.fillStyle = '#5f27cd';
       ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 5); ctx.fill();
       ctx.fillStyle = '#9b59b6';
@@ -1210,7 +1248,6 @@ function draw() {
       ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('★', 0, 1);
     } else if (b.type === 'wood') {
-      // 🪵 中重量ウッドブロック（木目調）
       ctx.fillStyle = '#8c5828';
       ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 3); ctx.fill();
       ctx.fillStyle = '#c27d38';
@@ -1221,28 +1258,13 @@ function draw() {
       ctx.moveTo(-b.w/2 + 4, -3); ctx.lineTo(b.w/2 - 4, -3);
       ctx.moveTo(-b.w/2 + 6, 4); ctx.lineTo(b.w/2 - 6, 4);
       ctx.stroke();
-      drawCracks(b);
     } else if (b.type === 'stone') {
-      // 🪨 重量級ストーンブロック（重厚な石垣調）
       ctx.fillStyle = '#57606f';
       ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 3); ctx.fill();
       ctx.fillStyle = '#747d8c';
       ctx.beginPath(); ctx.roundRect(-b.w/2 + 3, -b.h/2 + 3, b.w - 6, b.h - 6, 2); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,0.25)';
       ctx.fillRect(-b.w/2 + 4, -b.h/2 + 3, b.w - 8, 3);
-      drawCracks(b);
-    } else if (b.type === 'iron') {
-      // 🔩 超重量＆破壊不能のアイアンブロック（四隅にリベット）
-      ctx.fillStyle = '#1e272e';
-      ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 3); ctx.fill();
-      ctx.fillStyle = '#485460';
-      ctx.beginPath(); ctx.roundRect(-b.w/2 + 3, -b.h/2 + 3, b.w - 6, b.h - 6, 2); ctx.fill();
-      ctx.fillStyle = '#d2dae2';
-      const rx = b.w / 2 - 6;
-      const ry = b.h / 2 - 6;
-      [[-rx, -ry], [rx, -ry], [-rx, ry], [rx, ry]].forEach(([vx, vy]) => {
-        ctx.beginPath(); ctx.arc(vx, vy, 2, 0, Math.PI * 2); ctx.fill();
-      });
     } else if (isBombType(b.type)) {
       if (b.type === 'mega_tnt') {
         ctx.fillStyle = '#f39c12';
@@ -1289,59 +1311,43 @@ function draw() {
     ctx.restore();
   }
 
-  // 4. 手前のカベの描画
-  for (let obs of obstacles) {
-    const pt = getTrajectoryPoint(90, 35, obs.p, false);
-    const w = obs.w * pt.scale;
-    const h = obs.h * pt.scale;
-    ctx.fillStyle = 'rgba(52, 73, 94, 0.88)';
-    ctx.strokeStyle = '#f1c40f';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(obs.x - w / 2, pt.groundY - h, w, h, 6);
-    ctx.fill(); ctx.stroke();
-
-    ctx.fillStyle = '#ecf0f1';
-    ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('🚧 カベ (高い角度でこえよう)', obs.x, pt.groundY - h / 2);
-  }
-
-  // 5. 分度器と大砲の描画
+  // 4. 分度器と大砲の描画
   drawProtractorAndCannon();
 
-  // 6. 軌道予測ガイドと照準マーク（全難易度共通）
+  // 5. 軌道予測ガイドと照準マーク（全難易度共通）
   if (projectiles.length === 0 && gameState === 'playing' && !isStageClearing) {
-    const heavyMode = isHeavyBallActive();
+    const powerMode = isPowerBallActive();
     ctx.save();
     for (let p = 0.1; p <= 1.0; p += 0.08) {
       const pt = getTrajectoryPoint(azimuth, elevation, p, false);
       ctx.fillStyle = 'rgba(231, 76, 60, 0.35)';
       ctx.beginPath(); ctx.arc(pt.groundX, pt.groundY, 3 * pt.scale, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = heavyMode ? '#ff9f43' : '#f1c40f';
+      ctx.fillStyle = powerMode ? '#ff9f43' : '#f1c40f';
       ctx.beginPath(); ctx.arc(pt.x, pt.y, 4.5 * pt.scale, 0, Math.PI * 2); ctx.fill();
     }
 
     const endPt = getTrajectoryPoint(azimuth, elevation, 1.0, false);
-    ctx.strokeStyle = heavyMode ? '#f39c12' : '#e74c3c';
+    ctx.strokeStyle = powerMode ? '#f39c12' : '#e74c3c';
     ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(endPt.x, endPt.y, 13, 0, Math.PI * 2); ctx.stroke();
+    const ringR = powerMode ? 17 : 14;
+    ctx.beginPath(); ctx.arc(endPt.x, endPt.y, ringR, 0, Math.PI * 2); ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(endPt.x - 18, endPt.y); ctx.lineTo(endPt.x + 18, endPt.y);
-    ctx.moveTo(endPt.x, endPt.y - 18); ctx.lineTo(endPt.x, endPt.y + 18);
+    ctx.moveTo(endPt.x - (ringR + 5), endPt.y); ctx.lineTo(endPt.x + (ringR + 5), endPt.y);
+    ctx.moveTo(endPt.x, endPt.y - (ringR + 5)); ctx.lineTo(endPt.x, endPt.y + (ringR + 5));
     ctx.stroke();
     ctx.restore();
   }
 
-  // 7. 飛んでいる大砲の弾の描画
+  // 6. 飛んでいる大砲の弾の描画
   for (let proj of projectiles) {
     const pt = getTrajectoryPoint(proj.az, proj.el, proj.p, true);
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath(); ctx.ellipse(pt.groundX, pt.groundY, 13 * pt.scale, 5 * pt.scale, 0, 0, Math.PI * 2); ctx.fill();
-    const r = (proj.isHeavy ? 20 : 17) * pt.scale;
+    const r = (proj.isPower ? 21 : 17) * pt.scale;
     const ballGrad = ctx.createRadialGradient(pt.x - r*0.3, pt.y - r*0.3, r*0.1, pt.x, pt.y, r);
-    if (proj.isHeavy) {
+    if (proj.isPower) {
       ballGrad.addColorStop(0, '#f1c40f');
-      ballGrad.addColorStop(1, '#1e272e');
+      ballGrad.addColorStop(1, '#d35400');
     } else {
       ballGrad.addColorStop(0, '#95a5a6');
       ballGrad.addColorStop(1, '#2c3e50');
@@ -1350,10 +1356,10 @@ function draw() {
     ctx.beginPath(); ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2); ctx.fill();
   }
 
-  // 8. 左下の「たかさ角」ミニゲージ
+  // 7. 左下の「たかさ角」ミニゲージ
   drawElevationMiniGauge();
 
-  // 9. パーティクル・文字の描画
+  // 8. パーティクル・文字の描画
   for (let p of particles) {
     ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
     ctx.fillStyle = p.color;
