@@ -155,10 +155,10 @@
     <div class="title">🐾 ねらえ！分度器キャノン<br><span style="font-size:18px; color:#fff;">〜カクまるフレンズ編〜</span></div>
     <div class="desc">
       四角くてかわいい<b>「カクまる族」</b>のタワーを、分度器の角度を合わせて台からすべて落とそう！<br><br>
-      📏 <b>大きさ（何個分か）と材質で重さが変わる！</b><br>
-      ・<b>1個分・2個分・3個分・4個分（2×2の特大！）</b>のサイズがあるよ。大きいほど重いので、<b>ど真ん中</b>を狙うか<b>下の土台</b>から崩そう！<br>
-      ・4個分の<b>「デカカクまる」</b>に当てると、ちびカクまるに分裂することも！？<br>
-      ・照準を合わせると、狙われたカクまるが<b>「＞＜💦」と震える</b>ので当たり判定がひと目でわかるよ！
+      📏 <b>大きさ（何個分か）と材質で耐久力が変わる！</b><br>
+      ・<b>1個分〜4個分（特大）</b>のサイズがあり、大きい石のカクまるなどはHPがあるよ！<br>
+      ・何回か当ててヒビを入れるか、下の土台を爆弾で吹き飛ばして落とそう！<br>
+      ・照準を合わせると狙われたカクまるが<b>「＞＜💦」と震える</b>よ！
 
       <div class="setting-row">
         <label>難易度:</label>
@@ -211,7 +211,6 @@ function playSound(type) {
     gain.gain.setValueAtTime(0.28, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
     osc.start(t); osc.stop(t + 0.2);
   } else if (type === 'pop') {
-    // キャラクターが可愛い声で弾けるような音
     osc.type = 'sine'; osc.frequency.setValueAtTime(420, t); osc.frequency.exponentialRampToValueAtTime(880, t + 0.14);
     gain.gain.setValueAtTime(0.18, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.14);
     osc.start(t); osc.stop(t + 0.14);
@@ -246,15 +245,14 @@ let stageNum = 1;
 let shotsLeft = 10;
 let windSpeed = 0;
 
-let azimuth = 90;   // よこの角度 (右30°〜中央90°〜左150°)
-let elevation = 35; // たかさ角 (10°〜75°)
+let azimuth = 90;   
+let elevation = 35; 
 
 let cannonX, cannonY;
 let platformY;
 let platformWidth;
 let minReachDist, maxReachDist;
 
-// 1個分の基本ブロックサイズ（マイクラ風の1ボクセル単位）
 const UNIT_W = 32;
 const UNIT_H = 26;
 
@@ -266,20 +264,20 @@ let settleWaitTimer = 0;
 let clearDelayTimer = 0;
 let isStageClearing = false;
 let physicsActive = false;
-let mascotMood = 'normal'; // 'normal', 'happy', 'sad'
+let mascotMood = 'normal'; 
 let mascotJumpTimer = 0;
 let animClock = 0;
 let gameState = 'menu';
 
-// 材質ごとの基本密度（これに「何個分の大きさか units」を掛け算して重さが決まる！）
+// 💡 以前と同等のしっかりした歯ごたえ（HPと重さ）を持たせた材質スペック
 const MATERIAL_SPECS = {
-  ice:      { density: 0.48, friction: 0.92, name: 'そらカクまる(氷)' },   // 水色：一番軽くてツルツル滑る
-  star:     { density: 0.62, friction: 0.90, name: 'ももカクまる(桃)' },   // ピンク＆白：軽くて可愛い
-  wood:     { density: 0.95, friction: 0.87, name: 'ちゃカクまる(木)' },   // 茶色：中くらいの重さ
-  stone:    { density: 1.40, friction: 0.84, name: 'いしカクまる(石)' },   // グレー：ずっしり重い
-  tnt:      { density: 0.80, friction: 0.88, name: 'あかボム' },
-  wide_tnt: { density: 0.80, friction: 0.88, name: 'みどりワイドボム' },
-  mega_tnt: { density: 0.90, friction: 0.88, name: 'きんメガボム' }
+  ice:      { density: 0.65, hp: 1, friction: 0.90 },
+  star:     { density: 0.80, hp: 1, friction: 0.88 },
+  wood:     { density: 1.25, hp: 2, friction: 0.85 },
+  stone:    { density: 2.10, hp: 3, friction: 0.82 },
+  tnt:      { density: 0.85, hp: 1, friction: 0.85 },
+  wide_tnt: { density: 0.85, hp: 1, friction: 0.85 },
+  mega_tnt: { density: 0.95, hp: 1, friction: 0.85 }
 };
 
 function isBombType(type) {
@@ -291,7 +289,7 @@ function hasAnyBombLeft() {
 }
 
 function isPowerBallActive() {
-  return !hasAnyBombLeft() || shotsLeft <= 3;
+  return !hasAnyBombLeft() || shotsLeft <= 2;
 }
 
 function resize() {
@@ -311,7 +309,6 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-// --- 照準と軌道計算 ---
 function getRadiusForElevation(elDeg) {
   const t = (elDeg - 10) / (75 - 10);
   return minReachDist + t * (maxReachDist - minReachDist);
@@ -355,7 +352,7 @@ function getTrajectoryPoint(azDeg, elDeg, p, includeWind = true) {
 
 function pickBombForStage(num) {
   const r = Math.random();
-  const megaProb = num <= 2 ? 0.38 : (num <= 5 ? 0.25 : 0.18);
+  const megaProb = num <= 2 ? 0.35 : (num <= 5 ? 0.20 : 0.12);
   if (r < megaProb) return 'mega_tnt';
   if (r < megaProb + 0.38) return 'wide_tnt';
   return 'tnt';
@@ -363,29 +360,31 @@ function pickBombForStage(num) {
 
 function pickMaterialForStage(num, isTopRow) {
   if (num === 1) return isTopRow ? 'star' : 'ice';
-  if (num === 2) return Math.random() < 0.35 ? 'wood' : (isTopRow ? 'star' : 'ice');
+  if (num === 2) return Math.random() < 0.45 ? 'wood' : 'ice';
   if (num <= 4) {
     const r = Math.random();
-    if (r < 0.24) return 'stone';
-    if (r < 0.58) return 'wood';
+    if (r < 0.32) return 'stone';
+    if (r < 0.65) return 'wood';
     return isTopRow ? 'star' : 'ice';
   }
   const r = Math.random();
-  if (r < 0.35) return 'stone';
-  if (r < 0.72) return 'wood';
+  if (r < 0.45) return 'stone';
+  if (r < 0.78) return 'wood';
   return isTopRow ? 'star' : 'ice';
 }
 
-// --- 📏 サイズ（何個分か：cols × rows）を指定してブロックを生成 ---
+// --- 📏 サイズとHPを持たせたブロック生成 ---
 function addUnitBlock(centerX, bottomY, unitCols, unitRows, type) {
   const w = unitCols * UNIT_W - 2;
   const h = unitRows * UNIT_H - 2;
-  const units = unitCols * unitRows; // 1個分、2個分、3個分、4個分
+  const units = unitCols * unitRows;
   const spec = MATERIAL_SPECS[type] || MATERIAL_SPECS.ice;
 
-  // 💡 同じ種類でも「何個分の大きさか（units）」に応じて重さが増える！
-  // （ただし大きすぎて全く飛ばなくならないよう、unitsの0.78乗で気持ちよく計算）
-  const mass = spec.density * Math.pow(units, 0.78);
+  const areaFactor = Math.pow((w * h) / 720, 0.75);
+  const mass = spec.density * areaFactor;
+  // 大きさや材質に応じた耐久値（HP）を設定！
+  const hpBonus = units >= 4 ? 2 : (units >= 2 ? 1 : 0);
+  const maxHp = spec.hp + hpBonus;
 
   blocks.push({
     x: centerX,
@@ -398,13 +397,15 @@ function addUnitBlock(centerX, bottomY, unitCols, unitRows, type) {
     type: type,
     angle: 0, va: 0,
     mass: mass,
+    hp: maxHp,
+    maxHp: maxHp,
     friction: spec.friction,
-    earType: Math.floor(Math.random() * 3), // 0:くま耳, 1:うさ耳, 2:ねこ耳
+    earType: Math.floor(Math.random() * 3),
     phase: Math.random() * Math.PI * 2
   });
 }
 
-// --- ステージ生成（1個分・2個分・3個分・4個分のサイズ違いを組み合わせる！） ---
+// --- ステージ生成 ---
 function loadStage(num) {
   blocks = [];
   projectiles = [];
@@ -435,118 +436,76 @@ function loadStage(num) {
   const style = Math.floor(Math.random() * 5);
 
   if (style === 0) {
-    // パターンA：中央に「4個分（2×2）のデカカクまる」が鎮座するボス要塞！
-    // 1段目：1個分の小ブロックと爆弾缶
-    addUnitBlock(cx - UNIT_W * 2, py, 1, 1, pickMaterialForStage(num, false));
-    addUnitBlock(cx - UNIT_W * 1, py, 1, 1, pickBombForStage(num));
-    addUnitBlock(cx,              py, 1, 1, pickMaterialForStage(num, false));
-    addUnitBlock(cx + UNIT_W * 1, py, 1, 1, pickBombForStage(num));
-    addUnitBlock(cx + UNIT_W * 2, py, 1, 1, pickMaterialForStage(num, false));
+    const floors = isEarlyStage ? 3 : (4 + Math.floor(Math.random() * 2));
+    let curY = py;
+    const towerW = isEarlyStage ? 125 : (138 + Math.floor(Math.random() * 42));
 
-    // 2段目：3個分のロングブロック（橋）＋左右に1個分
-    const y2 = py - UNIT_H;
-    addUnitBlock(cx, y2, 3, 1, pickMaterialForStage(num, false));
-    addUnitBlock(cx - UNIT_W * 2, y2, 1, 1, 'ice');
-    addUnitBlock(cx + UNIT_W * 2, y2, 1, 1, 'ice');
-
-    // 3〜4段目：中央に「4個分（2×2）の特大カクまる」！脇に爆弾缶
-    const y3 = y2 - UNIT_H;
-    addUnitBlock(cx, y3, 2, 2, pickMaterialForStage(num, true)); // 2×2＝4個分サイズ！
-    addUnitBlock(cx - UNIT_W * 1.5, y3, 1, 1, pickBombForStage(num));
-    addUnitBlock(cx + UNIT_W * 1.5, y3, 1, 1, pickBombForStage(num));
-
-    if (!isEarlyStage) {
-      // 最上段に2個分ブロックの帽子
-      addUnitBlock(cx, y3 - UNIT_H * 2, 2, 1, 'star');
+    for (let f = 0; f < floors; f++) {
+      if (f % 2 === 0) {
+        if (f > 0 && Math.random() < 0.6) {
+          const mat = pickMaterialForStage(num, f === floors - 1);
+          addUnitBlock(cx, curY, Math.round(towerW / UNIT_W), 1, mat);
+          curY -= UNIT_H;
+        } else {
+          const cols = Math.floor(towerW / UNIT_W);
+          const startX = cx - ((cols - 1) * UNIT_W) / 2;
+          for (let c = 0; c < cols; c++) {
+            const isBombSpot = (f === 0 && (c === 1 || c === cols - 2));
+            const bType = isBombSpot ? pickBombForStage(num) : pickMaterialForStage(num, f === floors - 1);
+            addUnitBlock(startX + c * UNIT_W, curY, 1, 1, bType);
+          }
+          curY -= UNIT_H;
+        }
+      } else {
+        const pillars = 2;
+        const span = towerW - UNIT_W * 2;
+        for (let p = 0; p < pillars; p++) {
+          const px = cx - span / 2 + span * p;
+          let bType = (f === 1 && p === 0) ? pickBombForStage(num) : pickMaterialForStage(num, false);
+          addUnitBlock(px, curY, 1, 1, bType);
+        }
+        curY -= UNIT_H;
+      }
     }
-
   } else if (style === 1) {
-    // パターンB：「2個分ブロック」と「1個分ブロック」のツイン・カクまるタワー
-    const dist = 62;
+    const dist = 56;
     [-dist, dist].forEach((offset, idx) => {
       const bx = cx + offset;
-      // 1段目：1個分の爆弾と1個分のブロック
       addUnitBlock(bx - UNIT_W * 0.5, py, 1, 1, idx === 0 ? pickBombForStage(num) : pickMaterialForStage(num, false));
       addUnitBlock(bx + UNIT_W * 0.5, py, 1, 1, idx === 1 ? pickBombForStage(num) : pickMaterialForStage(num, false));
-      // 2段目：2個分（2×1）のワイドカクまる
       addUnitBlock(bx, py - UNIT_H, 2, 1, pickMaterialForStage(num, false));
-      // 3段目：4個分（2×2）のデカカクまる、または1個分×2
-      if (!isEarlyStage && idx === 1) {
-        addUnitBlock(bx, py - UNIT_H * 2, 2, 2, pickMaterialForStage(num, true));
-      } else {
-        addUnitBlock(bx - UNIT_W * 0.5, py - UNIT_H * 2, 1, 1, 'tnt');
-        addUnitBlock(bx + UNIT_W * 0.5, py - UNIT_H * 2, 1, 1, 'star');
-        addUnitBlock(bx, py - UNIT_H * 3, 2, 1, 'ice');
-      }
+      addUnitBlock(bx, py - UNIT_H * 2, 2, 2, pickMaterialForStage(num, true));
     });
-
   } else if (style === 2) {
-    // パターンC：1個分・2個分・3個分が混ざるカラフル階段ピラミッド
-    // 1段目：2個分×2 ＋ 1個分爆弾×2
-    addUnitBlock(cx - UNIT_W * 2, py, 1, 1, pickBombForStage(num));
-    addUnitBlock(cx - UNIT_W * 0.5, py, 2, 1, pickMaterialForStage(num, false));
-    addUnitBlock(cx + UNIT_W * 1, py, 1, 1, pickBombForStage(num));
-    addUnitBlock(cx + UNIT_W * 2, py, 1, 1, pickMaterialForStage(num, false));
-
-    // 2段目：3個分ロングブロック＋爆弾
-    const y2 = py - UNIT_H;
-    addUnitBlock(cx - UNIT_W * 0.5, y2, 3, 1, pickMaterialForStage(num, false));
-    addUnitBlock(cx + UNIT_W * 1.5, y2, 1, 1, pickBombForStage(num));
-
-    // 3段目：2個分＋1個分
-    const y3 = y2 - UNIT_H;
-    addUnitBlock(cx - UNIT_W * 0.5, y3, 2, 1, 'ice');
-    addUnitBlock(cx + UNIT_W * 1.0, y3, 1, 1, pickBombForStage(num));
-
-    // 4段目：1個分のスターカクまる
-    const y4 = y3 - UNIT_H;
-    addUnitBlock(cx - UNIT_W * 0.5, y4, 1, 1, 'star');
-    addUnitBlock(cx + UNIT_W * 0.5, y4, 1, 1, 'star');
-
-  } else if (style === 3) {
-    // パターンD：3個分ブロックの大きな橋とデカカクまる
-    // 1〜2段目の柱
-    [-UNIT_W * 1.5, 0, UNIT_W * 1.5].forEach((ox, idx) => {
-      addUnitBlock(cx + ox, py, 1, 1, idx !== 1 ? pickBombForStage(num) : pickMaterialForStage(num, false));
-      addUnitBlock(cx + ox, py - UNIT_H, 1, 1, idx === 1 ? pickBombForStage(num) : pickMaterialForStage(num, false));
-    });
-    // 3段目：3個分（3×1）のロングカクまる＋左右1個分
-    const y3 = py - UNIT_H * 2;
-    addUnitBlock(cx, y3, 3, 1, pickMaterialForStage(num, false));
-    addUnitBlock(cx - UNIT_W * 2, y3, 1, 1, 'ice');
-    addUnitBlock(cx + UNIT_W * 2, y3, 1, 1, 'ice');
-
-    // 4段目：上に2個分×2 または 4個分デカカクまる
-    const y4 = y3 - UNIT_H;
-    if (num >= 2) {
-      addUnitBlock(cx, y4, 2, 2, 'star');
-      addUnitBlock(cx - UNIT_W * 1.5, y4, 1, 1, 'tnt');
-      addUnitBlock(cx + UNIT_W * 1.5, y4, 1, 1, 'tnt');
-    } else {
-      addUnitBlock(cx - UNIT_W, y4, 2, 1, 'star');
-      addUnitBlock(cx + UNIT_W, y4, 2, 1, 'star');
+    const baseCount = isEarlyStage ? 4 : 5;
+    for (let row = 0; row < baseCount; row++) {
+      const count = baseCount - row;
+      const startX = cx - ((count - 1) * UNIT_W) / 2;
+      for (let i = 0; i < count; i++) {
+        let type = (row === 0 && (i === 1 || i === count - 2)) ? pickBombForStage(num) : pickMaterialForStage(num, row >= baseCount - 2);
+        addUnitBlock(startX + i * UNIT_W, py - row * UNIT_H, 1, 1, type);
+      }
     }
-
+  } else if (style === 3) {
+    const span = 55;
+    [-span, 0, span].forEach((offset, idx) => {
+      const bx = cx + offset;
+      addUnitBlock(bx, py, 1, 1, idx === 1 ? pickBombForStage(num) : pickMaterialForStage(num, false));
+      addUnitBlock(bx, py - UNIT_H, 1, 1, idx !== 1 ? pickBombForStage(num) : pickMaterialForStage(num, false));
+    });
+    addUnitBlock(cx, py - UNIT_H * 2, 3, 1, pickMaterialForStage(num, false));
+    addUnitBlock(cx, py - UNIT_H * 3, 2, 2, 'stone');
   } else {
-    // パターンE：2個分ブロックの積み木タワー
-    const rows = isEarlyStage ? 3 : 4;
+    const rows = 4;
     for (let r = 0; r < rows; r++) {
       const curY = py - r * UNIT_H;
-      if (r % 2 === 0) {
-        // 2個分ブロック×2 ＋ 中央に1個分の爆弾缶
-        addUnitBlock(cx - UNIT_W * 1.5, curY, 2, 1, pickMaterialForStage(num, r === rows - 1));
-        addUnitBlock(cx,                curY, 1, 1, pickBombForStage(num));
-        addUnitBlock(cx + UNIT_W * 1.5, curY, 2, 1, pickMaterialForStage(num, r === rows - 1));
-      } else {
-        // 1個分爆弾×2 ＋ 中央に2個分ブロック
-        addUnitBlock(cx - UNIT_W * 1.5, curY, 1, 1, pickBombForStage(num));
-        addUnitBlock(cx,                curY, 2, 1, pickMaterialForStage(num, r === rows - 1));
-        addUnitBlock(cx + UNIT_W * 1.5, curY, 1, 1, pickBombForStage(num));
-      }
+      addUnitBlock(cx - UNIT_W * 1.5, curY, 1, 1, r === 0 ? pickBombForStage(num) : pickMaterialForStage(num, false));
+      addUnitBlock(cx, curY, 2, 1, pickMaterialForStage(num, r === rows - 1));
+      addUnitBlock(cx + UNIT_W * 1.5, curY, 1, 1, r === 1 ? pickBombForStage(num) : pickMaterialForStage(num, false));
     }
   }
 
-  // 爆弾缶が最低3個は入るように保証
+  // 爆弾缶の数保証
   let currentBombs = blocks.filter(b => isBombType(b.type)).length;
   if (currentBombs < 3) {
     const candidates = blocks.filter(b => !isBombType(b.type) && b.units === 1);
@@ -583,7 +542,7 @@ function updateHintText() {
   const bombs = blocks.filter(b => isBombType(b.type));
 
   if (bombs.length === 0 && blocks.length > 0) {
-    banner.innerText = "🌟 スーパー肉球弾モード！大きいカクまるも一撃で吹き飛ばせるよ！";
+    banner.innerText = "🌟 スーパー肉球弾モード！大きいカクまるも連続ヒットで倒そう！";
     return;
   }
   if (diffLevel === 1 && bombs.length > 0) {
@@ -591,7 +550,7 @@ function updateHintText() {
     const sample = calcAnglesForTarget(targetBomb.x, targetBomb.y);
     banner.innerText = `💡 ボム缶（よこ:${sample.az}° / たかさ:${sample.el}° など）をねらおう！`;
   } else if (diffLevel === 2) {
-    banner.innerText = "📏 2個分・3個分・4個分の大きいカクまるは重いぞ！まんなかか土台を狙おう！";
+    banner.innerText = "📏 大きいカクまるはHPがあるぞ！何回か当てるか土台を爆破しよう！";
   } else {
     banner.innerText = "🍃 風で弾が流されるぞ！風上に向かって少し角度をズラそう！";
   }
@@ -647,7 +606,6 @@ canvas.addEventListener('pointermove', (e) => {
 });
 window.addEventListener('pointerup', () => { isDragging = false; });
 
-// --- 大砲の発射！ ---
 function fireCannon() {
   if (gameState !== 'playing' || isStageClearing || shotsLeft <= 0 || projectiles.length > 0) return;
   initAudio();
@@ -676,19 +634,19 @@ function fireCannon() {
   }
 }
 
-// --- 💥 爆弾缶の爆発処理 ---
+// --- 💥 爆発処理 ---
 function triggerBombByType(b) {
   mascotMood = 'happy';
   mascotJumpTimer = 0.8;
   if (b.type === 'mega_tnt') {
     floatingTexts.push({ x: b.x, y: b.y - 25, text: "🌟 メガ大爆発！！", color: "#f1c40f", life: 1.4 });
-    triggerExplosion(b.x, b.y, 165, 760, 'mega');
+    triggerExplosion(b.x, b.y, 160, 680, 'mega');
   } else if (b.type === 'wide_tnt') {
     floatingTexts.push({ x: b.x, y: b.y - 20, text: "⚡ ワイド衝撃波！！", color: "#2ecc71", life: 1.4 });
-    triggerExplosion(b.x, b.y, 145, 680, 'wide');
+    triggerExplosion(b.x, b.y, 140, 600, 'wide');
   } else {
     floatingTexts.push({ x: b.x, y: b.y - 20, text: "💥 ドカーン！！", color: "#ff6b81", life: 1.3 });
-    triggerExplosion(b.x, b.y, 130, 600, 'normal');
+    triggerExplosion(b.x, b.y, 120, 520, 'normal');
   }
 }
 
@@ -697,21 +655,15 @@ function triggerExplosion(ex, ey, radius, power, mode) {
   if (mode === 'mega') playSound('mega_explode');
   else playSound('explode');
 
-  const count = mode === 'mega' ? 42 : 30;
-  const colors = mode === 'wide'
-    ? ['#2ecc71', '#00d2d3', '#f1c40f', '#ffffff']
-    : ['#ff6b81', '#f39c12', '#f1c40f', '#ffffff'];
-
+  const count = mode === 'mega' ? 40 : 26;
   for (let i = 0; i < count; i++) {
     const ang = Math.random() * Math.PI * 2;
-    const spd = 60 + Math.random() * (mode === 'mega' ? 280 : 210);
+    const spd = 50 + Math.random() * 180;
     particles.push({
       x: ex, y: ey,
-      vx: Math.cos(ang) * spd * (mode === 'wide' ? 1.7 : 1.0),
-      vy: Math.sin(ang) * spd * (mode === 'wide' ? 0.5 : 1.0) - 30,
-      r: 5 + Math.random() * (mode === 'mega' ? 14 : 10),
-      color: colors[Math.floor(Math.random() * colors.length)],
-      life: 0.4 + Math.random() * 0.3, maxLife: 0.7
+      vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 30,
+      r: 5 + Math.random() * 10,
+      color: '#ff6b81', life: 0.4 + Math.random() * 0.3, maxLife: 0.7
     });
   }
 
@@ -722,62 +674,40 @@ function triggerExplosion(ex, ey, radius, power, mode) {
     const rawDist = Math.hypot(dx, dy);
 
     let effectiveDist = rawDist;
-    if (mode === 'wide') {
-      effectiveDist = Math.hypot(dx * 0.52, dy * 1.5);
-    }
+    if (mode === 'wide') effectiveDist = Math.hypot(dx * 0.55, dy * 1.5);
 
     if (effectiveDist < radius) {
       const falloff = 1 - (effectiveDist / radius);
+      const chainDist = mode === 'mega' ? 95 : 72;
 
-      // 近くの爆弾缶への連鎖誘爆
-      const chainDist = mode === 'mega' ? 105 : 82;
       if (isBombType(b.type) && effectiveDist < chainDist) {
         const nextBomb = blocks.splice(i, 1)[0];
         setTimeout(() => triggerBombByType(nextBomb), 65);
         continue;
       }
 
-      // 爆発の中心の近くにある1個分〜2個分の軽いブロックは弾け飛ぶ
-      const crushRadius = mode === 'mega' ? 70 : 52;
-      if (effectiveDist < crushRadius && b.mass <= 1.45) {
+      // 爆風によるHPダメージ
+      const dmg = Math.round(2 * falloff);
+      b.hp -= Math.max(1, dmg);
+
+      if (b.hp <= 0) {
         spawnBlockShards(b);
         blocks.splice(i, 1);
         continue;
       }
 
-      // 4個分（2×2）のデカカクまるが至近距離で爆発を受けた場合、1個分のちびカクまる2体に分裂する演出！
-      if (b.units >= 4 && effectiveDist < crushRadius * 1.2) {
-        const bx = b.x, by = b.y, bType = b.type;
-        spawnBlockShards(b);
-        blocks.splice(i, 1);
-        addUnitBlock(bx - UNIT_W * 0.5, by + UNIT_H * 0.5, 1, 1, bType);
-        addUnitBlock(bx + UNIT_W * 0.5, by + UNIT_H * 0.5, 1, 1, bType);
-        blocks[blocks.length - 2].vx = -220; blocks[blocks.length - 2].vy = -120;
-        blocks[blocks.length - 1].vx =  220; blocks[blocks.length - 1].vy = -120;
-        continue;
-      }
-
-      // 質量（大きさ×材質）に応じた吹き飛び速度の計算
       const impulse = (power * Math.pow(falloff, 0.95)) / b.mass;
       const dirX = dx === 0 ? (Math.random() > 0.5 ? 1 : -1) : Math.sign(dx);
-      const nx = dx / (rawDist || 1);
-      const ny = dy / (rawDist || 1);
-
-      if (mode === 'wide') {
-        b.vx += dirX * impulse * 1.85;
-        b.vy -= Math.min(140, impulse * 0.35);
-      } else {
-        b.vx += (nx * 1.55 + dirX * 0.45) * impulse;
-        b.vy += Math.max(-230, (ny - 0.35) * impulse * 0.55);
-      }
-      b.va += ((Math.random() - 0.5) * 14) / b.mass;
+      b.vx += dirX * impulse * 1.25;
+      b.vy -= Math.min(150, impulse * 0.4);
+      b.va += ((Math.random() - 0.5) * 10) / b.mass;
     }
   }
 }
 
-// --- 🎯 キャノン玉の当たり方（真ん中 vs 境目）＆ブロックの大きさに応じたインパクト処理 ---
+// --- 🎯 弾の当たり方（真ん中 vs 境目）とHP・耐久値の計算 ---
 function handleCannonBallImpact(ix, iy, proj) {
-  const hitRadius = proj.isPower ? 36 : 26;
+  const hitRadius = proj.isPower ? 34 : 24;
 
   let touched = [];
   for (let i = 0; i < blocks.length; i++) {
@@ -801,7 +731,6 @@ function handleCannonBallImpact(ix, iy, proj) {
     }
   }
 
-  // 空振り時
   if (touched.length === 0) {
     playSound('miss');
     mascotMood = 'sad';
@@ -815,7 +744,6 @@ function handleCannonBallImpact(ix, iy, proj) {
   mascotMood = 'happy';
   mascotJumpTimer = 0.6;
 
-  // 爆弾缶に触れていればすべて起爆！
   const hitBombs = touched.filter(t => isBombType(t.block.type));
   if (hitBombs.length > 0) {
     for (let hb of hitBombs) {
@@ -831,145 +759,55 @@ function handleCannonBallImpact(ix, iy, proj) {
   touched.sort((a, b) => a.centerDist - b.centerDist);
   const primary = touched[0];
   const shotDirX = Math.cos(proj.az * Math.PI / 180);
-  const baseTotalEnergy = proj.isPower ? 1020 : 750;
 
-  // 🎯 パターン1：ブロックの「ど真ん中付近（横ズレ48%以内）」に直撃した場合
-  const isBullseye = (primary.xOffsetRatio <= 0.48);
+  // 🎯 真ん中ヒット判定
+  const isBullseye = (primary.xOffsetRatio <= 0.45);
+  const damage = proj.isPower ? 2 : 1;
 
   if (isBullseye) {
     playSound('critical');
     const b = primary.block;
+    b.hp -= damage;
 
-    for (let i = 0; i < 24; i++) {
-      const ang = Math.random() * Math.PI * 2;
-      const spd = 70 + Math.random() * 210;
-      particles.push({
-        x: ix, y: iy, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd,
-        r: 5 + Math.random()*8, color: '#f1c40f', life: 0.45, maxLife: 0.45
-      });
-    }
+    floatingTexts.push({
+      x: b.x, y: b.y - 22,
+      text: b.hp <= 0 ? "🎯 クリーンヒット破壊！！" : `💥 直撃！(残りHP:${b.hp})`,
+      color: "#f1c40f", life: 1.3
+    });
 
-    const idx = blocks.indexOf(b);
-    if (idx !== -1) {
-      // 4個分（2×2）の特大カクまるの真ん中に通常弾が当たった場合：ちびカクまる2体にパカッと分裂して飛ぶ！
-      if (b.units >= 4 && !proj.isPower && b.type === 'stone') {
-        floatingTexts.push({ x: b.x, y: b.y - 24, text: "💥 デカカクまる分裂！！", color: "#f1c40f", life: 1.4 });
-        const bx = b.x, by = b.y, bType = b.type;
-        spawnBlockShards(b);
-        blocks.splice(idx, 1);
-        addUnitBlock(bx - UNIT_W * 0.5, by + UNIT_H * 0.5, 1, 1, bType);
-        addUnitBlock(bx + UNIT_W * 0.5, by + UNIT_H * 0.5, 1, 1, bType);
-        blocks[blocks.length - 2].vx = -250; blocks[blocks.length - 2].vy = -130;
-        blocks[blocks.length - 1].vx =  250; blocks[blocks.length - 1].vy = -130;
-      } else {
-        // 1個分・2個分・3個分（またはスーパー弾）はど真ん中ヒットで気持ちよく一撃クラッシュ！
-        floatingTexts.push({
-          x: b.x, y: b.y - 22,
-          text: b.units >= 2 ? `🎯 ${b.units}個分ブロック一撃粉砕！！` : "🎯 まんなか直撃クラッシュ！！",
-          color: "#f1c40f", life: 1.4
-        });
+    if (b.hp <= 0) {
+      const idx = blocks.indexOf(b);
+      if (idx !== -1) {
         spawnBlockShards(b);
         blocks.splice(idx, 1);
       }
-    }
-
-    // ど真ん中ヒット時の大衝撃波：周囲のブロックもサイズに応じて弾き飛ばす
-    const shockRadius = proj.isPower ? 125 : 105;
-    for (let i = blocks.length - 1; i >= 0; i--) {
-      const other = blocks[i];
-      const dx = other.x - ix;
-      const dy = other.y - iy;
-      const d = Math.hypot(dx, dy);
-      if (d < shockRadius) {
-        if (d < 44 && other.mass <= 0.70) {
-          spawnBlockShards(other);
-          blocks.splice(i, 1);
-          continue;
-        }
-        const factor = 1 - (d / shockRadius);
-        const pushX = Math.abs(dx) > 4 ? Math.sign(dx) : (shotDirX >= 0 ? 1 : -1);
-        const shockImpulse = (baseTotalEnergy * 0.88 * factor) / other.mass;
-        other.vx += pushX * shockImpulse;
-        other.vy -= Math.min(160, shockImpulse * 0.4);
-        other.va += pushX * (6 / other.mass);
-      }
+    } else {
+      // 耐えても強力にノックバック
+      const pushDir = Math.abs(shotDirX) > 0.12 ? Math.sign(shotDirX) : (b.x >= cw / 2 ? 1 : -1);
+      b.vx += (pushDir * 280) / b.mass;
+      b.vy -= 110 / b.mass;
     }
     return;
   }
 
-  // ⚡ パターン2：左右の端、または複数ブロックの「境目（間）」に当たった場合（威力分散＆同時吹き飛ばし）
+  // ⚡ 境目・端ヒット（威力分散）
   playSound('hit');
-
-  const totalWeight = touched.reduce((sum, t) => sum + t.weight, 0);
-  const multiBonus = touched.length >= 2 ? 1.65 : 1.25;
-
-  if (touched.length >= 2) {
-    floatingTexts.push({
-      x: ix, y: iy - 20,
-      text: `⚡ ${touched.length}体同時スプリット！！`,
-      color: "#00d2d3", life: 1.3
-    });
-  } else {
-    floatingTexts.push({
-      x: ix, y: iy - 18,
-      text: `💫 はじっこスピン！！`,
-      color: "#ffffff", life: 1.1
-    });
-  }
-
-  for (let i = 0; i < 16; i++) {
-    const ang = Math.random() * Math.PI * 2;
-    const spd = 50 + Math.random() * 160;
-    particles.push({
-      x: ix, y: iy, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd,
-      r: 4 + Math.random()*6, color: '#ff9ff3', life: 0.4, maxLife: 0.4
-    });
-  }
-
   for (let t of touched) {
     const b = t.block;
-    const idx = blocks.indexOf(b);
-    if (idx === -1) continue;
+    b.hp -= damage;
 
-    // 1個分の軽い氷・星ブロックは境目ヒットでも気持ちよく弾ける
-    if (b.units === 1 && b.mass <= 0.65 && t.weight > 0.55) {
-      spawnBlockShards(b);
-      blocks.splice(idx, 1);
-      continue;
-    }
-
-    const shareRatio = Math.max(0.45, t.weight / totalWeight);
-    const allocatedForce = baseTotalEnergy * multiBonus * shareRatio;
-
-    let dx = b.x - ix;
-    let dy = b.y - iy;
-    if (Math.abs(dx) < 4) {
-      dx = (shotDirX >= 0 ? 1 : -1) * 10;
-    }
-    const dist = Math.hypot(dx, dy) || 1;
-    const nx = dx / dist;
-    const ny = dy / dist;
-
-    // 2個分・3個分・4個分の大きいブロックは重さ(b.mass)があるため、1個分よりマイルドに動き、端に当たると大きく傾く！
-    const speedChange = allocatedForce / b.mass;
-    b.vx += (nx * 1.55 + shotDirX * 0.45) * speedChange;
-    b.vy += Math.max(-200, (ny - 0.4) * speedChange * 0.55);
-
-    const torque = ((ix - b.x) / (b.w / 2)) * 16;
-    b.va -= torque / b.mass;
-  }
-
-  // 周囲のブロックへの二次衝撃
-  for (let other of blocks) {
-    if (touched.some(t => t.block === other)) continue;
-    const dx = other.x - ix;
-    const dy = other.y - iy;
-    const d = Math.hypot(dx, dy);
-    if (d < 75) {
-      const dirX = dx !== 0 ? Math.sign(dx) : 1;
-      const push = (260 * (1 - d / 75)) / other.mass;
-      other.vx += dirX * push;
-      other.vy -= 60 / other.mass;
+    if (b.hp <= 0) {
+      const idx = blocks.indexOf(b);
+      if (idx !== -1) {
+        spawnBlockShards(b);
+        blocks.splice(idx, 1);
+      }
+    } else {
+      let dx = b.x - ix;
+      const dirX = dx !== 0 ? Math.sign(dx) : (shotDirX >= 0 ? 1 : -1);
+      b.vx += (dirX * 190) / b.mass;
+      b.vy -= 70 / b.mass;
+      floatingTexts.push({ x: b.x, y: b.y - 18, text: `💫 端ヒット(HP:${b.hp})`, color: "#ffffff", life: 1.0 });
     }
   }
 }
@@ -981,12 +819,11 @@ function spawnBlockShards(b) {
     stone: '#a4b0be', tnt: '#ff6b81', wide_tnt: '#2ecc71', mega_tnt: '#f1c40f'
   };
   const col = colMap[b.type] || '#70d6ff';
-  const count = 6 + b.units * 3;
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < 7; i++) {
     particles.push({
       x: b.x + (Math.random()-0.5)*b.w, y: b.y + (Math.random()-0.5)*b.h,
-      vx: (Math.random()-0.5)*200, vy: -Math.random()*150,
-      r: 4 + Math.random()*5, color: col, life: 0.5, maxLife: 0.5
+      vx: (Math.random()-0.5)*170, vy: -Math.random()*130,
+      r: 4 + Math.random()*4, color: col, life: 0.45, maxLife: 0.45
     });
   }
 }
@@ -1011,7 +848,6 @@ function updatePhysics(dt) {
   animClock += dt;
   if (mascotJumpTimer > 0) mascotJumpTimer = Math.max(0, mascotJumpTimer - dt);
 
-  // 1. 弾の移動と着弾判定
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const proj = projectiles[i];
     proj.p += proj.speed * dt;
@@ -1023,7 +859,6 @@ function updatePhysics(dt) {
     }
   }
 
-  // 2. ブロックの物理移動と玉突き衝突解決
   if (physicsActive) {
     const gravity = 600;
     const platLeft = cw / 2 - platformWidth / 2;
@@ -1035,8 +870,8 @@ function updatePhysics(dt) {
       b.y += b.vy * dt;
       b.angle += b.va * dt;
 
-      b.vx *= 0.98;
-      b.va *= 0.94;
+      b.vx *= 0.97;
+      b.va *= 0.92;
 
       if (b.x > platLeft - 2 && b.x < platRight + 2) {
         if (b.y + b.h / 2 >= platformY && b.y - b.h / 2 < platformY + 18 && b.vy >= 0) {
@@ -1046,8 +881,8 @@ function updatePhysics(dt) {
           b.angle *= 0.75;
           b.va *= 0.5;
 
-          if (b.x < platLeft + 18) b.vx -= 125 * dt;
-          else if (b.x > platRight - 18) b.vx += 125 * dt;
+          if (b.x < platLeft + 18) b.vx -= 110 * dt;
+          else if (b.x > platRight - 18) b.vx += 110 * dt;
         }
       } else {
         b.va += (b.x < cw / 2 ? -8 : 8) * dt;
@@ -1081,7 +916,6 @@ function updatePhysics(dt) {
               supportMinX = Math.min(supportMinX, under.x - under.w / 2);
               supportMaxX = Math.max(supportMaxX, under.x + under.w / 2);
             } else {
-              // 左右の玉突き衝突（大きいブロックが小さいブロックを強く弾き飛ばす！）
               const totalMass = b.mass + under.mass;
               const sign = dx > 0 ? 1 : -1;
               under.x -= sign * overlapX * (b.mass / totalMass);
@@ -1090,7 +924,7 @@ function updatePhysics(dt) {
               if (iter === 0) {
                 const relVx = b.vx - under.vx;
                 if (relVx * sign < 0) {
-                  const restitution = 0.88;
+                  const restitution = 0.85;
                   const imp = -(1 + restitution) * relVx / (1 / b.mass + 1 / under.mass);
                   b.vx += imp / b.mass;
                   under.vx -= imp / under.mass;
@@ -1102,11 +936,11 @@ function updatePhysics(dt) {
 
         if (supportMinX !== Infinity) {
           if (b.x < supportMinX) {
-            b.vx -= 125 * dt;
-            b.va -= 6 * dt;
+            b.vx -= 110 * dt;
+            b.va -= 5 * dt;
           } else if (b.x > supportMaxX) {
-            b.vx += 125 * dt;
-            b.va += 6 * dt;
+            b.vx += 110 * dt;
+            b.va += 5 * dt;
           } else {
             b.angle *= 0.8;
             b.va *= 0.5;
@@ -1115,7 +949,6 @@ function updatePhysics(dt) {
       }
     }
 
-    // 台座より下または画面外へ落ちたブロックの消去
     for (let i = blocks.length - 1; i >= 0; i--) {
       if (blocks[i].y > platformY + 65 || blocks[i].x < -35 || blocks[i].x > cw + 35) {
         spawnBlockShards(blocks[i]);
@@ -1137,7 +970,6 @@ function updatePhysics(dt) {
     if (ft.life <= 0) floatingTexts.splice(i, 1);
   }
 
-  // 全ブロック撃破時：2秒間の余韻タイマー
   if (blocks.length === 0 && !isStageClearing && projectiles.length === 0) {
     isStageClearing = true;
     clearDelayTimer = 2.0;
@@ -1193,7 +1025,7 @@ function stageFail() {
   document.getElementById('result-title').style.color = '#e74c3c';
   document.getElementById('result-desc').innerHTML = `
     あと <b>${blocks.length}体</b> のカクまるが残ってしまった！<br>
-    大きいカクまるは<b>「ど真ん中」</b>を狙うか、<b>下の爆弾缶</b>を撃ち抜いて落とそう📐
+    大きいカクまるは数回狙うか、下のボム缶を爆破しよう📐
   `;
   document.getElementById('btn-next').innerText = "もういちど挑戦する 🔄";
   document.getElementById('result-screen').classList.add('show');
@@ -1206,13 +1038,12 @@ function nextStage() {
   gameState = 'playing';
 }
 
-// --- 🐹 マイクラ×ちいかわ風オリジナルキャラ「カクまる」描画関数 ---
+// --- キャラクター描画 ---
 function drawKakumaruFace(ctx, w, h, state, lookDx, lookDy, isBossSize) {
   const scale = isBossSize ? 1.45 : 1.0;
   const eyeX = Math.min(w * 0.24, 11 * scale);
   const eyeY = 1 * scale;
 
-  // ピンクのほっぺ（少し四角みのあるボクセルほっぺ）
   ctx.fillStyle = state === 'scared' ? 'rgba(255, 82, 82, 0.75)' : 'rgba(255, 138, 165, 0.68)';
   const cheekW = 5.5 * scale, cheekH = 3.5 * scale;
   ctx.beginPath();
@@ -1225,41 +1056,22 @@ function drawKakumaruFace(ctx, w, h, state, lookDx, lookDy, isBossSize) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  if (state === 'flying') {
-    // 吹き飛び中：「＞＜」または「〇〇」のパニック顔
-    ctx.lineWidth = 2 * scale;
-    ctx.beginPath();
-    ctx.arc(-eyeX, eyeY, 3 * scale, 0, Math.PI * 2);
-    ctx.arc(eyeX, eyeY, 3 * scale, 0, Math.PI * 2);
-    ctx.stroke();
-    // わー！と開いた口
-    ctx.fillStyle = '#ff6b81';
-    ctx.beginPath();
-    ctx.arc(0, eyeY + 4.5 * scale, 3.2 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  } else if (state === 'scared') {
-    // 照準で狙われてビビっている顔：「＞ ＜」の目と波打つ口、冷や汗💦
+  if (state === 'scared') {
     ctx.lineWidth = 2 * scale;
     const s = 2.8 * scale;
     ctx.beginPath();
-    // 左目 ＞
     ctx.moveTo(-eyeX - s, eyeY - s); ctx.lineTo(-eyeX + s*0.6, eyeY); ctx.lineTo(-eyeX - s, eyeY + s);
-    // 右目 ＜
     ctx.moveTo(eyeX + s, eyeY - s); ctx.lineTo(eyeX - s*0.6, eyeY); ctx.lineTo(eyeX + s, eyeY + s);
-    // 震える「ω」口
     ctx.moveTo(-3 * scale, eyeY + 4.5 * scale);
     ctx.quadraticCurveTo(-1.5 * scale, eyeY + 2.5 * scale, 0, eyeY + 4.5 * scale);
     ctx.quadraticCurveTo(1.5 * scale, eyeY + 2.5 * scale, 3 * scale, eyeY + 4.5 * scale);
     ctx.stroke();
 
-    // 飛び散る冷や汗マーク💦
     ctx.fillStyle = '#00d2d3';
     ctx.beginPath();
     ctx.arc(w / 2 - 4, -h / 2 + 5, 2.8 * scale, 0, Math.PI * 2);
     ctx.fill();
   } else {
-    // 通常時：うるうるハイライト入りのつぶらな瞳と「ω」のお口
     const gx = Math.max(-1.5, Math.min(1.5, lookDx * 0.015));
     const gy = Math.max(-1.5, Math.min(1.5, lookDy * 0.015));
     const r = 2.7 * scale;
@@ -1269,14 +1081,12 @@ function drawKakumaruFace(ctx, w, h, state, lookDx, lookDy, isBossSize) {
     ctx.arc(eyeX + gx, eyeY + gy, r, 0, Math.PI * 2);
     ctx.fill();
 
-    // 瞳の中のキラキラ白ハイライト（上部に大1つ、下部に小1つ）
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(-eyeX + gx - 0.8*scale, eyeY + gy - 0.9*scale, 1.1*scale, 0, Math.PI * 2);
     ctx.arc(eyeX + gx - 0.8*scale, eyeY + gy - 0.9*scale, 1.1*scale, 0, Math.PI * 2);
     ctx.fill();
 
-    // ちいかわ風の可愛い「ω」口と小さな眉毛
     ctx.lineWidth = 1.6 * scale;
     ctx.beginPath();
     ctx.arc(-1.6 * scale, eyeY + 3.2 * scale, 1.6 * scale, 0.1 * Math.PI, 0.95 * Math.PI);
@@ -1287,11 +1097,9 @@ function drawKakumaruFace(ctx, w, h, state, lookDx, lookDy, isBossSize) {
 
 function drawVoxelBlock(b, aimPt) {
   ctx.save();
-  // 照準が近くにあるかチェック（狙われているカクまるはブルブル震える！）
   const distToAim = aimPt ? Math.hypot(aimPt.x - b.x, aimPt.y - b.y) : 999;
   const hitR = isPowerBallActive() ? 36 : 26;
   const isTargeted = (!physicsActive && distToAim <= Math.max(b.w, b.h) * 0.55 + hitR * 0.6);
-  const isFlying = (Math.hypot(b.vx, b.vy) > 45 || Math.abs(b.va) > 1.5);
 
   const shakeX = isTargeted ? Math.sin(animClock * 55 + b.phase) * 2.2 : 0;
   const shakeY = isTargeted ? Math.cos(animClock * 48 + b.phase) * 1.5 : 0;
@@ -1300,38 +1108,31 @@ function drawVoxelBlock(b, aimPt) {
   ctx.translate(b.x + shakeX, b.y + shakeY + breatheY);
   ctx.rotate(b.angle);
 
-  // カラーパレット設定（パステル＆ボクセル調）
   const palette = {
-    ice:   { base: '#74b9ff', inner: '#a29bfe', body: '#dff9fb', ear: '#74b9ff', border: '#0984e3' }, // そらカクまる
-    star:  { base: '#ff9ff3', inner: '#ffffff', body: '#fff0f6', ear: '#ff9ff3', border: '#e84393' }, // もも・しろカクまる
-    wood:  { base: '#e58e26', inner: '#f8c291', body: '#fad390', ear: '#b71540', border: '#b33939' }, // ちゃカクまる（くりまんじゅう風カラー）
-    stone: { base: '#747d8c', inner: '#ced6e0', body: '#dfe4ea', ear: '#57606f', border: '#2f3542' }  // いしカクまる（鎧さん風カラー）
+    ice:   { base: '#74b9ff', inner: '#a29bfe', body: '#dff9fb', border: '#0984e3' },
+    star:  { base: '#ff9ff3', inner: '#ffffff', body: '#fff0f6', border: '#e84393' },
+    wood:  { base: '#e58e26', inner: '#f8c291', body: '#fad390', border: '#b33939' },
+    stone: { base: '#747d8c', inner: '#ced6e0', body: '#dfe4ea', border: '#2f3542' }
   };
 
   if (!isBombType(b.type)) {
     const pal = palette[b.type] || palette.ice;
 
-    // 1. ちょこんとしたボクセル耳（1段目以外のキャラか、一番上の行にぴょこんと生える）
-    ctx.fillStyle = pal.ear;
+    ctx.fillStyle = pal.base;
     ctx.strokeStyle = pal.border;
     ctx.lineWidth = 2;
     const earOffset = Math.min(b.w * 0.28, 16);
-    const earW = b.earType === 1 ? 6 : 8;
-    const earH = b.earType === 1 ? 9 : 6;
-    // 左耳・右耳（マイクラ風の四角い耳）
     ctx.beginPath();
-    ctx.roundRect(-earOffset - earW/2, -b.h/2 - earH + 2, earW, earH, 2);
-    ctx.roundRect(earOffset - earW/2, -b.h/2 - earH + 2, earW, earH, 2);
+    ctx.roundRect(-earOffset - 4, -b.h/2 - 7, 8, 9, 2);
+    ctx.roundRect(earOffset - 4, -b.h/2 - 7, 8, 9, 2);
     ctx.fill(); ctx.stroke();
 
-    // 2. 四角いボクセルボディ本体
     ctx.fillStyle = pal.base;
     ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 5); ctx.fill();
 
     ctx.fillStyle = pal.body;
     ctx.beginPath(); ctx.roundRect(-b.w/2 + 2.5, -b.h/2 + 2.5, b.w - 5, b.h - 5.5, 3.5); ctx.fill();
 
-    // 3. 📏「何個分の大きさか」がひと目でわかるマイクラ風のボクセル分割グリッド線！
     if (b.unitCols > 1 || b.unitRows > 1) {
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.14)';
       ctx.lineWidth = 1.8;
@@ -1339,18 +1140,15 @@ function drawVoxelBlock(b, aimPt) {
       ctx.beginPath();
       for (let c = 1; c < b.unitCols; c++) {
         const gx = -b.w / 2 + c * (b.w / b.unitCols);
-        ctx.moveTo(gx, -b.h / 2 + 2);
-        ctx.lineTo(gx, b.h / 2 - 2);
+        ctx.moveTo(gx, -b.h / 2 + 2); ctx.lineTo(gx, b.h / 2 - 2);
       }
       for (let r = 1; r < b.unitRows; r++) {
         const gy = -b.h / 2 + r * (b.h / b.unitRows);
-        ctx.moveTo(-b.w / 2 + 2, gy);
-        ctx.lineTo(b.w / 2 - 2, gy);
+        ctx.moveTo(-b.w / 2 + 2, gy); ctx.lineTo(b.w / 2 - 2, gy);
       }
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // 右下に「×2」「×3」「×4」のサイズバッジを表示（算数の体積・面積感覚！）
       ctx.fillStyle = pal.border;
       ctx.beginPath(); ctx.roundRect(b.w/2 - 20, b.h/2 - 13, 18, 11, 3); ctx.fill();
       ctx.fillStyle = '#ffffff';
@@ -1359,62 +1157,49 @@ function drawVoxelBlock(b, aimPt) {
       ctx.fillText(`×${b.units}`, b.w/2 - 11, b.h/2 - 7.5);
     }
 
-    // 上部のツヤハイライト
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.fillRect(-b.w/2 + 6, -b.h/2 + 4, b.w - 12, 3);
+    // 💡 ダメージを受けてHPが減っている時は、ヒビ割れと残りHPを表示
+    if (b.hp < b.maxHp) {
+      ctx.strokeStyle = '#2c2c34'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-6, -4); ctx.lineTo(6, 4);
+      if (b.hp === 1) { ctx.moveTo(4, -5); ctx.lineTo(-5, 6); }
+      ctx.stroke();
 
-    // 4. カクまるの顔を描画
-    const faceState = isFlying ? 'flying' : (isTargeted ? 'scared' : 'normal');
+      ctx.fillStyle = '#e74c3c';
+      ctx.font = '900 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`HP:${b.hp}`, 0, -b.h/2 - 6);
+    }
+
+    const faceState = isTargeted ? 'scared' : 'normal';
     const lookDx = aimPt ? (aimPt.x - b.x) : 0;
     const lookDy = aimPt ? (aimPt.y - b.y) : 0;
     const isBoss = (b.unitCols >= 2 && b.unitRows >= 2);
     drawKakumaruFace(ctx, b.w, b.h, faceState, lookDx, lookDy, isBoss);
 
   } else {
-    // 💥 ボムカクまる（爆弾缶キャラクター）の描画
     const bCol = b.type === 'mega_tnt' ? '#f1c40f' : (b.type === 'wide_tnt' ? '#2ecc71' : '#ff4757');
     const bDark = b.type === 'mega_tnt' ? '#d35400' : (b.type === 'wide_tnt' ? '#27ae60' : '#c0392b');
 
-    // パチパチ火花が散る導火線
-    ctx.strokeStyle = '#dcdde1';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#dcdde1'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, -b.h/2); ctx.lineTo(3, -b.h/2 - 6); ctx.stroke();
-    ctx.fillStyle = (Math.floor(animClock * 15) % 2 === 0) ? '#f1c40f' : '#ff6b81';
+    ctx.fillStyle = '#f1c40f';
     ctx.beginPath(); ctx.arc(3, -b.h/2 - 7, 3.5, 0, Math.PI * 2); ctx.fill();
 
-    // ボム本体
     ctx.fillStyle = bDark;
     ctx.beginPath(); ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 4); ctx.fill();
     ctx.fillStyle = bCol;
     ctx.beginPath(); ctx.roundRect(-b.w/2 + 2, -b.h/2 + 3, b.w - 4, b.h - 6, 3); ctx.fill();
 
-    // ボムのキリッとした目とマーク
     ctx.fillStyle = '#ffffff';
     ctx.font = '900 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const label = b.type === 'mega_tnt' ? '★★' : (b.type === 'wide_tnt' ? '⇔' : '★');
     ctx.fillText(label, 0, -4);
-
-    // 怒りんぼ風の可愛い目
-    ctx.fillStyle = '#1e272e';
-    ctx.beginPath();
-    ctx.arc(-6, 4, 2.2, 0, Math.PI * 2);
-    ctx.arc(6, 4, 2.2, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (diffLevel === 1 && !physicsActive) {
-      const ideal = calcAnglesForTarget(b.x, b.y);
-      ctx.fillStyle = 'rgba(0,0,0,0.8)';
-      ctx.beginPath(); ctx.roundRect(-19, -b.h/2 - 20, 38, 14, 4); ctx.fill();
-      ctx.fillStyle = '#f1c40f';
-      ctx.font = 'bold 10px monospace';
-      ctx.fillText(`${ideal.az}°`, 0, -b.h/2 - 13);
-    }
   }
 
   ctx.restore();
 }
 
-// --- 🎓 大砲の横で応援する相棒マスコット「カクまる博士」の描画 ---
 function drawCommanderMascot() {
   const mx = cannonX + 128;
   const jumpY = mascotJumpTimer > 0 ? Math.abs(Math.sin(animClock * 18)) * 14 : Math.sin(animClock * 4) * 2;
@@ -1423,7 +1208,6 @@ function drawCommanderMascot() {
   ctx.save();
   ctx.translate(mx, my);
 
-  // 四角い耳
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#ff6b81';
   ctx.lineWidth = 2;
@@ -1432,25 +1216,19 @@ function drawCommanderMascot() {
   ctx.roundRect(6, -22, 8, 9, 2);
   ctx.fill(); ctx.stroke();
 
-  // 四角いもちもちボディ
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
   ctx.roundRect(-18, -15, 36, 30, 7);
   ctx.fill(); ctx.stroke();
 
-  // 知育の象徴「小さな角帽（博士ハット🎓）」
   ctx.fillStyle = '#2c3e50';
   ctx.beginPath();
   ctx.moveTo(0, -25); ctx.lineTo(14, -20); ctx.lineTo(0, -15); ctx.lineTo(-14, -20);
   ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(8, -19); ctx.lineTo(12, -13); ctx.stroke();
 
-  // 表情
   const state = mascotMood === 'sad' ? 'scared' : 'normal';
   drawKakumaruFace(ctx, 36, 30, state, cannonX - mx, -20, false);
 
-  // 小さな吹き出しセリフ
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
   ctx.beginPath(); ctx.roundRect(-28, -42, 56, 15, 6); ctx.fill();
   ctx.fillStyle = '#e84393';
@@ -1461,11 +1239,9 @@ function drawCommanderMascot() {
   ctx.restore();
 }
 
-// --- 描画処理 ---
 function draw() {
   ctx.clearRect(0, 0, cw, ch);
 
-  // 1. 背景
   const skyGrad = ctx.createLinearGradient(0, 0, 0, platformY + 60);
   skyGrad.addColorStop(0, '#74b9ff');
   skyGrad.addColorStop(1, '#dff9fb');
@@ -1477,7 +1253,6 @@ function draw() {
   ctx.ellipse(cw / 2, ch * 0.80, cw * 0.95, ch * 0.35, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // 2. 台座
   const pLeft = cw / 2 - platformWidth / 2;
   ctx.fillStyle = '#dcdde1';
   ctx.fillRect(cw / 2 - 14, platformY, 28, 50);
@@ -1494,21 +1269,17 @@ function draw() {
   ctx.roundRect(pLeft, platformY + 2, platformWidth, 6, 3);
   ctx.fill();
 
-  // 現在の照準座標を取得（カクまるの目線＆ビビり判定用）
   const currentAimPt = (projectiles.length === 0 && gameState === 'playing')
     ? getTrajectoryPoint(azimuth, elevation, 1.0, false)
     : null;
 
-  // 3. 積まれている「カクまる」ブロックたちの描画
   for (let b of blocks) {
     drawVoxelBlock(b, currentAimPt);
   }
 
-  // 4. 分度器と大砲と相棒カクまる博士の描画
   drawProtractorAndCannon();
   drawCommanderMascot();
 
-  // 5. 軌道予測ガイドと照準マーク（全難易度共通）
   if (projectiles.length === 0 && gameState === 'playing' && !isStageClearing && currentAimPt) {
     const powerMode = isPowerBallActive();
     ctx.save();
@@ -1531,7 +1302,6 @@ function draw() {
     ctx.restore();
   }
 
-  // 6. 飛んでいる「突撃カクまる弾」の描画
   for (let proj of projectiles) {
     const pt = getTrajectoryPoint(proj.az, proj.el, proj.p, true);
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -1544,7 +1314,6 @@ function draw() {
     ctx.strokeStyle = proj.isPower ? '#d35400' : '#2c3e50';
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.roundRect(-s/2, -s/2, s, s, 5); ctx.fill(); ctx.stroke();
-    // 弾にも可愛いキリッとした顔
     ctx.fillStyle = '#2c3e50';
     ctx.beginPath();
     ctx.arc(-s*0.18, 0, s*0.09, 0, Math.PI*2);
@@ -1553,10 +1322,8 @@ function draw() {
     ctx.restore();
   }
 
-  // 7. 左下の「たかさ角」ミニゲージ
   drawElevationMiniGauge();
 
-  // 8. パーティクル・文字の描画
   for (let p of particles) {
     ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
     ctx.fillStyle = p.color;
@@ -1695,7 +1462,6 @@ function drawElevationMiniGauge() {
   ctx.restore();
 }
 
-// --- メインループ ---
 function gameLoop(time) {
   const dt = Math.min(0.05, (time - lastTime) / 1000);
   lastTime = time;
