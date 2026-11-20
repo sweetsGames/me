@@ -14,54 +14,59 @@
     background: #87CEEB; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 25px rgba(0,0,0,0.8);
   }
 
-  /* 上部ヘッダー */
+  /* 上部ヘッダー（左右の端のみにして中央上部を広く空ける） */
   #header {
     position: absolute; top: var(--sat); left: 0; width: 100%; padding: 8px 10px;
     display: flex; justify-content: space-between; align-items: center; z-index: 10; box-sizing: border-box; pointer-events: none;
   }
   .turn-pill {
-    background: rgba(255,255,255,0.96); color: #2c3e50; padding: 6px 14px; border-radius: 20px;
-    font-weight: 900; font-size: 15px; box-shadow: 0 3px 6px rgba(0,0,0,0.25); pointer-events: auto;
+    background: rgba(255,255,255,0.96); color: #2c3e50; padding: 5px 13px; border-radius: 20px;
+    font-weight: 900; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.25); pointer-events: auto;
     border: 3px solid #3498db; transition: border-color 0.2s, transform 0.2s;
   }
   .turn-pill.p1 { border-color: #3498db; color: #2980b9; }
   .turn-pill.p2 { border-color: #e84393; color: #c0392b; }
 
   .count-pill {
-    background: rgba(44, 62, 80, 0.88); color: #f1c40f; padding: 5px 12px; border-radius: 16px;
+    background: rgba(44, 62, 80, 0.88); color: #f1c40f; padding: 5px 11px; border-radius: 16px;
     font-weight: 900; font-size: 13px; border: 2px solid #f1c40f; pointer-events: auto;
-  }
-
-  /* てこの原理（左右のちから）表示バー */
-  #torque-bar {
-    position: absolute; top: calc(var(--sat) + 50px); left: 50%; transform: translateX(-50%);
-    background: rgba(255, 255, 255, 0.92); color: #2c3e50; padding: 4px 12px; border-radius: 14px;
-    font-weight: 900; font-size: 12.5px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 10;
-    display: flex; align-items: center; gap: 10px; white-space: nowrap; border: 2px solid #bdc3c7;
-  }
-  .torque-num { font-family: monospace; font-size: 15px; color: #e67e22; }
-
-  #status-banner {
-    position: absolute; top: calc(var(--sat) + 86px); left: 50%; transform: translateX(-50%);
-    background: rgba(44, 62, 80, 0.88); color: #fff; padding: 5px 16px; border-radius: 15px;
-    font-weight: 900; font-size: 13px; z-index: 10; white-space: nowrap; pointer-events: none;
-    transition: background-color 0.2s;
-  }
-  #status-banner.warn {
-    background: rgba(231, 76, 60, 0.92);
   }
 
   #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; z-index: 5; }
   canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 
+  /* シーソーの下（芝生エリア）に配置する情報バー */
+  #bottom-hud {
+    position: absolute; bottom: 8px; left: 0; width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    z-index: 10; pointer-events: none; padding: 0 10px; box-sizing: border-box;
+  }
+
+  /* てこの原理（左右のちから）表示バー */
+  #torque-bar {
+    background: rgba(255, 255, 255, 0.94); color: #2c3e50; padding: 3px 12px; border-radius: 14px;
+    font-weight: 900; font-size: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    display: flex; align-items: center; gap: 10px; white-space: nowrap; border: 2px solid #bdc3c7;
+  }
+  .torque-num { font-family: monospace; font-size: 14px; color: #e67e22; }
+
+  #status-banner {
+    background: rgba(44, 62, 80, 0.90); color: #fff; padding: 4px 14px; border-radius: 14px;
+    font-weight: 900; font-size: 12.5px; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+    transition: background-color 0.2s;
+  }
+  #status-banner.warn {
+    background: rgba(231, 76, 60, 0.94);
+  }
+
   /* 下部操作パネル */
   #controls {
     background: linear-gradient(to bottom, #2c3e50, #1a252f);
     padding: 8px 10px calc(10px + var(--sab)); border-top: 3px solid #f1c40f;
-    display: flex; flex-direction: column; gap: 8px; z-index: 20; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 7px; z-index: 20; box-sizing: border-box;
   }
   .hand-label {
-    font-size: 12px; font-weight: bold; color: #f1c40f; display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; font-weight: bold; color: #f1c40f; display: flex; justify-content: space-between; align-items: center; white-space: nowrap;
   }
   #hand-row {
     display: flex; gap: 8px; justify-content: center;
@@ -95,7 +100,7 @@
   }
   .drop-btn:active { transform: translateY(4px); box-shadow: none; }
   .drop-btn:disabled { background: #7f8c8d; border-color: #95a5a6; box-shadow: none; opacity: 0.7; }
-  .drop-btn.blocked { background: #c0392b; border-color: #ff7979; opacity: 0.9; }
+  .drop-btn.blocked { background: #c0392b; border-color: #ff7979; opacity: 0.9; font-size: 15px; }
 
   /* オーバーレイ画面 */
   .overlay {
@@ -137,22 +142,23 @@
     <div class="count-pill">🐾 乗った数: <span id="ui-count">0</span>体</div>
   </div>
 
-  <!-- てこの原理メーター -->
-  <div id="torque-bar">
-    <span>⬅ 左のちから: <span id="ui-left-t" class="torque-num">0</span></span>
-    <span style="color:#7f8c8d;">|</span>
-    <span>右のちから: <span id="ui-right-t" class="torque-num">0</span> ➡</span>
-  </div>
-
-  <div id="status-banner">シーソーの上をなぞって場所を決めよう！（同じ場所は2段まで）</div>
-
   <div id="canvas-container">
     <canvas id="game-canvas"></canvas>
+
+    <!-- シーソーの下（芝生エリア）に配置して重りとの重複を解消 -->
+    <div id="bottom-hud">
+      <div id="torque-bar">
+        <span>⬅ 左のちから: <span id="ui-left-t" class="torque-num">0.0</span></span>
+        <span style="color:#7f8c8d;">|</span>
+        <span>右のちから: <span id="ui-right-t" class="torque-num">0.0</span> ➡</span>
+      </div>
+      <div id="status-banner">シーソーの上をなぞって場所を決めよう！</div>
+    </div>
   </div>
 
   <div id="controls">
     <div class="hand-label">
-      <span>🐾 乗せるカクまるを選んでね（同じ場所は2段まで）</span>
+      <span>🐾 乗せるカクまる（同じ場所は4段まで）</span>
       <span id="ui-pos-label" style="font-family:monospace;">めもり: 0.0</span>
     </div>
     <div id="hand-row"></div>
@@ -170,7 +176,7 @@
       重さのちがう<b>「カクまる族」</b>を交互にシーソーに乗せていこう！バランスをくずして落としたら負けだよ！<br><br>
       💡 <b>ルールと理科のヒミツ「てこの原理」</b><br>
       ・<b>ちから ＝ 重さ × 支点（まんなか）からのきょり</b><br>
-      ・<b>同じ場所に積めるのは「2段まで」！</b>真ん中が埋まったら外側で勝負しよう！
+      ・<b>同じ場所に積めるのは「4段まで」！</b>真ん中が埋まったら外側で勝負しよう！
 
       <div class="mode-tabs">
         <div id="tab-1p" class="mode-tab active" onclick="selectMode('1p')">👤 1人プレイ<br><span style="font-size:11px;">(VS カクまる博士)</span></div>
@@ -254,14 +260,14 @@ function playSound(type) {
 
 // --- カクまる族の定義（重さとサイズ） ---
 const CHAR_TYPES = [
-  { id: 'sora',  name: 'そら', weight: 1, w: 30, h: 26, base: '#74b9ff', body: '#dff9fb', border: '#0984e3' },
-  { id: 'momo',  name: 'もも', weight: 2, w: 36, h: 30, base: '#ff9ff3', body: '#fff0f6', border: '#e84393' },
-  { id: 'cha',   name: 'ちゃ', weight: 3, w: 42, h: 34, base: '#e58e26', body: '#fad390', border: '#b33939' },
-  { id: 'ishi',  name: 'いし', weight: 5, w: 48, h: 40, base: '#747d8c', body: '#dfe4ea', border: '#2f3542' }
+  { id: 'sora',  name: 'そら', weight: 1, w: 30, h: 25, base: '#74b9ff', body: '#dff9fb', border: '#0984e3' },
+  { id: 'momo',  name: 'もも', weight: 2, w: 35, h: 28, base: '#ff9ff3', body: '#fff0f6', border: '#e84393' },
+  { id: 'cha',   name: 'ちゃ', weight: 3, w: 40, h: 32, base: '#e58e26', body: '#fad390', border: '#b33939' },
+  { id: 'ishi',  name: 'いし', weight: 5, w: 46, h: 36, base: '#747d8c', body: '#dfe4ea', border: '#2f3542' }
 ];
 
-// 💡 同じ位置に積める最大段数
-const MAX_STACK = 2;
+// 同じ位置に積める最大段数（4段まで）
+const MAX_STACK = 4;
 
 // --- ゲーム状態 ---
 const canvas = document.getElementById('game-canvas');
@@ -274,10 +280,12 @@ let showTorqueHint = true;
 
 let gameState = 'menu'; // 'menu', 'aim', 'falling', 'settling', 'cpu_think', 'gameover'
 let currentTurn = 1;    // 1: 1P, 2: 2P or CPU(カクまる博士)
+let lastDropper = 1;    // 最後に重りを落としたプレイヤー（勝敗判定の責任者）
 let turnCount = 0;
 
 // シーソーの物理パラメータ
-let pivotX, pivotY;
+let pivotX, pivotY, groundY;
+let previewY = 92;
 let beamHalfLen = 155;
 let beamAngle = 0;
 let beamAngVel = 0;
@@ -295,7 +303,8 @@ let fallingBlock = null;
 let tumbledBlocks = [];
 let particles = [];
 
-let settleTimer = 0;
+let settleElapsed = 0;   // 着地後の経過時間
+let stableDuration = 0;  // 揺れ・滑りが収まった状態が続いた時間
 let cpuThinkTimer = 0;
 let cpuTargetUnit = 0;
 let cpuTargetHandIdx = 0;
@@ -309,7 +318,10 @@ function resize() {
   canvas.height = ch;
 
   pivotX = cw / 2;
-  pivotY = ch * 0.68;
+  // シーソーの下に情報バー用のスペースを確実に確保しつつ、上に4段積める高さを確保
+  pivotY = Math.min(ch * 0.65, ch - 145);
+  groundY = pivotY + 72;
+  previewY = Math.max(88, ch * 0.19);
   beamHalfLen = Math.min(cw * 0.43, 175);
 }
 window.addEventListener('resize', resize);
@@ -327,7 +339,7 @@ function showMenu() {
   gameState = 'menu';
 }
 
-// --- 💡 指定位置(unitPos)の積み重なり段数と高さを調べる ---
+// --- 指定位置(unitPos)の積み重なり段数と高さを調べる ---
 function getStackInfoAtUnit(unitPos, charW) {
   const unitPx = beamHalfLen / 5;
   const worldDx = unitPos * unitPx;
@@ -335,7 +347,7 @@ function getStackInfoAtUnit(unitPos, charW) {
   const localU = worldDx / cosA;
 
   let maxLevelUnder = 0;
-  let stackTopV = 10; // シーソー板の上面オフセット
+  let stackTopV = 10;
 
   for (let b of placedBlocks) {
     if (Math.abs(b.u - localU) < (b.w + charW) * 0.44) {
@@ -378,15 +390,16 @@ function updateDropAvailability() {
   if (info.isBlocked) {
     dropBtn.disabled = true;
     dropBtn.classList.add('blocked');
-    dropBtn.innerHTML = '🚫 2段でいっぱい！別の場所へ';
+    dropBtn.innerHTML = `🚫 ${MAX_STACK}段でいっぱい！別の場所へ`;
     banner.classList.add('warn');
-    banner.innerText = '🚫 同じ場所は2段まで！空いている場所へ動かそう';
+    banner.innerText = `🚫 同じ場所は${MAX_STACK}段まで！空いている場所へ動かそう`;
   } else {
     dropBtn.disabled = false;
     dropBtn.classList.remove('blocked');
     dropBtn.innerHTML = '⬇️ ここにおとす！';
     banner.classList.remove('warn');
-    banner.innerText = currentTurn === 1 ? '🔵 1Pのばん！場所を決めて落とそう' : '🔴 2Pのばん！場所を決めて落とそう';
+    const pName = (playMode === '1p' && currentTurn === 1) ? '🔵 あなたのばん' : (currentTurn === 1 ? '🔵 1Pのばん' : '🔴 2Pのばん');
+    banner.innerText = `${pName}！場所を決めて落とそう`;
   }
 }
 
@@ -525,13 +538,14 @@ function confirmDrop() {
 
 function launchBlock(charSpec, unitPos, owner) {
   playSound('drop');
+  lastDropper = owner; // 💡 最後に重りを落としたプレイヤーを記録
   const unitPx = beamHalfLen / 5;
   const targetX = pivotX + unitPos * unitPx;
 
   fallingBlock = {
     ...charSpec,
     x: targetX,
-    y: ch * 0.22,
+    y: previewY,
     vy: 0,
     owner: owner,
     phase: Math.random() * Math.PI * 2
@@ -541,12 +555,11 @@ function launchBlock(charSpec, unitPos, owner) {
   setBanner('⬇️ おちるよ〜！');
 }
 
-// --- 🤖 カクまる博士（CPU）の思考ロジック（2段制限に対応） ---
+// --- 🤖 カクまる博士（CPU）の思考ロジック（4段制限に対応） ---
 function startCpuTurn() {
   gameState = 'cpu_think';
   dealHand();
 
-  // 全面が2段で埋まって置ける場所がない場合
   if (!hasAnyValidSpot(hand)) {
     triggerFullBoardDraw();
     return;
@@ -562,20 +575,17 @@ function startCpuTurn() {
     const c = hand[hIdx];
     for (let u = -4.5; u <= 4.5; u += 0.5) {
       const info = getStackInfoAtUnit(u, c.w);
-      if (info.isBlocked) continue; // 💡 2段制限を守る
+      if (info.isBlocked) continue;
 
       const newNet = net + c.weight * u;
       let score = Math.abs(newNet);
 
       if (cpuLevel === 1) {
-        // かんたん：少しブレが大きい
-        score += info.maxLevelUnder * 0.8 + Math.random() * 6.0;
+        score += info.maxLevelUnder * 0.6 + Math.random() * 6.0;
       } else if (cpuLevel === 2) {
-        // ふつう：つり合い重視＋わずかなブレ
-        score += info.maxLevelUnder * 0.6 + Math.random() * 1.6;
+        score += info.maxLevelUnder * 0.45 + Math.random() * 1.6;
       } else {
-        // むずかしい：支点付近を先に埋めて相手を外側へ追い込む戦略＋高精度計算
-        const centerTakeBonus = (Math.abs(u) <= 1.0 && info.maxLevelUnder === 1) ? -1.0 : 0;
+        const centerTakeBonus = (Math.abs(u) <= 1.0 && info.maxLevelUnder < MAX_STACK) ? -0.9 : 0;
         score = Math.abs(newNet) * 1.5 + centerTakeBonus + Math.random() * 0.35;
       }
 
@@ -651,18 +661,20 @@ function updatePhysics(dt) {
 
         fallingBlock = null;
         gameState = 'settling';
-        settleTimer = 1.65;
-        setBanner('⚖️ ぐらぐら… 耐えられるか！？');
+        settleElapsed = 0;
+        stableDuration = 0;
+        setBanner('⚖️ ぐらぐら… 安定するまで耐えられるか！？');
         updateTorqueUI();
         document.getElementById('ui-count').innerText = placedBlocks.length;
       } else {
-        triggerCollapse(currentTurn, 'シーソーから外れて落ちちゃった！');
+        triggerCollapse(lastDropper, 'シーソーから外れて落ちちゃった！');
         return;
       }
     }
   }
 
   // 3. シーソーの回転物理（てこの原理）
+  let anyBlockSliding = false;
   if (gameState !== 'menu') {
     const unitPx = beamHalfLen / 5;
     let totalTorque = 0;
@@ -682,6 +694,7 @@ function updatePhysics(dt) {
     beamAngle += beamAngVel * dt;
 
     if (Math.abs(beamAngle) > SLIDE_ANGLE && gameState !== 'gameover') {
+      anyBlockSliding = true;
       const slideDir = Math.sign(beamAngle);
       const slideForce = (Math.abs(beamAngle) - SLIDE_ANGLE) * 320;
       for (let b of placedBlocks) {
@@ -689,25 +702,46 @@ function updatePhysics(dt) {
         b.vu += slideDir * slideForce * slipFactor * dt;
         b.u += b.vu * dt;
 
+        // 💡 常に最後に重りを置いた人（lastDropper）の責任として判定！
         if (Math.abs(b.u) > beamHalfLen + 10) {
-          triggerCollapse(currentTurn, `${b.name}カクまるが滑り落ちちゃった！`);
+          triggerCollapse(lastDropper, `${b.name}カクまるが滑り落ちちゃった！`);
           break;
         }
       }
     } else {
-      for (let b of placedBlocks) b.vu *= 0.85;
+      for (let b of placedBlocks) {
+        b.vu *= 0.85;
+        if (Math.abs(b.vu) > 3) anyBlockSliding = true;
+      }
     }
 
     if (Math.abs(beamAngle) >= MAX_SAFE_ANGLE && gameState !== 'gameover') {
       beamAngle = Math.sign(beamAngle) * MAX_SAFE_ANGLE;
-      triggerCollapse(currentTurn, 'シーソーが傾きすぎてガッシャン！');
+      triggerCollapse(lastDropper, 'シーソーが傾きすぎてガッシャン！');
     }
   }
 
-  // 4. ぐらぐら耐えタイムのカウントダウン
+  // 4. 💡 安定判定：揺れが収まり、滑りも止まった状態が0.7秒続いたらセーフ（ターン交代）！
   if (gameState === 'settling') {
-    settleTimer -= dt;
-    if (settleTimer <= 0) {
+    settleElapsed += dt;
+    const isAngleSafe = Math.abs(beamAngle) <= SLIDE_ANGLE - 0.01;
+    const isVelCalm = Math.abs(beamAngVel) < 0.045;
+
+    if (isAngleSafe && isVelCalm && !anyBlockSliding) {
+      stableDuration += dt;
+      setBanner('⚖️ もう少し… そのままキープ！');
+    } else {
+      // まだ大きく揺れていたり滑っていたりする間はターン交代しない（決着がつくまで見守る）
+      stableDuration = Math.max(0, stableDuration - dt * 1.5);
+      if (anyBlockSliding || Math.abs(beamAngle) > SLIDE_ANGLE) {
+        setBanner('😱 あぶない！滑り落ちそう！！', true);
+      } else {
+        setBanner('⚖️ ぐらぐら… 耐えられるか！？');
+      }
+    }
+
+    // 最低1.2秒以上経過し、かつ完全に安定した状態が0.7秒続いたら次のターンへ
+    if (settleElapsed >= 1.2 && stableDuration >= 0.7) {
       playSound('safe');
       turnCount++;
       currentTurn = (currentTurn === 1) ? 2 : 1;
@@ -742,7 +776,7 @@ function updatePhysics(dt) {
   }
 }
 
-// 全面が2段で埋まった場合のパーフェクト引き分け処理
+// 全面が4段で埋まった場合のパーフェクト引き分け処理
 function triggerFullBoardDraw() {
   gameState = 'gameover';
   playSound('win');
@@ -750,14 +784,14 @@ function triggerFullBoardDraw() {
   document.getElementById('result-title').innerText = '✨ 満員パーフェクト！';
   document.getElementById('result-title').style.color = '#f1c40f';
   document.getElementById('result-desc').innerHTML = `
-    すごい！シーソーの上すべてが2段でいっぱいになったよ！<br><br>
+    すごい！シーソーの上すべてが${MAX_STACK}段でいっぱいになったよ！<br><br>
     🐾 乗ったカクまるの数：<b>${placedBlocks.length} 体</b><br>
     ふたりの完璧なバランス感覚で<b>ひきわけ</b>です！
   `;
   document.getElementById('result-screen').classList.add('show');
 }
 
-// 崩壊＆ゲームオーバー処理
+// 崩壊＆ゲームオーバー処理（loser = 落としてしまったプレイヤー）
 function triggerCollapse(loser, reasonText) {
   if (gameState === 'gameover') return;
   gameState = 'gameover';
@@ -798,10 +832,14 @@ function triggerCollapse(loser, reasonText) {
     } else {
       winTitle = (winner === 1) ? '🏆 🔵 1P のかち！！' : '🏆 🔴 2P のかち！！';
     }
+    const loserName = (playMode === '1p')
+      ? (loser === 1 ? 'あなた' : 'カクまる博士')
+      : (loser === 1 ? '1P' : '2P');
+
     document.getElementById('result-title').innerText = winTitle;
     document.getElementById('result-title').style.color = (winner === 1) ? '#74b9ff' : '#ff9ff3';
     document.getElementById('result-desc').innerHTML = `
-      ${reasonText}<br><br>
+      <b>${loserName}</b>が置いたあと、${reasonText}<br><br>
       🐾 乗ったカクまるの数：<b>${survivedCount} 体</b><br>
       <span style="font-size:13px; color:#f1c40f;">💡 ヒント：「重さ × 支点からのめもり」を左右でそろえると安定するよ！</span>
     `;
@@ -895,7 +933,6 @@ function draw() {
   ctx.fillStyle = skyGrad;
   ctx.fillRect(0, 0, cw, ch);
 
-  const groundY = pivotY + 95;
   ctx.fillStyle = '#2ed573';
   ctx.fillRect(0, groundY, cw, ch - groundY);
   ctx.fillStyle = '#7bed9f';
@@ -907,8 +944,8 @@ function draw() {
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(pivotX, pivotY);
-  ctx.lineTo(pivotX - 34, groundY + 4);
-  ctx.lineTo(pivotX + 34, groundY + 4);
+  ctx.lineTo(pivotX - 30, groundY + 2);
+  ctx.lineTo(pivotX + 30, groundY + 2);
   ctx.closePath();
   ctx.fill(); ctx.stroke();
 
@@ -952,15 +989,14 @@ function draw() {
   }
   ctx.restore();
 
-  // 4. 狙っている位置のガイド線＆プレビューカクまる
+  // 4. 狙っている位置のガイド線＆プレビューカクまる（上部スッキリなので一切被らない）
   if ((gameState === 'aim' || gameState === 'cpu_think') && hand[selectedIdx]) {
     const c = hand[selectedIdx];
     const px = pivotX + aimUnitPos * unitPx;
-    const py = ch * 0.22;
+    const py = previewY;
     const stackInfo = getStackInfoAtUnit(aimUnitPos, c.w);
     const isBlocked = (gameState === 'aim' && stackInfo.isBlocked);
 
-    // 落下予測の点線
     ctx.save();
     ctx.strokeStyle = isBlocked
       ? 'rgba(231, 76, 60, 0.85)'
@@ -973,7 +1009,6 @@ function draw() {
     ctx.stroke();
     ctx.restore();
 
-    // プレビュー本体
     ctx.save();
     ctx.translate(px, py + Math.sin(animClock * 5) * 3);
     if (isBlocked) ctx.globalAlpha = 0.5;
@@ -981,7 +1016,6 @@ function draw() {
     ctx.globalAlpha = 1.0;
 
     if (isBlocked) {
-      // 置けない場所には赤い「×」と警告ラベルを表示
       ctx.strokeStyle = '#e74c3c';
       ctx.lineWidth = 4;
       ctx.beginPath();
@@ -993,7 +1027,7 @@ function draw() {
       ctx.beginPath(); ctx.roundRect(-48, -c.h/2 - 28, 96, 20, 8); ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('🚫 2段で満員！', 0, -c.h/2 - 18);
+      ctx.fillText(`🚫 ${MAX_STACK}段で満員！`, 0, -c.h/2 - 18);
     } else if (showTorqueHint && gameState === 'aim') {
       const addForce = (c.weight * Math.abs(aimUnitPos)).toFixed(1);
       const sideStr = aimUnitPos < -0.05 ? '左' : (aimUnitPos > 0.05 ? '右' : 'まんなか');
@@ -1031,14 +1065,15 @@ function draw() {
   }
   ctx.globalAlpha = 1.0;
 
-  // 8. 耐えタイムの進行ゲージ
+  // 8. 安定判定ゲージ（揺れが収まると満タンになってセーフ！）
   if (gameState === 'settling') {
-    const barW = 140;
-    const progress = Math.max(0, settleTimer / 1.65);
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath(); ctx.roundRect(cw/2 - barW/2, ch * 0.20, barW, 10, 5); ctx.fill();
-    ctx.fillStyle = Math.abs(beamAngle) > 0.25 ? '#e74c3c' : '#2ecc71';
-    ctx.beginPath(); ctx.roundRect(cw/2 - barW/2, ch * 0.20, barW * progress, 10, 5); ctx.fill();
+    const barW = 150;
+    const progress = Math.min(1, stableDuration / 0.7);
+    const barY = 54;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.roundRect(cw/2 - barW/2, barY, barW, 10, 5); ctx.fill();
+    ctx.fillStyle = Math.abs(beamAngle) > SLIDE_ANGLE ? '#e74c3c' : '#2ecc71';
+    ctx.beginPath(); ctx.roundRect(cw/2 - barW/2, barY, barW * progress, 10, 5); ctx.fill();
   }
 }
 
@@ -1059,6 +1094,7 @@ function startGame() {
   beamAngle = 0;
   beamAngVel = 0;
   currentTurn = 1;
+  lastDropper = 1;
   turnCount = 0;
   aimUnitPos = 0;
   document.getElementById('ui-pos-label').innerText = 'めもり: 0.0';
