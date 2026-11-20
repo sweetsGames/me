@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>カクまる・ぐらぐらシーソー対決 - てこの原理バトル</title>
+<style>
+  :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  html, body { overscroll-behavior: none; touch-action: none; background: #1e272e; margin: 0; padding: 0; font-family: 'Rounded M+ 1c', 'Hiragino Maru Gothic ProN', sans-serif; color: white; user-select: none; -webkit-user-select: none; }
+  body { position: fixed; inset: 0; width: 100%; height: 100dvh; display: flex; justify-content: center; align-items: center; }
+
+  #game-wrapper {
+    position: relative; width: 100%; max-width: 500px; height: 100%; max-height: 880px;
+    background: #87CEEB; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 25px rgba(0,0,0,0.8);
+  }
+
+  /* 上部ヘッダー */
+  #header {
+    position: absolute; top: var(--sat); left: 0; width: 100%; padding: 8px 10px;
+    display: flex; justify-content: space-between; align-items: center; z-index: 10; box-sizing: border-box; pointer-events: none;
+  }
+  .turn-pill {
+    background: rgba(255,255,255,0.96); color: #2c3e50; padding: 6px 14px; border-radius: 20px;
+    font-weight: 900; font-size: 15px; box-shadow: 0 3px 6px rgba(0,0,0,0.25); pointer-events: auto;
+    border: 3px solid #3498db; transition: border-color 0.2s, transform 0.2s;
+  }
+  .turn-pill.p1 { border-color: #3498db; color: #2980b9; }
+  .turn-pill.p2 { border-color: #e84393; color: #c0392b; }
+
+  .count-pill {
+    background: rgba(44, 62, 80, 0.88); color: #f1c40f; padding: 5px 12px; border-radius: 16px;
+    font-weight: 900; font-size: 13px; border: 2px solid #f1c40f; pointer-events: auto;
+  }
+
+  /* てこの原理（左右のちから）表示バー */
+  #torque-bar {
+    position: absolute; top: calc(var(--sat) + 50px); left: 50%; transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.92); color: #2c3e50; padding: 4px 12px; border-radius: 14px;
+    font-weight: 900; font-size: 12.5px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 10;
+    display: flex; align-items: center; gap: 10px; white-space: nowrap; border: 2px solid #bdc3c7;
+  }
+  .torque-num { font-family: monospace; font-size: 15px; color: #e67e22; }
+
+  #status-banner {
+    position: absolute; top: calc(var(--sat) + 86px); left: 50%; transform: translateX(-50%);
+    background: rgba(44, 62, 80, 0.88); color: #fff; padding: 5px 16px; border-radius: 15px;
+    font-weight: 900; font-size: 13px; z-index: 10; white-space: nowrap; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  #canvas-container { flex: 1; min-height: 0; position: relative; width: 100%; height: 100%; z-index: 5; }
+  canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+
+  /* 下部操作パネル */
+  #controls {
+    background: linear-gradient(to bottom, #2c3e50, #1a252f);
+    padding: 8px 10px calc(10px + var(--sab)); border-top: 3px solid #f1c40f;
+    display: flex; flex-direction: column; gap: 8px; z-index: 20; box-sizing: border-box;
+  }
+  .hand-label {
+    font-size: 12px; font-weight: bold; color: #f1c40f; display: flex; justify-content: space-between; align-items: center;
+  }
+  #hand-row {
+    display: flex; gap: 8px; justify-content: center;
+  }
+  .hand-card {
+    flex: 1; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.25);
+    border-radius: 12px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    cursor: pointer; transition: 0.15s; color: white;
+  }
+  .hand-card.selected {
+    background: rgba(241, 196, 15, 0.25); border-color: #f1c40f; transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(241, 196, 15, 0.35);
+  }
+  .hand-card:disabled { opacity: 0.4; pointer-events: none; }
+  .card-icon { width: 28px; height: 22px; border-radius: 5px; display: flex; justify-content: center; align-items: center; font-size: 11px; font-weight: 900; color: #2c3e50; border: 2px solid rgba(0,0,0,0.2); }
+  .card-name { font-size: 11px; font-weight: 900; }
+  .card-weight { font-size: 12px; font-weight: 900; color: #f1c40f; }
+
+  .drop-row { display: flex; gap: 8px; align-items: center; }
+  .nudge-btn {
+    width: 44px; height: 46px; background: #3498db; color: white; border: none; border-radius: 12px;
+    font-size: 18px; font-weight: 900; box-shadow: 0 4px 0 #2980b9; cursor: pointer;
+  }
+  .nudge-btn:active { transform: translateY(4px); box-shadow: none; }
+  .nudge-btn:disabled { opacity: 0.5; }
+
+  .drop-btn {
+    flex: 1; height: 46px; background: linear-gradient(to bottom, #2ecc71, #27ae60);
+    color: white; border: 2px solid #7bed9f; border-radius: 23px; font-size: 19px; font-weight: 900;
+    box-shadow: 0 4px 0 #1e8449; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px;
+  }
+  .drop-btn:active { transform: translateY(4px); box-shadow: none; }
+  .drop-btn:disabled { background: #7f8c8d; border-color: #95a5a6; box-shadow: none; opacity: 0.6; }
+
+  /* オーバーレイ画面 */
+  .overlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.86);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; padding: 18px; box-sizing: border-box;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .title { font-size: 26px; color: #f1c40f; font-weight: 900; text-align: center; text-shadow: 2px 2px 0 #d35400; margin-bottom: 10px; line-height: 1.3; }
+  .desc {
+    background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.22);
+    border-radius: 15px; padding: 14px; width: 100%; font-size: 13px; line-height: 1.55; box-sizing: border-box;
+  }
+  .mode-tabs { display: flex; gap: 8px; margin-top: 10px; }
+  .mode-tab {
+    flex: 1; padding: 10px 6px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.4); color: #bdc3c7; font-size: 14px; font-weight: 900; cursor: pointer; text-align: center;
+  }
+  .mode-tab.active {
+    background: #3498db; border-color: #f1c40f; color: white; box-shadow: 0 3px 8px rgba(52,152,219,0.5);
+  }
+  .setting-row {
+    margin-top: 10px; display: flex; justify-content: space-between; align-items: center;
+    background: rgba(0,0,0,0.45); padding: 9px 12px; border-radius: 10px; font-weight: bold;
+  }
+  .setting-row select { font-size: 15px; padding: 5px 8px; border-radius: 6px; font-weight: bold; }
+  .btn-main {
+    margin-top: 16px; padding: 14px 40px; font-size: 20px; font-weight: 900; color: white;
+    background: #2ecc71; border: none; border-radius: 30px; box-shadow: 0 6px 0 #27ae60; cursor: pointer;
+  }
+  .btn-main:active { transform: translateY(6px); box-shadow: none; }
+</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <div id="header">
+    <div id="ui-turn" class="turn-pill p1">🔵 1P のばん</div>
+    <div class="count-pill">🐾 乗った数: <span id="ui-count">0</span>体</div>
+  </div>
+
+  <!-- てこの原理メーター -->
+  <div id="torque-bar">
+    <span>⬅ 左のちから: <span id="ui-left-t" class="torque-num">0</span></span>
+    <span style="color:#7f8c8d;">|</span>
+    <span>右のちから: <span id="ui-right-t" class="torque-num">0</span> ➡</span>
+  </div>
+
+  <div id="status-banner">シーソーの上をなぞって場所を決めよう！</div>
+
+  <div id="canvas-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <div id="controls">
+    <div class="hand-label">
+      <span>🐾 乗せるカクまるを選んでね（重さ×きょり＝ちから）</span>
+      <span id="ui-pos-label" style="font-family:monospace;">めもり: 0.0</span>
+    </div>
+    <div id="hand-row"></div>
+    <div class="drop-row">
+      <button id="btn-left" class="nudge-btn" onclick="nudgeDrop(-0.5)">◀</button>
+      <button id="btn-drop" class="drop-btn" onclick="confirmDrop()">⬇️ ここにおとす！</button>
+      <button id="btn-right" class="nudge-btn" onclick="nudgeDrop(0.5)">▶</button>
+    </div>
+  </div>
+
+  <!-- スタート画面 -->
+  <div id="start-screen" class="overlay show">
+    <div class="title">⚖️ カクまる<br>ぐらぐらシーソー対決</div>
+    <div class="desc">
+      重さのちがう<b>「カクまる族」</b>を交互にシーソーに乗せていこう！バランスをくずして落としたら負けだよ！<br><br>
+      💡 <b>理科のヒミツ「てこの原理」</b><br>
+      ・<b>ちから ＝ 重さ × 支点（まんなか）からのきょり</b><br>
+      ・重い「いしカクまる（重さ5）」は真ん中の近くに、軽い「そらカクまる（重さ1）」は遠くに置くとつり合いやすいよ！
+
+      <div class="mode-tabs">
+        <div id="tab-1p" class="mode-tab active" onclick="selectMode('1p')">👤 1人プレイ<br><span style="font-size:11px;">(VS カクまる博士)</span></div>
+        <div id="tab-2p" class="mode-tab" onclick="selectMode('2p')">👥 2人プレイ<br><span style="font-size:11px;">(交互に対戦！)</span></div>
+      </div>
+
+      <div id="cpu-diff-row" class="setting-row">
+        <label>博士のつよさ:</label>
+        <select id="diff-select">
+          <option value="1">🟢 かんたん</option>
+          <option value="2" selected>🟡 ふつう</option>
+          <option value="3">🔴 むずかしい</option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label>ちから計算ヒント:</label>
+        <select id="hint-select">
+          <option value="1" selected>💡 表示する（おすすめ）</option>
+          <option value="0">🙈 かくす（上級者むけ）</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-main" onclick="startGame()">対決スタート！</button>
+  </div>
+
+  <!-- 結果画面 -->
+  <div id="result-screen" class="overlay">
+    <div id="result-title" class="title">🏆 1P のかち！</div>
+    <div id="result-desc" class="desc" style="text-align:center; font-size:16px;"></div>
+    <button class="btn-main" onclick="showMenu()">もういちど遊ぶ 🔄</button>
+  </div>
+</div>
+
+<script>
+// --- 効果音（Web Audio API） ---
+let actx;
+function initAudio() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+}
+function playSound(type) {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const osc = actx.createOscillator();
+  const gain = actx.createGain();
+  osc.connect(gain); gain.connect(actx.destination);
+
+  if (type === 'tick') {
+    osc.type = 'sine'; osc.frequency.setValueAtTime(750, t);
+    gain.gain.setValueAtTime(0.04, t); gain.gain.exponentialRampToValueAtTime(0.005, t + 0.04);
+    osc.start(t); osc.stop(t + 0.04);
+  } else if (type === 'drop') {
+    osc.type = 'sine'; osc.frequency.setValueAtTime(520, t); osc.frequency.exponentialRampToValueAtTime(240, t + 0.16);
+    gain.gain.setValueAtTime(0.18, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.16);
+    osc.start(t); osc.stop(t + 0.16);
+  } else if (type === 'land') {
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(180, t); osc.frequency.exponentialRampToValueAtTime(90, t + 0.12);
+    gain.gain.setValueAtTime(0.25, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.12);
+    osc.start(t); osc.stop(t + 0.12);
+  } else if (type === 'safe') {
+    osc.type = 'sine'; osc.frequency.setValueAtTime(660, t); osc.frequency.setValueAtTime(880, t + 0.08);
+    gain.gain.setValueAtTime(0.18, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+    osc.start(t); osc.stop(t + 0.25);
+  } else if (type === 'fall') {
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(360, t); osc.frequency.exponentialRampToValueAtTime(70, t + 0.55);
+    gain.gain.setValueAtTime(0.28, t); gain.gain.linearRampToValueAtTime(0.01, t + 0.55);
+    osc.start(t); osc.stop(t + 0.55);
+  } else if (type === 'win') {
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(523, t); osc.frequency.setValueAtTime(659, t+0.1);
+    osc.frequency.setValueAtTime(784, t+0.2); osc.frequency.setValueAtTime(1046, t+0.3);
+    gain.gain.setValueAtTime(0.25, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.65);
+    osc.start(t); osc.stop(t + 0.65);
+  }
+}
+
+// --- カクまる族の定義（重さとサイズ） ---
+const CHAR_TYPES = [
+  { id: 'sora',  name: 'そら', weight: 1, w: 30, h: 26, base: '#74b9ff', body: '#dff9fb', border: '#0984e3' },
+  { id: 'momo',  name: 'もも', weight: 2, w: 36, h: 30, base: '#ff9ff3', body: '#fff0f6', border: '#e84393' },
+  { id: 'cha',   name: 'ちゃ', weight: 3, w: 42, h: 34, base: '#e58e26', body: '#fad390', border: '#b33939' },
+  { id: 'ishi',  name: 'いし', weight: 5, w: 48, h: 40, base: '#747d8c', body: '#dfe4ea', border: '#2f3542' }
+];
+
+// --- ゲーム状態 ---
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+let cw, ch;
+
+let playMode = '1p'; // '1p' or '2p'
+let cpuLevel = 2;    // 1:かんたん, 2:ふつう, 3:むずかしい
+let showTorqueHint = true;
+
+let gameState = 'menu'; // 'menu', 'aim', 'falling', 'settling', 'cpu_think', 'gameover'
+let currentTurn = 1;    // 1: 1P, 2: 2P or CPU(カクまる博士)
+let turnCount = 0;
+
+// シーソーの物理パラメータ
+let pivotX, pivotY;
+let beamHalfLen = 155;  // 目盛り -5 〜 +5 に対応（1目盛り = beamHalfLen / 5）
+let beamAngle = 0;      // ラジアン
+let beamAngVel = 0;     // 角速度
+const MAX_SAFE_ANGLE = 0.56; // 約32度を超えると地面激突・崩壊！
+const SLIDE_ANGLE = 0.36;    // 約20.6度を超えるとキャラが滑り出す！
+
+// プレイヤーの操作状態
+let hand = [];          // 現在のターンの手札（3体）
+let selectedIdx = 0;
+let aimUnitPos = 0;     // -4.8 〜 +4.8 の目盛り位置
+
+// シーソー上のカクまる＆落下中のカクまる
+let placedBlocks = [];
+let fallingBlock = null;
+let tumbledBlocks = []; // 落ちていく敗北演出用
+let particles = [];
+
+let settleTimer = 0;
+let cpuThinkTimer = 0;
+let cpuTargetUnit = 0;
+let cpuTargetHandIdx = 0;
+let animClock = 0;
+let loserPlayer = 0;
+
+function resize() {
+  const container = document.getElementById('canvas-container');
+  cw = container.clientWidth;
+  ch = container.clientHeight;
+  canvas.width = cw;
+  canvas.height = ch;
+
+  pivotX = cw / 2;
+  pivotY = ch * 0.68;
+  beamHalfLen = Math.min(cw * 0.43, 175);
+}
+window.addEventListener('resize', resize);
+
+function selectMode(mode) {
+  playMode = mode;
+  document.getElementById('tab-1p').classList.toggle('active', mode === '1p');
+  document.getElementById('tab-2p').classList.toggle('active', mode === '2p');
+  document.getElementById('cpu-diff-row').style.display = (mode === '1p') ? 'flex' : 'none';
+}
+
+function showMenu() {
+  document.getElementById('result-screen').classList.remove('show');
+  document.getElementById('start-screen').classList.add('show');
+  gameState = 'menu';
+}
+
+// 手札を3体ランダム生成（重さが被りすぎないようにバリエーションを出す）
+function dealHand() {
+  hand = [];
+  // 必ず軽い系(1〜2)と重い系(3〜5)が混ざるようにする
+  const pool = [...CHAR_TYPES];
+  for (let i = 0; i < 3; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    const chosen = pool.splice(idx, 1)[0];
+    hand.push({ ...chosen });
+  }
+  hand.sort((a, b) => a.weight - b.weight);
+  selectedIdx = 0;
+  renderHandUI();
+}
+
+function renderHandUI() {
+  const row = document.getElementById('hand-row');
+  row.innerHTML = '';
+  const isHumanTurn = (gameState === 'aim');
+
+  hand.forEach((c, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'hand-card' + (idx === selectedIdx ? ' selected' : '');
+    btn.disabled = !isHumanTurn;
+    btn.onclick = () => {
+      if (gameState !== 'aim') return;
+      initAudio();
+      playSound('tick');
+      selectedIdx = idx;
+      renderHandUI();
+    };
+    btn.innerHTML = `
+      <div class="card-icon" style="background:${c.body}; border-color:${c.border};">${c.weight}</div>
+      <div class="card-name">${c.name}カクまる</div>
+      <div class="card-weight">重さ ${c.weight}</div>
+    `;
+    row.appendChild(btn);
+  });
+
+  document.getElementById('btn-drop').disabled = !isHumanTurn;
+  document.getElementById('btn-left').disabled = !isHumanTurn;
+  document.getElementById('btn-right').disabled = !isHumanTurn;
+}
+
+function updateTurnUI() {
+  const pill = document.getElementById('ui-turn');
+  if (currentTurn === 1) {
+    pill.className = 'turn-pill p1';
+    pill.innerText = playMode === '1p' ? '🔵 あなたのばん' : '🔵 1P のばん';
+  } else {
+    pill.className = 'turn-pill p2';
+    pill.innerText = playMode === '1p' ? '🎓 カクまる博士のばん' : '🔴 2P のばん';
+  }
+  document.getElementById('ui-count').innerText = placedBlocks.length;
+}
+
+function setBanner(text) {
+  document.getElementById('status-banner').innerText = text;
+}
+
+// 左右のてこの力（モーメント：重さ × 支点からの目盛り距離）を計算
+function calcLeftRightTorque() {
+  let leftT = 0;
+  let rightT = 0;
+  const unitPx = beamHalfLen / 5;
+
+  for (let b of placedBlocks) {
+    const distUnit = b.u / unitPx; // -5 〜 +5
+    if (distUnit < 0) leftT += b.weight * Math.abs(distUnit);
+    else rightT += b.weight * distUnit;
+  }
+  return { left: leftT, right: rightT, net: rightT - leftT };
+}
+
+function updateTorqueUI() {
+  const bar = document.getElementById('torque-bar');
+  if (!showTorqueHint) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'flex';
+  const t = calcLeftRightTorque();
+  document.getElementById('ui-left-t').innerText = t.left.toFixed(1);
+  document.getElementById('ui-right-t').innerText = t.right.toFixed(1);
+}
+
+// --- 操作系 ---
+function nudgeDrop(delta) {
+  if (gameState !== 'aim') return;
+  initAudio();
+  playSound('tick');
+  aimUnitPos = Math.max(-4.7, Math.min(4.7, Math.round((aimUnitPos + delta) * 2) / 2));
+  document.getElementById('ui-pos-label').innerText = `めもり: ${aimUnitPos > 0 ? '+' : ''}${aimUnitPos.toFixed(1)}`;
+}
+
+let isDragging = false;
+const handlePointer = (clientX) => {
+  const rect = canvas.getBoundingClientRect();
+  const px = clientX - rect.left;
+  const unitPx = beamHalfLen / 5;
+  let u = (px - pivotX) / unitPx;
+  u = Math.max(-4.7, Math.min(4.7, Math.round(u * 10) / 10));
+  aimUnitPos = u;
+  document.getElementById('ui-pos-label').innerText = `めもり: ${aimUnitPos > 0 ? '+' : ''}${aimUnitPos.toFixed(1)}`;
+};
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (gameState !== 'aim') return;
+  initAudio();
+  isDragging = true;
+  handlePointer(e.clientX);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!isDragging || gameState !== 'aim') return;
+  handlePointer(e.clientX);
+});
+window.addEventListener('pointerup', () => { isDragging = false; });
+
+// 落下開始
+function confirmDrop() {
+  if (gameState !== 'aim') return;
+  initAudio();
+  launchBlock(hand[selectedIdx], aimUnitPos, currentTurn);
+}
+
+function launchBlock(charSpec, unitPos, owner) {
+  playSound('drop');
+  const unitPx = beamHalfLen / 5;
+  const targetX = pivotX + unitPos * unitPx;
+
+  fallingBlock = {
+    ...charSpec,
+    x: targetX,
+    y: ch * 0.22,
+    vy: 0,
+    owner: owner,
+    phase: Math.random() * Math.PI * 2
+  };
+  gameState = 'falling';
+  renderHandUI();
+  setBanner('⬇️ おちるよ〜！');
+}
+
+// --- 🤖 カクまる博士（CPU）の思考ロジック ---
+function startCpuTurn() {
+  gameState = 'cpu_think';
+  dealHand();
+  setBanner('🎓 カクまる博士が計算中…');
+  cpuThinkTimer = 0.95;
+
+  const { net } = calcLeftRightTorque(); // 正なら右に傾いている、負なら左に傾いている
+  const unitPx = beamHalfLen / 5;
+
+  // 各手札と候補位置の評価
+  let bestScore = Infinity;
+  let bestHandIdx = 0;
+  let bestUnit = 0;
+
+  if (cpuLevel === 1) {
+    // 🟢 かんたん：ランダム性が高く、少しバランスを崩しがち
+    bestHandIdx = Math.floor(Math.random() * hand.length);
+    const c = hand[bestHandIdx];
+    const idealU = -net / c.weight;
+    const noise = (Math.random() - 0.5) * 3.8;
+    bestUnit = Math.max(-4.5, Math.min(4.5, idealU + noise));
+  } else {
+    // 🟡 ふつう / 🔴 むずかしい：すべての手札と目盛り(-4.5〜+4.5)をシミュレーション
+    for (let hIdx = 0; hIdx < hand.length; hIdx++) {
+      const c = hand[hIdx];
+      for (let u = -4.5; u <= 4.5; u += 0.5) {
+        // すでに高く積まれている場所は少し避ける
+        const localU = u * unitPx;
+        let stackCount = 0;
+        for (let b of placedBlocks) {
+          if (Math.abs(b.u - localU) < (b.w + c.w) * 0.45) stackCount++;
+        }
+        if (stackCount >= 3) continue;
+
+        const newNet = net + c.weight * u;
+        let score = Math.abs(newNet);
+
+        if (cpuLevel === 2) {
+          // ふつう：つり合い重視＋わずかな人間味ブレ
+          score += stackCount * 1.2 + Math.random() * 1.5;
+        } else {
+          // むずかしい：完璧につり合わせるか、重い石で支点付近を奪いつつ、少しだけ傾きを残して相手を揺さぶる！
+          const centerBonus = (c.weight >= 3 && Math.abs(u) <= 1.5) ? -0.8 : 0;
+          score = Math.abs(newNet) * 1.5 + stackCount * 1.0 + centerBonus + Math.random() * 0.3;
+        }
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestHandIdx = hIdx;
+          bestUnit = u;
+        }
+      }
+    }
+  }
+
+  cpuTargetHandIdx = bestHandIdx;
+  cpuTargetUnit = Math.round(bestUnit * 10) / 10;
+  selectedIdx = cpuTargetHandIdx;
+  renderHandUI();
+}
+
+// --- 物理演算＆シーソー更新 ---
+function updatePhysics(dt) {
+  animClock += dt;
+
+  // 1. CPUの思考＆カーソル移動演出
+  if (gameState === 'cpu_think') {
+    aimUnitPos += (cpuTargetUnit - aimUnitPos) * Math.min(1, dt * 7);
+    document.getElementById('ui-pos-label').innerText = `めもり: ${aimUnitPos > 0 ? '+' : ''}${aimUnitPos.toFixed(1)}`;
+    cpuThinkTimer -= dt;
+    if (cpuThinkTimer <= 0) {
+      launchBlock(hand[cpuTargetHandIdx], cpuTargetUnit, 2);
+    }
+  }
+
+  // 2. 落下中のカクまるの着地判定
+  if (gameState === 'falling' && fallingBlock) {
+    fallingBlock.vy += 980 * dt;
+    fallingBlock.y += fallingBlock.vy * dt;
+
+    // 現在のシーソー上のローカル座標 u へ変換
+    const dx = fallingBlock.x - pivotX;
+    const cosA = Math.cos(beamAngle);
+    const sinA = Math.sin(beamAngle);
+    const u = dx / (cosA || 1);
+
+    // シーソー表面の高さ（さらにその位置に既に積まれているブロックがあればその上の高さ）
+    let stackHeight = 10; // シーソー板の上面オフセット
+    for (let b of placedBlocks) {
+      if (Math.abs(b.u - u) < (b.w + fallingBlock.w) * 0.44) {
+        const topOfB = b.v + b.h / 2;
+        if (topOfB > stackHeight) stackHeight = topOfB;
+      }
+    }
+
+    const landingWorldY = pivotY + u * sinA - (stackHeight + fallingBlock.h / 2) * cosA;
+
+    if (fallingBlock.y >= landingWorldY) {
+      // 着地！シーソーの範囲内なら乗る、完全に外れていたら即落下
+      if (Math.abs(u) <= beamHalfLen + 6) {
+        playSound('land');
+        placedBlocks.push({
+          ...fallingBlock,
+          u: u,
+          v: stackHeight + fallingBlock.h / 2,
+          vu: 0 // シーソー上の滑り速度
+        });
+        // 着地の衝撃をシーソーの角速度へ反映
+        const unitPx = beamHalfLen / 5;
+        beamAngVel += (fallingBlock.weight * (u / unitPx)) * 0.055;
+
+        // 着地パーティクル
+        for (let i = 0; i < 8; i++) {
+          particles.push({
+            x: fallingBlock.x, y: landingWorldY + fallingBlock.h / 2,
+            vx: (Math.random() - 0.5) * 120, vy: -Math.random() * 80,
+            r: 4, color: fallingBlock.base, life: 0.4, maxLife: 0.4
+          });
+        }
+
+        fallingBlock = null;
+        gameState = 'settling';
+        settleTimer = 1.65; // 1.65秒間ぐらぐら耐えきればセーフ！
+        setBanner('⚖️ ぐらぐら… 耐えられるか！？');
+        updateTorqueUI();
+        document.getElementById('ui-count').innerText = placedBlocks.length;
+      } else {
+        // シーソーから完全に外れて落下
+        triggerCollapse(currentTurn, 'シーソーから外れて落ちちゃった！');
+        return;
+      }
+    }
+  }
+
+  // 3. シーソーの回転物理（てこの原理！）
+  if (gameState !== 'menu') {
+    const unitPx = beamHalfLen / 5;
+    let totalTorque = 0;
+    let totalInertia = 18; // シーソー自体の慣性モーメント
+
+    for (let b of placedBlocks) {
+      const distUnit = b.u / unitPx; // -5 〜 +5
+      // トルク = 重さ × 距離 × cos(θ)
+      totalTorque += b.weight * distUnit * Math.cos(beamAngle);
+      totalInertia += b.weight * (distUnit * distUnit) * 0.5;
+    }
+
+    // 支点のわずかな復元バネ（完全に0だとちょっとの差で即死するため、理科の天秤のような心地よいぐらつきを作る）
+    const springRestore = -beamAngle * 14.0;
+    // 重心が高くなるほど不安定になる効果
+    const angAcc = (totalTorque * 0.85 + springRestore) / (totalInertia * 0.12);
+
+    beamAngVel += angAcc * dt;
+    beamAngVel *= Math.pow(0.18, dt); // 空気・支点摩擦による減衰
+    beamAngle += beamAngVel * dt;
+
+    // 傾きが大きくなると、乗っているカクまるが滑り始める！
+    if (Math.abs(beamAngle) > SLIDE_ANGLE && gameState !== 'gameover') {
+      const slideDir = Math.sign(beamAngle);
+      const slideForce = (Math.abs(beamAngle) - SLIDE_ANGLE) * 320;
+      for (let b of placedBlocks) {
+        // 氷(そら)は特に滑りやすい！
+        const slipFactor = b.id === 'sora' ? 1.5 : (b.id === 'ishi' ? 0.75 : 1.0);
+        b.vu += slideDir * slideForce * slipFactor * dt;
+        b.u += b.vu * dt;
+
+        // シーソーの端から滑り落ちたらアウト！
+        if (Math.abs(b.u) > beamHalfLen + 10) {
+          triggerCollapse(currentTurn, `${b.name}カクまるが滑り落ちちゃった！`);
+          break;
+        }
+      }
+    } else {
+      for (let b of placedBlocks) b.vu *= 0.85;
+    }
+
+    // シーソーが最大角度を超えて地面に激突したらアウト！
+    if (Math.abs(beamAngle) >= MAX_SAFE_ANGLE && gameState !== 'gameover') {
+      beamAngle = Math.sign(beamAngle) * MAX_SAFE_ANGLE;
+      triggerCollapse(currentTurn, 'シーソーが傾きすぎてガッシャン！');
+    }
+  }
+
+  // 4. ぐらぐら耐えタイムのカウントダウン
+  if (gameState === 'settling') {
+    settleTimer -= dt;
+    if (settleTimer <= 0) {
+      // 耐えきった！次のプレイヤーのターンへ
+      playSound('safe');
+      turnCount++;
+      currentTurn = (currentTurn === 1) ? 2 : 1;
+      updateTurnUI();
+
+      if (playMode === '1p' && currentTurn === 2) {
+        startCpuTurn();
+      } else {
+        gameState = 'aim';
+        dealHand();
+        setBanner(currentTurn === 1 ? '🔵 1Pのばん！場所を決めて落とそう' : '🔴 2Pのばん！場所を決めて落とそう');
+      }
+    }
+  }
+
+  // 5. 崩壊して転がり落ちるカクまるたちのアニメーション
+  for (let tb of tumbledBlocks) {
+    tb.vy += 850 * dt;
+    tb.x += tb.vx * dt;
+    tb.y += tb.vy * dt;
+    tb.angle += tb.va * dt;
+  }
+
+  // パーティクル更新
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// 崩壊＆ゲームオーバー処理
+function triggerCollapse(loser, reasonText) {
+  if (gameState === 'gameover') return;
+  gameState = 'gameover';
+  loserPlayer = loser;
+  playSound('fall');
+  setBanner('💥 あ〜〜れ〜〜！！');
+
+  // 乗っていた全カクまるをワールド座標に変換して派手に吹き飛ばす
+  const cosA = Math.cos(beamAngle);
+  const sinA = Math.sin(beamAngle);
+  for (let b of placedBlocks) {
+    const wx = pivotX + b.u * cosA + b.v * sinA;
+    const wy = pivotY + b.u * sinA - b.v * cosA;
+    tumbledBlocks.push({
+      ...b,
+      x: wx, y: wy,
+      vx: Math.sign(beamAngle || 1) * (120 + Math.random() * 140),
+      vy: -80 - Math.random() * 120,
+      angle: beamAngle,
+      va: (Math.random() - 0.5) * 14
+    });
+  }
+  if (fallingBlock) {
+    tumbledBlocks.push({
+      ...fallingBlock,
+      vx: (Math.random() - 0.5) * 100, vy: 50, angle: 0, va: 8
+    });
+    fallingBlock = null;
+  }
+  const survivedCount = placedBlocks.length;
+  placedBlocks = [];
+  renderHandUI();
+
+  // 1.5秒後に勝敗リザルトを表示
+  setTimeout(() => {
+    playSound('win');
+    const winner = (loser === 1) ? 2 : 1;
+    let winTitle = '';
+    if (playMode === '1p') {
+      winTitle = (winner === 1) ? '🏆 あなたのかち！！' : '🎓 カクまる博士のかち！';
+    } else {
+      winTitle = (winner === 1) ? '🏆 🔵 1P のかち！！' : '🏆 🔴 2P のかち！！';
+    }
+    document.getElementById('result-title').innerText = winTitle;
+    document.getElementById('result-title').style.color = (winner === 1) ? '#74b9ff' : '#ff9ff3';
+    document.getElementById('result-desc').innerHTML = `
+      ${reasonText}<br><br>
+      🐾 乗ったカクまるの数：<b>${survivedCount} 体</b><br>
+      <span style="font-size:13px; color:#f1c40f;">💡 ヒント：「重さ × 支点からのめもり」を左右でそろえると安定するよ！</span>
+    `;
+    document.getElementById('result-screen').classList.add('show');
+  }, 1500);
+}
+
+// --- 🐹 カクまる描画ヘルパー ---
+function drawKakumaru(ctx, b, faceState) {
+  ctx.save();
+  const w = b.w;
+  const h = b.h;
+
+  // 四角いお耳
+  ctx.fillStyle = b.base;
+  ctx.strokeStyle = b.border;
+  ctx.lineWidth = 2;
+  const earOff = w * 0.28;
+  ctx.beginPath();
+  ctx.roundRect(-earOff - 4, -h/2 - 6, 8, 8, 2);
+  ctx.roundRect(earOff - 4, -h/2 - 6, 8, 8, 2);
+  ctx.fill(); ctx.stroke();
+
+  // ボクセルボディ
+  ctx.fillStyle = b.base;
+  ctx.beginPath(); ctx.roundRect(-w/2, -h/2, w, h, 5); ctx.fill();
+  ctx.fillStyle = b.body;
+  ctx.beginPath(); ctx.roundRect(-w/2 + 2.5, -h/2 + 2.5, w - 5, h - 5, 3.5); ctx.fill();
+
+  // ほっぺ
+  ctx.fillStyle = faceState === 'scared' ? 'rgba(255, 82, 82, 0.75)' : 'rgba(255, 138, 165, 0.65)';
+  const eyeX = w * 0.22;
+  ctx.beginPath();
+  ctx.roundRect(-eyeX - 5, 0, 5, 3, 1);
+  ctx.roundRect(eyeX, 0, 5, 3, 1);
+  ctx.fill();
+
+  // 顔（通常・ビビり・パニック）
+  ctx.strokeStyle = '#2c2c34';
+  ctx.fillStyle = '#2c2c34';
+  ctx.lineCap = 'round';
+
+  if (faceState === 'panic') {
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-eyeX, -2, 3, 0, Math.PI * 2);
+    ctx.arc(eyeX, -2, 3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#ff6b81';
+    ctx.beginPath(); ctx.arc(0, 4, 3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  } else if (faceState === 'scared') {
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-eyeX - 3, -4); ctx.lineTo(-eyeX + 2, -2); ctx.lineTo(-eyeX - 3, 0);
+    ctx.moveTo(eyeX + 3, -4); ctx.lineTo(eyeX - 2, -2); ctx.lineTo(eyeX + 3, 0);
+    ctx.stroke();
+    // 冷や汗
+    ctx.fillStyle = '#00d2d3';
+    ctx.beginPath(); ctx.arc(w/2 - 4, -h/2 + 5, 2.8, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.arc(-eyeX, -2, 2.5, 0, Math.PI * 2);
+    ctx.arc(eyeX, -2, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(-eyeX - 0.8, -2.8, 1, 0, Math.PI * 2);
+    ctx.arc(eyeX - 0.8, -2.8, 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(-1.5, 2, 1.5, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.arc(1.5, 2, 1.5, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.stroke();
+  }
+
+  // 右下に重さバッジを表示
+  ctx.fillStyle = b.border;
+  ctx.beginPath(); ctx.roundRect(w/2 - 14, h/2 - 12, 13, 11, 3); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 9.5px monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(b.weight, w/2 - 7.5, h/2 - 6.5);
+
+  ctx.restore();
+}
+
+// --- 描画メイン ---
+function draw() {
+  ctx.clearRect(0, 0, cw, ch);
+
+  // 1. 背景（青空と草原）
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, ch);
+  skyGrad.addColorStop(0, '#74b9ff');
+  skyGrad.addColorStop(0.7, '#dff9fb');
+  skyGrad.addColorStop(1, '#55efc4');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, cw, ch);
+
+  // 地面
+  const groundY = pivotY + 95;
+  ctx.fillStyle = '#2ed573';
+  ctx.fillRect(0, groundY, cw, ch - groundY);
+  ctx.fillStyle = '#7bed9f';
+  ctx.fillRect(0, groundY, cw, 8);
+
+  // 2. シーソーの支点（三角形の土台）
+  ctx.fillStyle = '#e67e22';
+  ctx.strokeStyle = '#d35400';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(pivotX, pivotY);
+  ctx.lineTo(pivotX - 34, groundY + 4);
+  ctx.lineTo(pivotX + 34, groundY + 4);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // 支点ピン
+  ctx.fillStyle = '#f1c40f';
+  ctx.beginPath(); ctx.arc(pivotX, pivotY, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.stroke();
+
+  // 3. シーソー本体と乗っているカクまるたち
+  ctx.save();
+  ctx.translate(pivotX, pivotY);
+  ctx.rotate(beamAngle);
+
+  // シーソーの板
+  ctx.fillStyle = '#f1c40f';
+  ctx.strokeStyle = '#d35400';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(-beamHalfLen - 8, -10, (beamHalfLen + 8) * 2, 20, 8);
+  ctx.fill(); ctx.stroke();
+
+  // 目盛り（支点0から左右に 1〜5）
+  const unitPx = beamHalfLen / 5;
+  ctx.fillStyle = '#2c3e50';
+  ctx.font = '900 11px monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let i = -5; i <= 5; i++) {
+    const mx = i * unitPx;
+    ctx.strokeStyle = i === 0 ? '#e74c3c' : 'rgba(44,62,80,0.5)';
+    ctx.lineWidth = i === 0 ? 3 : 1.5;
+    ctx.beginPath();
+    ctx.moveTo(mx, -10); ctx.lineTo(mx, -3);
+    ctx.stroke();
+    ctx.fillText(Math.abs(i), mx, 2);
+  }
+
+  // 乗っているカクまるを描画
+  const isDanger = Math.abs(beamAngle) > 0.22;
+  for (let b of placedBlocks) {
+    ctx.save();
+    const shake = isDanger ? Math.sin(animClock * 50 + b.phase) * 1.8 : 0;
+    ctx.translate(b.u + shake, -b.v);
+    drawKakumaru(ctx, b, isDanger ? 'scared' : 'normal');
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // 4. 狙っている位置のガイド線＆プレビューカクまる
+  if ((gameState === 'aim' || gameState === 'cpu_think') && hand[selectedIdx]) {
+    const c = hand[selectedIdx];
+    const px = pivotX + aimUnitPos * unitPx;
+    const py = ch * 0.22;
+
+    // 落下予測の点線
+    ctx.save();
+    ctx.strokeStyle = currentTurn === 1 ? 'rgba(52, 152, 219, 0.7)' : 'rgba(232, 67, 147, 0.7)';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    ctx.moveTo(px, py + c.h / 2);
+    ctx.lineTo(px, pivotY + (aimUnitPos * unitPx) * Math.sin(beamAngle) - 10);
+    ctx.stroke();
+    ctx.restore();
+
+    // プレビュー本体
+    ctx.save();
+    ctx.translate(px, py + Math.sin(animClock * 5) * 3);
+    drawKakumaru(ctx, c, 'normal');
+
+    // ヒントON時は「この場所に置いた時のちから（重さ×きょり）」を吹き出し表示！
+    if (showTorqueHint && gameState === 'aim') {
+      const addForce = (c.weight * Math.abs(aimUnitPos)).toFixed(1);
+      const sideStr = aimUnitPos < -0.05 ? '左' : (aimUnitPos > 0.05 ? '右' : 'まんなか');
+      ctx.fillStyle = 'rgba(44, 62, 80, 0.85)';
+      ctx.beginPath(); ctx.roundRect(-48, -c.h/2 - 28, 96, 20, 8); ctx.fill();
+      ctx.fillStyle = '#f1c40f';
+      ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(`${sideStr}へ +${addForce}`, 0, -c.h/2 - 18);
+    }
+    ctx.restore();
+  }
+
+  // 5. 落下中のカクまる
+  if (fallingBlock) {
+    ctx.save();
+    ctx.translate(fallingBlock.x, fallingBlock.y);
+    drawKakumaru(ctx, fallingBlock, 'normal');
+    ctx.restore();
+  }
+
+  // 6. 崩壊して落ちていくカクまるたち
+  for (let tb of tumbledBlocks) {
+    ctx.save();
+    ctx.translate(tb.x, tb.y);
+    ctx.rotate(tb.angle);
+    drawKakumaru(ctx, tb, 'panic');
+    ctx.restore();
+  }
+
+  // 7. パーティクル
+  for (let p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.roundRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2, 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1.0;
+
+  // 8. 耐えタイムの進行ゲージ
+  if (gameState === 'settling') {
+    const barW = 140;
+    const progress = Math.max(0, settleTimer / 1.65);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.roundRect(cw/2 - barW/2, ch * 0.20, barW, 10, 5); ctx.fill();
+    ctx.fillStyle = Math.abs(beamAngle) > 0.25 ? '#e74c3c' : '#2ecc71';
+    ctx.beginPath(); ctx.roundRect(cw/2 - barW/2, ch * 0.20, barW * progress, 10, 5); ctx.fill();
+  }
+}
+
+// --- ゲーム開始 ---
+function startGame() {
+  initAudio();
+  cpuLevel = parseInt(document.getElementById('diff-select').value);
+  showTorqueHint = document.getElementById('hint-select').value === '1';
+
+  document.getElementById('start-screen').classList.remove('show');
+  document.getElementById('result-screen').classList.remove('show');
+
+  resize();
+  placedBlocks = [];
+  tumbledBlocks = [];
+  fallingBlock = null;
+  particles = [];
+  beamAngle = 0;
+  beamAngVel = 0;
+  currentTurn = 1;
+  turnCount = 0;
+  aimUnitPos = 0;
+  document.getElementById('ui-pos-label').innerText = 'めもり: 0.0';
+
+  gameState = 'aim';
+  dealHand();
+  updateTurnUI();
+  updateTorqueUI();
+  setBanner('シーソーの上をなぞって場所を決めよう！');
+}
+
+// --- メインループ ---
+let lastTime = performance.now();
+function gameLoop(time) {
+  const dt = Math.min(0.05, (time - lastTime) / 1000);
+  lastTime = time;
+
+  updatePhysics(dt);
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+resize();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
