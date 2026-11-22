@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>つりあわせろ！カクまるシーソー</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#5c94fc">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="カクまるシーソー">
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.error));
+}
+</script>
+<style>
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  margin: 0;
+  padding: 0;
+  -webkit-touch-callout: none;
+}
+html, body {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
+  font-family: "Hiragino Maru Gothic ProN", "Rounded M+ 1c", sans-serif;
+  background: linear-gradient(180deg, #6ec6ff 0%, #c8f4ff 65%, #a8e063 65%, #76b852 100%);
+}
+#app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding-top: max(10px, var(--sat));
+  padding-bottom: max(10px, var(--sab));
+  padding-left: max(10px, var(--sal));
+  padding-right: max(10px, var(--sar));
+}
+#header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  z-index: 10;
+}
+.badge {
+  background: rgba(255,255,255,0.92);
+  color: #2c3e50;
+  font-weight: 900;
+  font-size: clamp(13px, 3.6vw, 17px);
+  padding: 6px 12px;
+  border-radius: 20px;
+  box-shadow: 0 3px 0 rgba(0,0,0,0.12);
+}
+.menu-btn {
+  background: #ff9800;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-weight: 900;
+  font-size: clamp(12px, 3.4vw, 15px);
+  box-shadow: 0 3px 0 #d87a00;
+  cursor: pointer;
+}
+.menu-btn:active { transform: translateY(2px); box-shadow: none; }
+#msg-box {
+  margin: 6px 8px 4px;
+  background: rgba(255,255,255,0.94);
+  border: 3px solid #ffd54f;
+  border-radius: 16px;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: clamp(14px, 4vw, 18px);
+  font-weight: 900;
+  color: #333;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.35;
+}
+#stage-wrap {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  min-height: 180px;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#slot-selector {
+  display: none;
+  justify-content: center;
+  gap: 8px;
+  margin: 2px 8px 6px;
+}
+.slot-tab {
+  flex: 1;
+  padding: 8px 6px;
+  border-radius: 14px;
+  border: 3px solid #fff;
+  background: rgba(255,255,255,0.75);
+  font-weight: 900;
+  font-size: clamp(12px, 3.4vw, 15px);
+  color: #2c3e50;
+  cursor: pointer;
+}
+.slot-tab.active {
+  background: #ffeb3b;
+  border-color: #f57f17;
+  box-shadow: 0 3px 0 #f57f17;
+}
+#tray {
+  background: rgba(255,255,255,0.92);
+  border-radius: 20px;
+  padding: 10px 8px;
+  box-shadow: 0 -3px 12px rgba(0,0,0,0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#weights {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.w-btn {
+  width: clamp(58px, 16vw, 74px);
+  height: clamp(58px, 16vw, 74px);
+  border-radius: 16px;
+  border: 3px solid #fff;
+  color: #fff;
+  font-weight: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.22);
+  cursor: pointer;
+  touch-action: none;
+}
+.w-btn:active { transform: translateY(3px); box-shadow: none; }
+.w-btn .num { font-size: clamp(20px, 5.5vw, 26px); line-height: 1; }
+.w-btn .face { font-size: clamp(12px, 3.2vw, 14px); margin-top: 2px; }
+#actions {
+  display: flex;
+  gap: 8px;
+}
+.act-btn {
+  flex: 1;
+  padding: 12px 8px;
+  border: none;
+  border-radius: 16px;
+  font-weight: 900;
+  font-size: clamp(15px, 4.2vw, 19px);
+  color: #fff;
+  cursor: pointer;
+}
+#btn-clear { background: #90a4ae; box-shadow: 0 4px 0 #607d8b; flex: 0.45; }
+#btn-check { background: #ff4081; box-shadow: 0 4px 0 #c51162; }
+.act-btn:active { transform: translateY(3px); box-shadow: none; }
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 40, 80, 0.88);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  z-index: 100;
+  text-align: center;
+  color: #fff;
+}
+.overlay.hidden { display: none; }
+.title-card {
+  background: #fff;
+  color: #2c3e50;
+  border-radius: 24px;
+  padding: 22px 18px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+}
+.title-card h1 {
+  font-size: clamp(22px, 6vw, 28px);
+  color: #ff4081;
+  margin-bottom: 6px;
+}
+.title-card p {
+  font-size: clamp(13px, 3.6vw, 15px);
+  color: #555;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.lv-btn {
+  width: 100%;
+  padding: 13px 12px;
+  margin-bottom: 10px;
+  border: none;
+  border-radius: 16px;
+  font-weight: 900;
+  font-size: clamp(14px, 4vw, 17px);
+  color: #fff;
+  cursor: pointer;
+  display: block;
+}
+.lv1 { background: #4caf50; box-shadow: 0 4px 0 #2e7d32; }
+.lv2 { background: #2196f3; box-shadow: 0 4px 0 #1565c0; }
+.lv3 { background: #9c27b0; box-shadow: 0 4px 0 #6a1b9a; }
+.lv-btn:active { transform: translateY(3px); box-shadow: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <button class="menu-btn" id="btn-menu">◀ もどる</button>
+    <div class="badge" id="ui-stage">もんだい 1 / 5</div>
+    <div class="badge" id="ui-score">⭐ 0</div>
+  </div>
+  <div id="msg-box">ひだりと おなじ おもさに しよう！</div>
+  <div id="stage-wrap"><canvas id="cv"></canvas></div>
+  <div id="slot-selector">
+    <button class="slot-tab active" id="tab-near">ちかくの せき（×1）</button>
+    <button class="slot-tab" id="tab-far">とおくの せき（×2）</button>
+  </div>
+  <div id="tray">
+    <div id="weights"></div>
+    <div id="actions">
+      <button class="act-btn" id="btn-clear">やりなおす</button>
+      <button class="act-btn" id="btn-check">⚖️ はかる！</button>
+    </div>
+  </div>
+
+  <div id="screen-start" class="overlay">
+    <div class="title-card">
+      <h1>⚖️ カクまるシーソー</h1>
+      <p>〜 かずバランス だいさくせん 〜<br>カクまるフレンズを のせて<br>シーソーを ぴたりと つりあわせよう！</p>
+      <button class="lv-btn lv1" data-lv="1">🌱 かんたん（1〜10 の かず）</button>
+      <button class="lv-btn lv2" data-lv="2">🚀 ふつう（10〜20 の たしざん）</button>
+      <button class="lv-btn lv3" data-lv="3">👑 ちょうせん（てこの げんり ×2）</button>
+    </div>
+  </div>
+
+  <div id="screen-clear" class="overlay hidden">
+    <div class="title-card">
+      <h1 id="clear-title">🎉 ステージクリア！</h1>
+      <p id="clear-msg"></p>
+      <button class="lv-btn lv1" id="btn-again">もういちど あそぶ</button>
+      <button class="lv-btn lv2" id="btn-top">レベルを えらぶ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COLORS = {
+  1: '#ef5350', 2: '#ff9800', 3: '#fbc02d',
+  4: '#66bb6a', 5: '#29b6f6', 6: '#ab47bc', 10: '#ec407a'
+};
+const FACES = { 1:'•ᴗ•', 2:'^ᴗ^', 3:'•ω•', 4:'≧◡≦', 5:'★ᴗ★', 6:'•∀•', 10:'👑' };
+
+let actx;
+
+function initAudio() {
+
+  if (!actx) {
+
+    const AudioCtx = window.AudioContext ? window.AudioContext : window.webkitAudioContext;
+
+    actx = new AudioCtx();
+
+  }
+  if (actx.state === 'suspended') {
+    actx.resume();
+}
+function playSE(type) {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator();
+  const g = actx.createGain();
+  o.connect(g); g.connect(actx.destination);
+  if (type === 'put') {
+    o.type = 'sine'; o.frequency.setValueAtTime(520, t); o.frequency.exponentialRampToValueAtTime(780, t + 0.08);
+    g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.09);
+    o.start(t); o.stop(t + 0.09);
+  } else if (type === 'clear') {
+    o.type = 'triangle';
+    [523, 659, 784, 1046].forEach((f, i) => o.frequency.setValueAtTime(f, t + i * 0.09));
+    g.gain.setValueAtTime(0.28, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.45);
+    o.start(t); o.stop(t + 0.45);
+  } else if (type === 'hint') {
+    o.type = 'sine'; o.frequency.setValueAtTime(340, t); o.frequency.linearRampToValueAtTime(260, t + 0.16);
+    g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
+    o.start(t); o.stop(t + 0.18);
+  }
+}
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 400, H = 300;
+function resize() {
+  const r = cv.parentElement.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = r.width; H = r.height;
+  cv.width = W * dpr; cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+let level = 1, stage = 1, score = 0, firstTry = true;
+let leftTarget = 5;
+let rightNear = [];
+let rightFar = [];
+let activeSlot = 'near';
+let angle = -0.25, targetAngle = -0.25;
+let particles = [];
+let locked = false;
+
+function getRightTorque() {
+  const nearSum = rightNear.reduce((a, b) => a + b, 0);
+  const farSum = rightFar.reduce((a, b) => a + b, 0);
+  return level === 3 ? nearSum * 1 + farSum * 2 : nearSum;
+}
+
+function updateSeesawTarget() {
+  const diff = getRightTorque() - leftTarget;
+  const maxTilt = 0.28;
+  targetAngle = Math.max(-maxTilt, Math.min(maxTilt, diff * 0.045));
+}
+
+function setupWeights() {
+  const box = document.getElementById('weights');
+  box.innerHTML = '';
+  const list = level === 1 ? [1, 2, 3, 5] : (level === 2 ? [1, 2, 3, 5, 10] : [1, 2, 3, 4, 5]);
+  list.forEach(v => {
+    const b = document.createElement('button');
+    b.className = 'w-btn';
+    b.style.background = COLORS[v] || '#29b6f6';
+    b.innerHTML = `<span class="num">${v}</span><span class="face">${FACES[v] || '•ᴗ•'}</span>`;
+    const addFn = (e) => {
+      e.preventDefault();
+      if (locked) return;
+      initAudio();
+      const arr = (level === 3 && activeSlot === 'far') ? rightFar : rightNear;
+      if (arr.length >= 6) {
+        setMsg('これいじょう のらないよ！「やりなおす」をおしてね');
+        playSE('hint');
+        return;
+      }
+      arr.push(v);
+      playSE('put');
+      updateSeesawTarget();
+    };
+    b.addEventListener('touchstart', addFn, { passive: false });
+    b.addEventListener('click', addFn);
+    box.appendChild(b);
+  });
+}
+
+function setMsg(text) {
+  document.getElementById('msg-box').textContent = text;
+}
+
+function nextProblem() {
+  locked = false;
+  firstTry = true;
+  rightNear = [];
+  rightFar = [];
+  activeSlot = 'near';
+  document.getElementById('tab-near').classList.add('active');
+  document.getElementById('tab-far').classList.remove('active');
+  document.getElementById('slot-selector').style.display = level === 3 ? 'flex' : 'none';
+  if (level === 1) {
+    leftTarget = Math.floor(Math.random() * 8) + 3; // 3〜10
+    setMsg(`ひだりは「${leftTarget}」！みぎに のせて つりあわせよう`);
+  } else if (level === 2) {
+    leftTarget = Math.floor(Math.random() * 11) + 10; // 10〜20
+    setMsg(`ひだりは「${leftTarget}」！たしざんで つりあわせよう`);
+  } else {
+    leftTarget = Math.floor(Math.random() * 11) + 6; // 6〜16
+    setMsg(`ちかく(×1)と とおく(×2)で「${leftTarget}」に しよう！`);
+  }
+  document.getElementById('ui-stage').textContent = `もんだい ${stage} / 5`;
+  document.getElementById('ui-score').textContent = `⭐ ${score}`;
+  updateSeesawTarget();
+}
+
+function spawnStars() {
+  for (let i = 0; i < 36; i++) {
+    particles.push({
+      x: W / 2, y: H * 0.55,
+      vx: (Math.random() - 0.5) * 9,
+      vy: -Math.random() * 8 - 2,
+      life: 1,
+      emoji: ['⭐', '✨', '🌈', '🎉'][i % 4]
+    });
+  }
+}
+
+function checkAnswer() {
+  if (locked) return;
+  initAudio();
+  const rightVal = getRightTorque();
+  if (rightVal === leftTarget) {
+    locked = true;
+    playSE('clear');
+    spawnStars();
+    if (firstTry) score += 20; else score += 10;
+    document.getElementById('ui-score').textContent = `⭐ ${score}`;
+    setMsg('🎉 ぴたり つりあったよ！すごい！！');
+    setTimeout(() => {
+      if (stage >= 5) {
+        showClear();
+      } else {
+        stage++;
+        nextProblem();
+      }
+    }, 1350);
+  } else {
+    firstTry = false;
+    playSE('hint');
+    if (rightVal < leftTarget) {
+      setMsg(`おしい！いまは「${rightVal}」。もうすこし おもくしよう！`);
+    } else {
+      setMsg(`おしい！いまは「${rightVal}」。ちょっと おもすぎるよ！`);
+    }
+  }
+}
+
+function showClear() {
+  const rank = score >= 90 ? '🌟 パーフェクト・バランスめいじん！' : (score >= 70 ? '⭐ すごい！かずの マスターだね！' : '👏 ぜんぶ クリア！がんばったね！');
+  document.getElementById('clear-msg').textContent = `${rank}\nスコア：${score} てん`;
+  document.getElementById('screen-clear').classList.remove('hidden');
+}
+
+function drawKakumaru(x, y, size, num) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = COLORS[num] || '#ff7043';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2.5;
+  const r = 8;
+  ctx.beginPath();
+  ctx.roundRect(-size/2, -size, size, size, r);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = `900 ${Math.round(size * 0.46)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(num, 0, -size * 0.56);
+  ctx.font = `${Math.round(size * 0.25)}px sans-serif`;
+  ctx.fillText(FACES[num] || '•ᴗ•', 0, -size * 0.2);
+  ctx.restore();
+}
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+  angle += (targetAngle - angle) * 0.14;
+
+  const cx = W / 2;
+  const cy = H * 0.66;
+  const beamW = Math.min(W * 0.84, 380);
+
+  // 土台（さんかく支点）
+  ctx.fillStyle = '#ff9800';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx - 26, cy + 44);
+  ctx.lineTo(cx + 26, cy + 44);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // シーソー本体
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+
+  ctx.fillStyle = '#8d6e63';
+  ctx.beginPath();
+  ctx.roundRect(-beamW/2, -8, beamW, 16, 8);
+  ctx.fill();
+  ctx.strokeStyle = '#5d4037';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 左ターゲットのおもり
+  const leftX = -beamW * 0.36;
+  drawKakumaru(leftX, -8, 54, leftTarget);
+
+  // 右のおもり
+  const drawStack = (arr, baseX, label) => {
+    if (level === 3) {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, baseX, 24);
+    }
+    arr.forEach((v, idx) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      const ox = baseX + (col - 0.5) * 34;
+      const oy = -8 - row * 34;
+      drawKakumaru(ox, oy, 32, v);
+    });
+  };
+
+  if (level === 3) {
+    drawStack(rightNear, beamW * 0.18, '×1');
+    drawStack(rightFar, beamW * 0.40, '×2');
+  } else {
+    drawStack(rightNear, beamW * 0.36, '');
+  }
+  ctx.restore();
+
+  // 水平ガイド（ぴったり時）
+  if (Math.abs(getRightTorque() - leftTarget) === 0 && (rightNear.length + rightFar.length) > 0) {
+    ctx.fillStyle = 'rgba(255, 235, 59, 0.9)';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('✨ 水平（すいへい）！ ✨', cx, cy - 86);
+  }
+
+  // パーティクル
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.25; p.life -= 0.02;
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.font = '24px sans-serif';
+    ctx.fillText(p.emoji, p.x, p.y);
+    ctx.globalAlpha = 1;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  requestAnimationFrame(render);
+}
+render();
+
+document.querySelectorAll('.lv-btn[data-lv]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    initAudio();
+    level = Number(btn.dataset.lv);
+    stage = 1; score = 0;
+    document.getElementById('screen-start').classList.add('hidden');
+    document.getElementById('screen-clear').classList.add('hidden');
+    setupWeights();
+    nextProblem();
+  });
+});
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (locked) return;
+  initAudio();
+  rightNear = []; rightFar = [];
+  updateSeesawTarget();
+  playSE('hint');
+});
+document.getElementById('btn-check').addEventListener('click', checkAnswer);
+document.getElementById('btn-menu').addEventListener('click', () => {
+  document.getElementById('screen-start').classList.remove('hidden');
+});
+document.getElementById('btn-again').addEventListener('click', () => {
+  stage = 1; score = 0;
+  document.getElementById('screen-clear').classList.add('hidden');
+  nextProblem();
+});
+document.getElementById('btn-top').addEventListener('click', () => {
+  document.getElementById('screen-clear').classList.add('hidden');
+  document.getElementById('screen-start').classList.remove('hidden');
+});
+document.getElementById('tab-near').addEventListener('click', () => {
+  activeSlot = 'near';
+  document.getElementById('tab-near').classList.add('active');
+  document.getElementById('tab-far').classList.remove('active');
+});
+document.getElementById('tab-far').addEventListener('click', () => {
+  activeSlot = 'far';
+  document.getElementById('tab-far').classList.add('active');
+  document.getElementById('tab-near').classList.remove('active');
+});
+</script>
+</body>
+</html>
